@@ -22,7 +22,7 @@ const statusLabels: Record<ConnectionStatus, string> = {
     <div class="flex-1 overflow-y-auto">
       <div :class="['flex min-h-full flex-col px-1 pb-4', isMobile ? 'justify-end' : '']">
         <SidebarSection v-for="project in projects" :key="project.path" :label="getProjectName(project.path)" collapsible>
-          <div class="ml-4 border-l border-outline-gray-2">
+          <div class="ml-2 border-l border-outline-gray-2">
             <SidebarItem v-if="!isMobile" label="New session" icon="lucide-plus" @click="$emit('create', project.path)" />
             <SidebarItem v-for="session in project.sessions" :key="session.id" :active="session.id === activeId"
               :class="isMobile ? 'min-h-10' : ''" :label="getSessionTitle(session)" :title="getSessionTitle(session)"
