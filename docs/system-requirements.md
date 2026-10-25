@@ -75,7 +75,9 @@ Caddy and Authelia add tens of MB each. This is an estimate, not a measurement. 
 | Inbound port 22 | Open to your IP address only, or closed. With port 22 closed, use AWS Systems Manager Session Manager for a shell. |
 | Server port | Listens on `127.0.0.1` only. Not in the security group. |
 
-Open ports 80 and 443 only after Authelia works. Before that, reach the server through an SSH port forward.
+Open ports 80 and 443 after Authelia passes its local health check.
+Caddy can then obtain certificates. Its app route must require forward_auth from the first request.
+Before that, reach the server through an SSH port forward.
 
 An Elastic IP keeps the address stable. It is optional.
 AWS charges $0.005 per hour for one public IPv4, whether auto-assigned or elastic, before credits and taxes.

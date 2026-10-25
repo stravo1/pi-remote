@@ -172,7 +172,10 @@ Recommendation: no approval through Phase 3. Add the approval extension in Phase
 | Vue 3 with reka-ui and Tailwind | Smaller install. | You style every component. |
 | React with shadcn/ui | Large community. | A second framework to learn and keep. |
 
-Recommendation: Vue 3 with frappe-ui. Use its components only. Write the WebSocket client yourself, because frappe-ui's data helpers expect a Frappe backend.
+Recommendation: Vue 3 with frappe-ui. Use its components and Espresso design tokens for typography, colors, spacing, and interaction states.
+Use the same tokens for layouts that need custom markup. Do not add a separate visual theme.
+Authentication screens have the same Espresso requirement. Authelia's stock portal is an interim interface and does not meet it.
+Write the WebSocket client yourself, because frappe-ui's data helpers expect a Frappe backend.
 
 ## Wire protocol
 

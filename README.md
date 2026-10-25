@@ -6,9 +6,10 @@ The stack is self-hosted on one rented machine. Caddy serves HTTPS on your domai
 
 ## Status
 
-Phase 0 (spike) is done. Phase 1 has a local server and client.
+Phase 0 (spike) and the original Phase 1 checklist are done.
 The findings are in [pi events](docs/pi-events.md).
-Host setup and phone login are still pending.
+The deployed app runs behind Caddy and Authelia. The user confirmed authenticated chat from a phone.
+The latest Espresso app UI is local only. The stock auth portal still needs an Espresso frontend plan.
 
 ## Local setup
 
@@ -16,9 +17,6 @@ Use Node 22.19 or later. Run these commands from the repository root:
 
 ```sh
 npm install
-npm test
-npm run check
-npm run build
 cp config.example.json config.local.json
 ```
 
@@ -28,7 +26,34 @@ Add its credentials through pi before you start the server.
 You can also select another model or omit `model` to use pi's settings.
 The server does not send credentials to the browser.
 
-Start the server:
+For development, start the backend with automatic restart in one terminal:
+
+```sh
+npm run dev -w server -- "$PWD/config.local.json"
+```
+
+In a second terminal, start Vite with Vue hot reload:
+
+```sh
+npm run dev -w web -- "$PWD/config.local.json"
+```
+
+Open the `origin` from your local configuration. The example uses `http://127.0.0.1:8080`.
+Vite reads the same configuration and proxies `/api` and `/ws` to the backend.
+It adds the configured user header for local WebSocket connections. No Caddy or Authelia is needed for development.
+The development server listens only on loopback.
+Both commands take the same configuration path. Restart them after changing that file.
+Changes to Vue components and styles reload through Vite without a frontend build.
+
+Verify changes with:
+
+```sh
+npm test
+npm run check
+npm run build
+```
+
+To test the production build locally, start the backend without watch mode:
 
 ```sh
 npm start -- "$PWD/config.local.json"
@@ -58,6 +83,7 @@ The client follows frappe-ui's [standalone setup](https://ui.frappe.io/docs/gett
 - [Specification](docs/spec.md): what the system does, how the parts fit, and the design decisions.
 - [Roadmap](docs/roadmap.md): the build order, in phases. Each phase ends with something you can use.
 - [System requirements](docs/system-requirements.md): what the host machine and the client devices need.
+- [Deployment](docs/deployment.md): the host setup, login configuration, and proxy templates.
 - [Phase docs](docs/phases/README.md): the plan, progress, and handoff for each phase. Agents start here.
 
 ## Layout

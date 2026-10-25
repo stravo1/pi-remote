@@ -4,5 +4,5 @@
     "types": ["vite/client", "node"],
     "erasableSyntaxOnly": true
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "vite.config.ts", "dev.ts"]
 }

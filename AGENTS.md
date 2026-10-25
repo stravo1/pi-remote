@@ -14,6 +14,10 @@ To start a new phase, copy the template in `docs/phases/README.md`.
 
 ## Conventions
 
+- Build all app UI with frappe-ui and follow the Espresso design system.
+- Use Espresso-native components, design tokens, typography, spacing, and interaction states. Do not add a separate visual theme.
+- Prefer frappe-ui components. Use its tokens and documented patterns for layouts that need custom markup.
+- Treat auth screens as part of the same UI requirement. Authelia's stock UI is a separate interface and does not satisfy Espresso compliance.
 - Write docs in plain English: short sentences, active voice, no em dashes.
 - Pin exact versions of `@earendil-works/pi-coding-agent`.
 - Use Conventional Commits: `<type>[optional scope]: <short imperative summary>`.

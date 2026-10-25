@@ -1,4 +1,5 @@
 node_modules/
+__pycache__/
 web/dist/
 config.local.json
 spikes/*/out/

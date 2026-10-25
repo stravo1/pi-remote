@@ -1,0 +1,48 @@
+server:
+  address: 'tcp://127.0.0.1:9091/'
+
+log:
+  level: 'info'
+
+totp:
+  issuer: 'pi-remote'
+
+identity_validation:
+  reset_password:
+    jwt_secret: '__RESET_PASSWORD_SECRET__'
+
+authentication_backend:
+  file:
+    path: '__CONFIGURATION_DIRECTORY__/users.json'
+
+access_control:
+  default_policy: 'deny'
+  rules:
+    - domain: 'pi.__DOMAIN__'
+      policy: 'two_factor'
+
+session:
+  secret: '__SESSION_SECRET__'
+  name: 'pi_remote_session'
+  same_site: 'lax'
+  inactivity: '5 minutes'
+  expiration: '1 hour'
+  remember_me: '1 day'
+  cookies:
+    - domain: '__DOMAIN__'
+      authelia_url: 'https://auth.__DOMAIN__'
+      default_redirection_url: 'https://pi.__DOMAIN__'
+
+regulation:
+  max_retries: 3
+  find_time: '2 minutes'
+  ban_time: '5 minutes'
+
+storage:
+  encryption_key: '__STORAGE_KEY__'
+  local:
+    path: '__STATE_DIRECTORY__/authelia.sqlite3'
+
+notifier:
+  filesystem:
+    filename: '__STATE_DIRECTORY__/notifications.txt'
