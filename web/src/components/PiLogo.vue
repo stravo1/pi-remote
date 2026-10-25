@@ -1,9 +1,7 @@
 <template>
-  <div class="size-full bg-surface-gray-9 text-ink-white" aria-hidden="true">
-    <svg viewBox="0 0 32 32" class="size-full" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M8.5 11.5h15" />
-      <path d="M13 12v1c0 4-.4 6.8-2 9.5" />
-      <path d="M19.5 12v7.5c0 2.2 1 3.2 3.5 3" />
-    </svg>
-  </div>
+  <svg viewBox="0 0 560 560" class="size-full p-1 text-ink-gray-9" fill="currentColor" aria-hidden="true">
+    <path d="M420 280H280V140H0V0H420V280Z" />
+    <path d="M560 560H420V280H560V560Z" />
+    <path d="M140 560H0V140H140V280H280V420H140V560Z" />
+  </svg>
 </template>
