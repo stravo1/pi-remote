@@ -47,11 +47,17 @@ function create(project: string): void {
       <SessionSidebar :projects="workspace.projects" :active-id="workspace.sessionId" :status="workspace.status"
         @select="select" @create="create" @create-group="openGroupDialog" :can-create-groups="!!workspace.groupsRoot" />
     </div>
-    <div v-if="isDrawerOpen" class="fixed inset-0 z-20 flex sm:hidden">
-      <SessionSidebar is-mobile class="shadow-2xl" :projects="workspace.projects" :active-id="workspace.sessionId"
-        :status="workspace.status" :can-create-groups="!!workspace.groupsRoot"
-        @select="select" @create="create" @create-group="openGroupDialog" />
-      <button class="flex-1 bg-black/30" aria-label="Close sessions" @click="isDrawerOpen = false" />
+    <div :class="['fixed inset-0 z-20 flex sm:hidden', isDrawerOpen ? '' : 'pointer-events-none']">
+      <Transition enter-active-class="transition-transform duration-300 ease-out" leave-active-class="transition-transform duration-200 ease-in"
+        enter-from-class="-translate-x-full" leave-to-class="-translate-x-full">
+        <SessionSidebar v-if="isDrawerOpen" is-mobile class="z-10 shadow-2xl" :projects="workspace.projects" :active-id="workspace.sessionId"
+          :status="workspace.status" :can-create-groups="!!workspace.groupsRoot"
+          @select="select" @create="create" @create-group="openGroupDialog" />
+      </Transition>
+      <Transition enter-active-class="transition-opacity duration-300" leave-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0" leave-to-class="opacity-0">
+        <button v-if="isDrawerOpen" class="flex-1 bg-black/30" aria-label="Close sessions" @click="isDrawerOpen = false" />
+      </Transition>
     </div>
     <NewGroupDialog v-model:open="isGroupDialogOpen" :root="workspace.groupsRoot" :error="workspace.error"
       @submit="(name) => workspace.createGroup(name)" />
