@@ -71,8 +71,7 @@ It listens on loopback and has no login. Use it for local development only.
 The server checks the WebSocket origin and user header.
 Direct browser connections to port 7710 fail because browsers cannot set that header.
 
-The client shows events received while the page is open.
-Reloading the page clears the transcript. Phase 2 adds history and reconnect support.
+The sidebar lists sessions by project. A new session runs in the project you pick, and the client reconnects after a network drop.
 The server logs each run's event count and JSON payload bytes sent across all connected clients.
 The byte count excludes WebSocket framing and proxy overhead.
 

@@ -1,0 +1,125 @@
+import type { Configuration } from "./config.ts";
+import { OpenSession, type HubClient, type HubSession, type RunMetrics } from "./open-session.ts";
+import type { PiAdapter } from "./pi-adapter.ts";
+
+export type { HubClient, HubSession, RunMetrics } from "./open-session.ts";
+
+export interface SessionSource {
+  list: PiAdapter["list"];
+  create(project: string): Promise<HubSession>;
+  open(project: string, path: string): Promise<HubSession>;
+}
+
+export class SessionHub {
+  private readonly source: SessionSource;
+  private readonly configuration: Pick<Configuration, "projects" | "idleMinutes">;
+  private readonly logRun: (metrics: RunMetrics) => void;
+  private readonly sessions = new Map<string, OpenSession>();
+  private readonly opening = new Map<string, Promise<OpenSession>>();
+  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  constructor(
+    source: SessionSource,
+    configuration: Pick<Configuration, "projects" | "idleMinutes">,
+    logRun: (metrics: RunMetrics) => void = (metrics) => console.log(JSON.stringify(metrics)),
+  ) {
+    this.source = source;
+    this.configuration = configuration;
+    this.logRun = logRun;
+  }
+
+  async getSessionList() {
+    const projects = await Promise.all(this.configuration.projects.map(async (path) => ({
+      path, sessions: await this.getProjectSessions(path),
+    })));
+    return { type: "sessions", projects };
+  }
+
+  async createSession(project: string): Promise<string> {
+    if (!this.configuration.projects.includes(project)) throw new Error("Unknown project.");
+    return this.register(project, await this.source.create(project)).id;
+  }
+
+  async subscribe(client: HubClient, sessionId: string): Promise<void> {
+    const entry = await this.getSession(sessionId);
+    entry.subscribers.add(client);
+    client.send(JSON.stringify(entry.snapshot));
+  }
+
+  unsubscribe(client: HubClient, sessionId: string): void {
+    const entry = this.sessions.get(sessionId);
+    if (!entry?.subscribers.delete(client)) return;
+    this.scheduleDisposal(entry);
+  }
+
+  removeClient(client: HubClient): void {
+    for (const entry of this.sessions.values()) this.unsubscribe(client, entry.id);
+  }
+
+  async prompt(sessionId: string, text: string): Promise<void> {
+    await (await this.getSession(sessionId)).session.prompt(text);
+  }
+
+  async abort(sessionId: string): Promise<void> {
+    await (await this.getSession(sessionId)).session.abort();
+  }
+
+  async close(): Promise<void> {
+    for (const timer of this.timers.values()) clearTimeout(timer);
+    this.timers.clear();
+    await Promise.all([...this.sessions.values()].map((entry) => entry.close()));
+    this.sessions.clear();
+  }
+
+  private async getProjectSessions(project: string) {
+    const stored = await this.source.list(project);
+    const open = [...this.sessions.values()].filter((entry) => entry.project === project);
+    const storedIds = new Set(stored.map((summary) => summary.id));
+    const summaries = [
+      ...stored.map(({ id, name, firstMessage, modified }) => ({ id, name, firstMessage, modified })),
+      ...open.filter((entry) => !storedIds.has(entry.id))
+        .map((entry) => ({ id: entry.id, name: undefined, firstMessage: "", modified: entry.openedAt })),
+    ];
+    return summaries.sort((a, b) => b.modified - a.modified)
+      .map((summary) => ({ ...summary, isRunning: this.sessions.get(summary.id)?.session.is_running ?? false }));
+  }
+
+  private getSession(sessionId: string): Promise<OpenSession> {
+    const existing = this.sessions.get(sessionId);
+    if (existing) return Promise.resolve(existing);
+    if (!this.opening.has(sessionId)) {
+      const opening = this.openStored(sessionId).finally(() => this.opening.delete(sessionId));
+      this.opening.set(sessionId, opening);
+    }
+    return this.opening.get(sessionId)!;
+  }
+
+  private async openStored(sessionId: string): Promise<OpenSession> {
+    for (const project of this.configuration.projects) {
+      const found = (await this.source.list(project)).find((summary) => summary.id === sessionId);
+      if (found) return this.register(project, await this.source.open(project, found.path));
+    }
+    throw new Error("Unknown session.");
+  }
+
+  private register(project: string, session: HubSession): OpenSession {
+    const entry = new OpenSession(project, session, this.logRun, () => this.scheduleDisposal(entry));
+    this.sessions.set(entry.id, entry);
+    this.scheduleDisposal(entry);
+    return entry;
+  }
+
+  private scheduleDisposal(entry: OpenSession): void {
+    clearTimeout(this.timers.get(entry.id));
+    const timer = setTimeout(() => void this.disposeIfIdle(entry), this.configuration.idleMinutes * 60_000);
+    timer.unref();
+    this.timers.set(entry.id, timer);
+  }
+
+  private async disposeIfIdle(entry: OpenSession): Promise<void> {
+    if (!entry.is_idle || this.sessions.get(entry.id) !== entry) return;
+    this.sessions.delete(entry.id);
+    this.timers.delete(entry.id);
+    await entry.close();
+  }
+}

@@ -1,31 +1,31 @@
 import {
-  createAgentSession, ModelRuntime, type AgentSession, type AgentSessionEvent,
+  createAgentSession, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent,
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
 import type { Configuration } from "./config.ts";
 
 export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
-export class PiAdapter {
+export interface SessionSummary {
+  id: string;
+  path: string;
+  name?: string;
+  firstMessage: string;
+  modified: number;
+}
+
+export interface Snapshot {
+  messages: AgentSession["messages"];
+  isStreaming: boolean;
+  queue: { steering: string[]; followUp: string[] };
+}
+
+export class PiSession {
   readonly session: AgentSession;
   private _isRunning = false;
 
   constructor(session: AgentSession) {
     this.session = session;
-  }
-
-  static async open(cwd: string, options: CreateAgentSessionOptions = {}): Promise<PiAdapter> {
-    const { session } = await createAgentSession({ ...options, cwd });
-    return new PiAdapter(session);
-  }
-
-  static async fromConfiguration(configuration: Configuration): Promise<PiAdapter> {
-    if (!configuration.model) return PiAdapter.open(configuration.projects[0]);
-    const modelRuntime = await ModelRuntime.create();
-    const { provider, id } = configuration.model;
-    const model = modelRuntime.getModel(provider, id);
-    if (!model) throw new Error(`Model not found: ${provider}/${id}`);
-    return PiAdapter.open(configuration.projects[0], { modelRuntime, model });
   }
 
   get id(): string {
@@ -34,6 +34,14 @@ export class PiAdapter {
 
   get is_running(): boolean {
     return this._isRunning;
+  }
+
+  get snapshot(): Snapshot {
+    return {
+      messages: [...this.session.messages],
+      isStreaming: this.is_running || this.session.isStreaming,
+      queue: { steering: [...this.session.getSteeringMessages()], followUp: [...this.session.getFollowUpMessages()] },
+    };
   }
 
   async prompt(text: string): Promise<void> {
@@ -46,6 +54,10 @@ export class PiAdapter {
     }
   }
 
+  async abort(): Promise<void> {
+    await this.session.abort();
+  }
+
   subscribe(listener: (event: AgentSessionEvent) => void): () => void {
     return this.session.subscribe(listener);
   }
@@ -53,5 +65,44 @@ export class PiAdapter {
   async close(): Promise<void> {
     await this.session.abort();
     this.session.dispose();
+  }
+}
+
+export class PiAdapter {
+  private readonly options: CreateAgentSessionOptions;
+  private readonly sessionDirectory?: string;
+
+  constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string) {
+    this.options = options;
+    this.sessionDirectory = sessionDirectory;
+  }
+
+  static async fromConfiguration(configuration: Configuration): Promise<PiAdapter> {
+    if (!configuration.model) return new PiAdapter();
+    const modelRuntime = await ModelRuntime.create();
+    const { provider, id } = configuration.model;
+    const model = modelRuntime.getModel(provider, id);
+    if (!model) throw new Error(`Model not found: ${provider}/${id}`);
+    return new PiAdapter({ modelRuntime, model });
+  }
+
+  async list(project: string): Promise<SessionSummary[]> {
+    const sessions = await SessionManager.list(project, this.sessionDirectory);
+    return sessions.map((info) => ({
+      id: info.id, path: info.path, name: info.name, firstMessage: info.firstMessage, modified: info.modified.getTime(),
+    }));
+  }
+
+  create(project: string): Promise<PiSession> {
+    return this.start(project, SessionManager.create(project, this.sessionDirectory));
+  }
+
+  open(project: string, path: string): Promise<PiSession> {
+    return this.start(project, SessionManager.open(path, this.sessionDirectory, project));
+  }
+
+  private async start(project: string, sessionManager: SessionManager): Promise<PiSession> {
+    const { session } = await createAgentSession({ ...this.options, cwd: project, sessionManager });
+    return new PiSession(session);
   }
 }

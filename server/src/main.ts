@@ -1,11 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { getConfigurationFile } from "./config.ts";
 import { PiAdapter } from "./pi-adapter.ts";
+import { SessionHub } from "./session-hub.ts";
 import { Transport } from "./transport.ts";
 
 const configuration = await getConfigurationFile(process.argv[2]);
-const adapter = await PiAdapter.fromConfiguration(configuration);
-const transport = new Transport(adapter, configuration, fileURLToPath(new URL("../../web/dist/", import.meta.url)));
+const hub = new SessionHub(await PiAdapter.fromConfiguration(configuration), configuration);
+const transport = new Transport(hub, configuration, fileURLToPath(new URL("../../web/dist/", import.meta.url)));
 
 try {
   await new Promise<void>((resolve, reject) => {
@@ -14,7 +15,7 @@ try {
   });
 } catch (error) {
   await transport.close();
-  await adapter.close();
+  await hub.close();
   throw error;
 }
 console.log(`pi remote listening on ${configuration.host}:${configuration.port}`);
@@ -23,7 +24,7 @@ let isClosing = false;
 async function close(): Promise<void> {
   if (isClosing) return;
   isClosing = true;
-  await adapter.close();
+  await hub.close();
   await transport.close();
 }
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

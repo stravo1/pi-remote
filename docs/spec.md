@@ -198,7 +198,7 @@ Server to client:
 
 | type | Fields | Meaning |
 |---|---|---|
-| `sessions` | `projects: [{ path, sessions: [{ id, name, firstMessage, modified }] }]` | Session list. |
+| `sessions` | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]` | Session list. |
 | `session_created` | `sessionId` | The new session is ready. |
 | `snapshot` | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq` | Full state at subscribe time. |
 | `event` | `sessionId`, `seq`, `event` | One pi event, unchanged. |
@@ -231,9 +231,8 @@ The configuration path comes from the command line: `npm start -- /absolute/path
 
 An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
 Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
-Phase 1 creates one session in `projects[0]` at startup.
-Its `prompt` command can omit `sessionId` because the client has only that session.
-Each event includes the session ID. Phase 2 adds explicit session selection and snapshots.
+The server opens no session at start. Each session runs in the project the client picked.
+Every command that targets a session names it with `sessionId`.
 
 ## Security
 

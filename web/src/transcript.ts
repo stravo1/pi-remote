@@ -1,4 +1,4 @@
-import type { AgentSessionEvent } from "../../server/src/pi-adapter.ts";
+import type { AgentSessionEvent, Snapshot } from "../../server/src/pi-adapter.ts";
 
 export interface TranscriptBlock {
   type: "text" | "thinking" | "toolCall";
@@ -23,6 +23,17 @@ export class Transcript {
       case "message_update": this.update(event); break;
       case "message_end": this.end(event.message); break;
     }
+  }
+
+  load(snapshot: Snapshot & { runEvents: AgentSessionEvent[] }): void {
+    this.messages = [];
+    this.active = undefined;
+    for (const message of snapshot.messages) {
+      this.start(message);
+      this.end(message);
+    }
+    for (const event of snapshot.runEvents) this.apply(event);
+    this.is_running = snapshot.isStreaming;
   }
 
   start(message: { role: string; content?: unknown }): void {

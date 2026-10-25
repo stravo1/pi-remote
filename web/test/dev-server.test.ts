@@ -10,8 +10,9 @@ import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
 import type { Configuration } from "../../server/src/config.ts";
-import type { AgentSessionEvent } from "../../server/src/pi-adapter.ts";
+import { SessionHub } from "../../server/src/session-hub.ts";
 import { Transport } from "../../server/src/transport.ts";
+import { FakeSource } from "../../server/test/fake-source.ts";
 
 async function getFreePort(): Promise<number> {
   const server = createServer();
@@ -44,18 +45,10 @@ test("the UI dev command proxies HTTP and authenticated WebSockets while preserv
     host: "127.0.0.1", port: 7710, origin: `http://127.0.0.1:${await getFreePort()}`,
     allowedUser: "local-test-user", projects: [directory], idleMinutes: 30,
   };
-  let listener: (event: AgentSessionEvent) => void = () => {};
-  let prompt = "";
-  const adapter = {
-    id: "development-test-session",
-    subscribe(callback: typeof listener) { listener = callback; return () => {}; },
-    async prompt(text: string) {
-      prompt = text;
-      listener({ type: "agent_start" });
-      listener({ type: "agent_settled", aborted: false });
-    },
-  };
-  const transport = new Transport(adapter, configuration, directory, 10_000, () => {});
+  const source = new FakeSource();
+  source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1 });
+  const hub = new SessionHub(source, configuration, () => {});
+  const transport = new Transport(hub, configuration, directory, 10_000);
   transport.server.listen(0, configuration.host);
   await once(transport.server, "listening");
   const address = transport.server.address();
@@ -77,6 +70,7 @@ test("the UI dev command proxies HTTP and authenticated WebSockets while preserv
       child.kill("SIGTERM");
       await stopped;
     }
+    await hub.close();
     await transport.close();
     await rm(directory, { recursive: true, force: true });
   });
@@ -90,13 +84,16 @@ test("the UI dev command proxies HTTP and authenticated WebSockets while preserv
   const events: string[] = [];
   const settled = new Promise<void>((resolve) => socket.on("message", (data) => {
     const message = JSON.parse(data.toString());
-    events.push(message.event.type);
-    if (message.event.type === "agent_settled") resolve();
+    events.push(message.type === "event" ? message.event.type : message.type);
+    if (message.type === "snapshot") {
+      socket.send(JSON.stringify({ type: "prompt", sessionId: "stored", text: "A development prompt" }));
+    }
+    if (message.event?.type === "agent_start") source.sessions.get("stored")!.finish();
+    if (message.event?.type === "agent_settled") resolve();
   }));
-  socket.send(JSON.stringify({ type: "prompt", text: "A development prompt" }));
+  socket.send(JSON.stringify({ type: "subscribe", sessionId: "stored" }));
   await settled;
-  assert.equal(prompt, "A development prompt");
-  assert.deepEqual(events, ["agent_start", "agent_settled"]);
+  assert.deepEqual(events, ["snapshot", "agent_start", "agent_settled"]);
   const denied = new WebSocket(url, { origin: "https://other.example.com" });
   clients.push(denied);
   await assert.rejects(once(denied, "open"), /403/);
