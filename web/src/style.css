@@ -5,4 +5,3 @@
 
 html, body, #app { height: 100%; }
 body { @apply bg-surface-base font-sans text-ink-gray-9; }
-.composer { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
