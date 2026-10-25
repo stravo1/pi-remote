@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { BottomSheet, Button } from "frappe-ui";
+import { Button } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import NewGroupDialog from "./components/NewGroupDialog.vue";
 import MessageItem from "./components/MessageItem.vue";
@@ -47,11 +47,12 @@ function create(project: string): void {
       <SessionSidebar :projects="workspace.projects" :active-id="workspace.sessionId" :status="workspace.status"
         @select="select" @create="create" @create-group="openGroupDialog" :can-create-groups="!!workspace.groupsRoot" />
     </div>
-    <BottomSheet v-model:open="isDrawerOpen" class="sm:hidden">
-      <h2 class="px-4 pb-3 text-center text-lg font-medium text-ink-gray-9">Sessions</h2>
-      <SessionSidebar is-sheet :projects="workspace.projects" :active-id="workspace.sessionId"
-        :status="workspace.status" @select="select" @create="create" @create-group="openGroupDialog" :can-create-groups="!!workspace.groupsRoot" />
-    </BottomSheet>
+    <div v-if="isDrawerOpen" class="fixed inset-0 z-20 flex sm:hidden">
+      <SessionSidebar is-mobile class="shadow-2xl" :projects="workspace.projects" :active-id="workspace.sessionId"
+        :status="workspace.status" :can-create-groups="!!workspace.groupsRoot"
+        @select="select" @create="create" @create-group="openGroupDialog" />
+      <button class="flex-1 bg-black/30" aria-label="Close sessions" @click="isDrawerOpen = false" />
+    </div>
     <NewGroupDialog v-model:open="isGroupDialogOpen" :root="workspace.groupsRoot" :error="workspace.error"
       @submit="(name) => workspace.createGroup(name)" />
     <main class="flex min-h-0 min-w-0 flex-1 flex-col">
