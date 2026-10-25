@@ -1,0 +1,89 @@
+# Roadmap
+
+Each phase ends with something you can use. Do not start a phase before the previous one meets its exit check. Requirement IDs (F1, N1) and decision IDs (D1) refer to the [specification](spec.md).
+
+## Phase 0: Spike
+
+Goal: learn how pi behaves through the SDK before you design around it.
+
+1. Install the pinned pi version in a scratch project.
+2. Run pi's `examples/sdk/01-minimal.ts`.
+3. Log every event of one run that uses a tool. Write down the event types and their order.
+4. List sessions with `SessionManager.list(cwd)` and open one with `SessionManager.open(path)`.
+5. Call `abort()` during a run. Note the events that follow.
+6. Call `steer()` and `followUp()` during a run. Note when each message enters.
+7. Find out if pi has a fake model for tests (spec open question 1).
+
+Exit check: a short note in `docs/pi-events.md` lists the event sequence for prompt, tool call, abort, steer, and follow-up.
+
+## Phase 1: Basic working app
+
+Goal: one prompt from a phone, with streamed output. Covers F4, F5 (prompt only), and N1.
+
+- Server: `PiAdapter` with `prompt`, and one WebSocket endpoint. One session, created at server start.
+- Client: one page with a transcript area and an input box. Text deltas append to the last assistant message.
+- Host: an Elastic IP, DNS records for `pi.` and `auth.` on your domain, Caddy with certificates, and Authelia with a second factor.
+- Server: the `Origin` check and the `Remote-User` check from the spec's Security section, and the 30-second ping (N6).
+- Until Authelia works, reach the server only through an SSH port forward. Do not open ports 80 and 443 before that.
+
+Exit check: you log in from your phone with a password and a second factor, send a prompt, and see the reply stream in. A request without a login gets the Authelia page.
+
+## Phase 2: Sessions that follow you
+
+Goal: the core feature. Covers F1, F2, F3, F6, F7, F8, F9, F10, and N4.
+
+- `SessionHub`: open sessions, subscribed clients, the run buffer, and `seq`.
+- Protocol: `list_sessions`, `new_session`, `subscribe`, `unsubscribe`, `abort`, `snapshot`.
+- Session list view, grouped by project.
+- Configuration file with the allowed projects.
+- Client reconnect with backoff, then a new `subscribe`.
+- Idle disposal of sessions.
+
+Exit check: you start a task on a laptop, close the tab, open a phone, and see the same run continue live. A second tab on the same session shows the same events.
+
+## Phase 3: A usable agent UI
+
+Goal: you prefer the client to the terminal for routine tasks. Covers F5 in full and N3.
+
+- Markdown rendering and code highlighting in messages.
+- Tool call cards: the command, collapsible output, and status.
+- File edits shown as diffs.
+- Steer and follow-up during a run.
+- Model and thinking level pickers.
+- Layout for a 375 px wide screen: sticky input, wrapped diffs.
+
+Exit check: you finish one real task from your phone without opening a terminal.
+
+## Phase 4: Make it reliable
+
+Goal: the server runs without attention. Covers N2.
+
+- Service file: launchd on macOS or systemd on Linux. The server starts at boot and restarts after a crash.
+- Automatic OS security updates (`unattended-upgrades` on Ubuntu, `dnf-automatic` on Amazon Linux).
+- Backups: scheduled EBS snapshots. The root volume holds pi sessions and Authelia's database.
+- UI states for disconnected, reconnecting, login expired, and server errors.
+- Structured logs with one line per command and per run.
+- Clean shutdown: abort runs, then dispose sessions.
+
+Exit check: reboot the host. The client reconnects, and old sessions open without manual steps.
+
+## Phase 5: Extras
+
+Pick these as needed. Each one is independent.
+
+- Push notifications when a run settles. This needs the client installed as a PWA. On iOS, it needs the app on the home screen.
+- Tool approval: a pi extension blocks risky tool calls until a client answers (D6).
+- A file browser for the project.
+- A terminal tab (xterm.js).
+- Image attachments in prompts.
+- MCP: load pi's `codemode`, `tool_search`, and MCP extensions in `PiAdapter`.
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| pi changes its SDK or event shapes. pi went from 0.82 to 1.4 in three months, with breaking changes on the way. | Pin the exact version (N5). Keep all pi calls in `PiAdapter`. Read the changelog before each upgrade. |
+| A flaw in Caddy or Authelia lets an attacker past the login. The attacker then has a shell. | Second factor on, lockout on, automatic OS updates, and prompt Caddy and Authelia updates. Keep the `Origin` and `Remote-User` checks in the server. |
+| A run executes a harmful command while you are away. | Same risk as pi in a terminal. Add tool approval in Phase 5 if this becomes a concern. |
+| Tool runs use up the memory of a small instance. | Use `t4g.small` or larger, add swap, and build the client elsewhere. See [system requirements](system-requirements.md). |
+| Snapshots get too large on long sessions. | Measure in Phase 2. Page old messages if needed. |
