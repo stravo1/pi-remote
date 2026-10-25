@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { FakeSource } from "./fake-source.ts";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ProjectStore } from "../src/project-store.ts";
 import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 
 function setup(idleMinutes = 30) {
@@ -85,4 +89,18 @@ test("disposes an idle session after idleMinutes and keeps a running one", async
   await run;
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(source.sessions.get("newer")!.closed, true);
+});
+
+test("a new group becomes a project that can hold sessions", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "pi-remote-hub-groups-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const hub = new SessionHub(new FakeSource(), { projects: ["/p/one"], idleMinutes: 30 }, () => {}, new ProjectStore(root));
+  context.after(() => hub.close());
+  const project = await hub.createGroup("notes");
+  const list = await hub.getSessionList();
+  assert.deepEqual(list.projects.map((item) => item.path), ["/p/one", project]);
+  assert.equal(list.groupsRoot, root);
+  assert.ok(await hub.createSession(project));
+  await assert.rejects(hub.createGroup("../x"), /Use letters/);
+  await assert.rejects(hub.createSession(join(root, "other")), /Unknown project/);
 });

@@ -36,3 +36,19 @@ test("places overlapping thinking and text deltas by contentIndex before message
   transcript.apply({ type: "agent_settled", aborted: true });
   assert.equal(transcript.is_running, false);
 });
+
+test("groups consecutive messages from the same sender and keeps timestamps", () => {
+  const transcript = new Transcript();
+  transcript.load({
+    messages: [
+      { role: "user", content: "Hi", timestamp: 1000 },
+      { role: "assistant", content: [{ type: "text", text: "Looking." }], timestamp: 2000 },
+      { role: "toolResult", content: [{ type: "text", text: "ok" }], timestamp: 3000 },
+      { role: "assistant", content: [{ type: "text", text: "Done." }], timestamp: 4000 },
+      { role: "user", content: "Thanks", timestamp: 5000 },
+    ],
+    runEvents: [], isStreaming: false, queue: { steering: [], followUp: [] },
+  } as unknown as Parameters<Transcript["load"]>[0]);
+  assert.deepEqual(transcript.messages.map((_, index) => transcript.isGroupStart(index)), [true, true, false, false, true]);
+  assert.equal(transcript.messages[1].timestamp, 2000);
+});

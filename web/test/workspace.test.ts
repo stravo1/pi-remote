@@ -42,3 +42,27 @@ test("ignores events and snapshots for another session", () => {
   workspace.handle({ ...snapshot, sessionId: "other" });
   assert.equal(workspace.transcript.messages.length, 0);
 });
+
+test("picks the project of the open session for a new session", () => {
+  const { workspace } = setup();
+  workspace.projects = [
+    { path: "/p/one", sessions: [] },
+    { path: "/p/two", sessions: [{ id: "one", firstMessage: "", modified: 1, isRunning: false }] },
+  ];
+  assert.equal(workspace.activeProjectPath, "/p/two");
+  workspace.sessionId = "missing";
+  assert.equal(workspace.activeProjectPath, "/p/one");
+});
+
+test("starts a session in a new group", () => {
+  const { workspace, sent } = setup();
+  workspace.handle({ type: "group_created", project: "/home/me/notes" });
+  assert.equal(workspace.lastGroup, "/home/me/notes");
+  assert.deepEqual(sent, [{ type: "new_session", project: "/home/me/notes" }]);
+});
+
+test("keeps the groups root from the session list", () => {
+  const { workspace } = setup();
+  workspace.handle({ type: "sessions", projects: [], groupsRoot: "/home/me" });
+  assert.equal(workspace.groupsRoot, "/home/me");
+});

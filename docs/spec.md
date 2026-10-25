@@ -78,7 +78,8 @@ One person runs pi on one machine and uses it from any device through a browser.
 | F7 | A run continues when all clients disconnect. |
 | F8 | A client that connects during a run sees the run state, then live events. |
 | F9 | Two clients on one session see the same events. Input from either one goes to the session. |
-| F10 | The server only starts sessions in directories listed in its configuration. |
+| F10 | The server only starts sessions in listed directories. These are the configured `projects` and the groups the user creates in `projectsRoot`. |
+| F11 | The client creates a group: a new folder directly inside `projectsRoot`. |
 
 ## Non-functional requirements
 
@@ -186,6 +187,7 @@ Client to server:
 | type | Fields | Effect |
 |---|---|---|
 | `list_sessions` | | Server replies with `sessions`. |
+| `new_group` | `name` | Creates the folder `<projectsRoot>/<name>` and lists it as a project. Server replies with `group_created`. |
 | `new_session` | `project` | Creates a session. Server replies with `session_created`. |
 | `subscribe` | `sessionId` | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages. |
 | `unsubscribe` | `sessionId` | Stops events for this client. |
@@ -198,7 +200,8 @@ Server to client:
 
 | type | Fields | Meaning |
 |---|---|---|
-| `sessions` | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]` | Session list. |
+| `sessions` | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]`, optional `groupsRoot` | Session list. `groupsRoot` is present only when the client can create groups. |
+| `group_created` | `project` | The new group is ready. |
 | `session_created` | `sessionId` | The new session is ready. |
 | `snapshot` | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq` | Full state at subscribe time. |
 | `event` | `sessionId`, `seq`, `event` | One pi event, unchanged. |
@@ -231,6 +234,10 @@ The configuration path comes from the command line: `npm start -- /absolute/path
 
 An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
 Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
+An optional `projectsRoot` (an absolute path) lets the client create groups.
+A group name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.
+The server keeps the group list in `<projectsRoot>/.pi-remote/projects.json`.
+Without `projectsRoot`, the client cannot create groups.
 The server opens no session at start. Each session runs in the project the client picked.
 Every command that targets a session names it with `sessionId`.
 

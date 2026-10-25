@@ -1,7 +1,14 @@
 <script setup lang="ts">
-import type { TranscriptMessage } from "../transcript.ts";
+import { renderMarkdown } from "../markdown.ts";
+import { getSender, type TranscriptMessage } from "../transcript.ts";
 
-defineProps<{ message: TranscriptMessage }>();
+const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean }>();
+
+const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
+
+function formatTime(): string {
+  return props.message.timestamp ? timeFormat.format(props.message.timestamp) : "";
+}
 
 function splitToolCall(text: string): [string, string] {
   const [name, ...rest] = text.split(" ");
@@ -10,19 +17,20 @@ function splitToolCall(text: string): [string, string] {
 </script>
 
 <template>
-  <article :class="['flex', message.role === 'user' ? 'justify-end' : 'justify-start']">
-    <div v-if="message.role === 'user'" class="max-w-[85%] rounded-5 bg-surface-gray-2 px-4 py-2.5">
-      <p v-for="(block, index) in message.content" :key="index" class="whitespace-pre-wrap break-words text-p-base text-ink-gray-9">{{ block.text }}</p>
-    </div>
-    <details v-else-if="message.role === 'toolResult'" class="w-full rounded-4 border border-outline-gray-1 text-p-sm">
-      <summary class="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-ink-gray-5 hover:text-ink-gray-7">
-        <span class="lucide-corner-down-right size-3.5" aria-hidden="true" />Output
-      </summary>
-      <pre v-for="(block, index) in message.content" :key="index"
-        class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7">{{ block.text }}</pre>
-    </details>
-    <div v-else class="w-full min-w-0 space-y-3">
-      <template v-for="(block, index) in message.content" :key="index">
+  <article :class="isGroupStart ? 'mt-5 first:mt-0' : 'mt-1'">
+    <div class="min-w-0 space-y-1.5">
+      <header v-if="isGroupStart" class="flex items-baseline gap-2">
+        <span class="text-lg font-medium text-ink-gray-9 sm:text-base">{{ getSender(message.role) }}</span>
+        <time class="text-p-xs text-ink-gray-5">{{ formatTime() }}</time>
+      </header>
+      <details v-if="message.role === 'toolResult'" class="rounded-4 border border-outline-gray-1 text-p-sm">
+        <summary class="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-ink-gray-5 hover:text-ink-gray-7">
+          <span class="lucide-corner-down-right size-3.5" aria-hidden="true" />Output
+        </summary>
+        <pre v-for="(block, index) in message.content" :key="index"
+          class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7">{{ block.text }}</pre>
+      </details>
+      <template v-else v-for="(block, index) in message.content" :key="index">
         <details v-if="block.type === 'thinking'" class="text-p-sm text-ink-gray-5">
           <summary class="cursor-pointer select-none hover:text-ink-gray-7">Thinking</summary>
           <p class="mt-2 whitespace-pre-wrap break-words border-l-2 border-outline-gray-2 pl-3">{{ block.text }}</p>
@@ -32,7 +40,8 @@ function splitToolCall(text: string): [string, string] {
           <span class="font-medium text-ink-gray-8">{{ splitToolCall(block.text)[0] }}</span>
           <code class="min-w-0 flex-1 truncate font-mono text-ink-gray-6">{{ splitToolCall(block.text)[1] }}</code>
         </div>
-        <p v-else-if="block.text" class="whitespace-pre-wrap break-words text-p-base leading-relaxed text-ink-gray-8">{{ block.text }}</p>
+        <p v-else-if="block.text && message.role === 'user'" class="whitespace-pre-wrap break-words text-lg leading-relaxed text-ink-gray-8 sm:text-p-base">{{ block.text }}</p>
+        <div v-else-if="block.text" class="markdown" v-html="renderMarkdown(block.text)" />
       </template>
     </div>
   </article>

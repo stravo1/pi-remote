@@ -5,6 +5,8 @@ import { Transcript } from "./transcript.ts";
 export class Workspace {
   status: ConnectionStatus = "connecting";
   projects: ProjectGroup[] = [];
+  groupsRoot?: string;
+  lastGroup = "";
   sessionId = "";
   transcript = new Transcript();
   error = "";
@@ -15,6 +17,11 @@ export class Workspace {
 
   get activeSession(): SessionItem | undefined {
     return this.projects.flatMap((project) => project.sessions).find((session) => session.id === this.sessionId);
+  }
+
+  get activeProjectPath(): string | undefined {
+    const project = this.projects.find((group) => group.sessions.some((session) => session.id === this.sessionId));
+    return (project ?? this.projects[0])?.path;
   }
 
   get is_disabled(): boolean {
@@ -47,6 +54,11 @@ export class Workspace {
     this.run({ type: "new_session", project });
   }
 
+  createGroup(name: string): void {
+    this.error = "";
+    this.run({ type: "new_group", name });
+  }
+
   sendPrompt(text: string): void {
     this.isSending = true;
     this.error = "";
@@ -59,7 +71,8 @@ export class Workspace {
 
   handle(message: any): void {
     switch (message.type) {
-      case "sessions": this.projects = message.projects; break;
+      case "sessions": this.projects = message.projects; this.groupsRoot = message.groupsRoot; break;
+      case "group_created": this.lastGroup = message.project; this.createSession(message.project); break;
       case "session_created": this.refreshList(); this.select(message.sessionId); break;
       case "snapshot": this.applySnapshot(message); break;
       case "event": this.applyEvent(message); break;

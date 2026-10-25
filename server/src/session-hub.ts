@@ -1,6 +1,7 @@
 import type { Configuration } from "./config.ts";
 import { OpenSession, type HubClient, type HubSession, type RunMetrics } from "./open-session.ts";
 import type { PiAdapter } from "./pi-adapter.ts";
+import { ProjectStore } from "./project-store.ts";
 
 export type { HubClient, HubSession, RunMetrics } from "./open-session.ts";
 
@@ -14,6 +15,7 @@ export class SessionHub {
   private readonly source: SessionSource;
   private readonly configuration: Pick<Configuration, "projects" | "idleMinutes">;
   private readonly logRun: (metrics: RunMetrics) => void;
+  private readonly store: ProjectStore;
   private readonly sessions = new Map<string, OpenSession>();
   private readonly opening = new Map<string, Promise<OpenSession>>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -22,21 +24,27 @@ export class SessionHub {
     source: SessionSource,
     configuration: Pick<Configuration, "projects" | "idleMinutes">,
     logRun: (metrics: RunMetrics) => void = (metrics) => console.log(JSON.stringify(metrics)),
+    store = new ProjectStore(),
   ) {
+    this.store = store;
     this.source = source;
     this.configuration = configuration;
     this.logRun = logRun;
   }
 
   async getSessionList() {
-    const projects = await Promise.all(this.configuration.projects.map(async (path) => ({
+    const projects = await Promise.all((await this.getProjects()).map(async (path) => ({
       path, sessions: await this.getProjectSessions(path),
     })));
-    return { type: "sessions", projects };
+    return { type: "sessions", projects, groupsRoot: this.store.root };
+  }
+
+  createGroup(name: string): Promise<string> {
+    return this.store.create(name);
   }
 
   async createSession(project: string): Promise<string> {
-    if (!this.configuration.projects.includes(project)) throw new Error("Unknown project.");
+    if (!(await this.getProjects()).includes(project)) throw new Error("Unknown project.");
     return this.register(project, await this.source.create(project)).id;
   }
 
@@ -71,6 +79,10 @@ export class SessionHub {
     this.sessions.clear();
   }
 
+  private async getProjects(): Promise<string[]> {
+    return [...new Set([...this.configuration.projects, ...await this.store.list()])];
+  }
+
   private async getProjectSessions(project: string) {
     const stored = await this.source.list(project);
     const open = [...this.sessions.values()].filter((entry) => entry.project === project);
@@ -95,7 +107,7 @@ export class SessionHub {
   }
 
   private async openStored(sessionId: string): Promise<OpenSession> {
-    for (const project of this.configuration.projects) {
+    for (const project of await this.getProjects()) {
       const found = (await this.source.list(project)).find((summary) => summary.id === sessionId);
       if (found) return this.register(project, await this.source.open(project, found.path));
     }

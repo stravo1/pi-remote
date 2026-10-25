@@ -7,6 +7,7 @@ export interface TranscriptBlock {
 
 export interface TranscriptMessage {
   role: string;
+  timestamp?: number;
   content: TranscriptBlock[];
 }
 
@@ -25,6 +26,12 @@ export class Transcript {
     }
   }
 
+  isGroupStart(index: number): boolean {
+    const current = this.messages[index];
+    const previous = this.messages[index - 1];
+    return !previous || getSender(previous.role) !== getSender(current.role);
+  }
+
   load(snapshot: Snapshot & { runEvents: AgentSessionEvent[] }): void {
     this.messages = [];
     this.active = undefined;
@@ -36,9 +43,9 @@ export class Transcript {
     this.is_running = snapshot.isStreaming;
   }
 
-  start(message: { role: string; content?: unknown }): void {
+  start(message: { role: string; content?: unknown; timestamp?: number }): void {
     if (message.role === "system") return;
-    this.active = { role: message.role, content: getBlocks(message.content) };
+    this.active = { role: message.role, timestamp: message.timestamp, content: getBlocks(message.content) };
     this.messages.push(this.active);
   }
 
@@ -52,12 +59,17 @@ export class Transcript {
     content[update.contentIndex].text += update.delta;
   }
 
-  end(message: { role: string; content?: unknown }): void {
+  end(message: { role: string; content?: unknown; timestamp?: number }): void {
     if (message.role === "system") return;
     if (!this.active) this.start(message);
     this.active!.content = getBlocks(message.content);
+    this.active!.timestamp = message.timestamp ?? this.active!.timestamp;
     this.active = undefined;
   }
+}
+
+export function getSender(role: string): "You" | "pi" {
+  return role === "user" ? "You" : "pi";
 }
 
 function getBlocks(content: unknown): TranscriptBlock[] {

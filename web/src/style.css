@@ -4,4 +4,22 @@
 @tailwind utilities;
 
 html, body, #app { height: 100%; }
-body { @apply bg-surface-base font-sans text-ink-gray-9; }
+body { @apply bg-surface-base text-ink-gray-9; }
+
+.markdown { @apply break-words text-lg leading-relaxed text-ink-gray-8 sm:text-p-base; }
+.markdown > * + * { @apply mt-3; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { @apply mt-5 font-semibold text-ink-gray-9; }
+.markdown h1 { @apply text-xl font-semibold sm:text-lg; }
+.markdown h2, .markdown h3, .markdown h4 { @apply text-lg font-semibold sm:text-base; }
+.markdown ul { @apply list-disc pl-5; }
+.markdown ol { @apply list-decimal pl-5; }
+.markdown li + li { @apply mt-1; }
+.markdown a { @apply underline underline-offset-2 hover:text-ink-gray-9; }
+.markdown blockquote { @apply border-l-2 border-outline-gray-3 pl-3 text-ink-gray-6; }
+.markdown hr { @apply border-outline-gray-2; }
+.markdown code { @apply rounded-3 bg-surface-gray-2 px-1 py-0.5 font-mono text-[0.9em]; }
+.markdown pre { @apply overflow-x-auto rounded-4 border border-outline-gray-1 bg-surface-gray-1 p-3 text-p-sm; }
+.markdown pre code { @apply bg-transparent p-0 text-[1em]; }
+.markdown table { @apply block w-full overflow-x-auto text-p-sm; }
+.markdown th, .markdown td { @apply border border-outline-gray-2 px-2 py-1 text-left; }
+.markdown th { @apply bg-surface-gray-1 font-medium; }

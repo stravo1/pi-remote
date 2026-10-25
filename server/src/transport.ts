@@ -9,6 +9,7 @@ interface Command {
   type?: unknown;
   sessionId?: unknown;
   project?: unknown;
+  name?: unknown;
   text?: unknown;
 }
 
@@ -74,12 +75,19 @@ export class Transport {
     switch (command?.type) {
       case "list_sessions": return client.send(JSON.stringify(await this.hub.getSessionList()));
       case "new_session": return this.createSession(client, command);
+      case "new_group": return this.createGroup(client, command);
       case "subscribe": return this.hub.subscribe(client, requireSessionId(command));
       case "unsubscribe": return this.hub.unsubscribe(client, requireSessionId(command));
       case "prompt": return this.hub.prompt(requireSessionId(command), requireText(command));
       case "abort": return this.hub.abort(requireSessionId(command));
       default: throw new Error("Unknown command.");
     }
+  }
+
+  async createGroup(client: HubClient, command: Command): Promise<void> {
+    if (typeof command.name !== "string") throw new Error("The group name must be a string.");
+    const project = await this.hub.createGroup(command.name);
+    client.send(JSON.stringify({ type: "group_created", project }));
   }
 
   async createSession(client: HubClient, command: Command): Promise<void> {

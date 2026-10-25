@@ -8,6 +8,7 @@ export interface Configuration {
   allowedUser: string;
   projects: string[];
   idleMinutes: number;
+  projectsRoot?: string;
   model?: { provider: string; id: string };
 }
 
@@ -30,6 +31,8 @@ export function getConfiguration(value: unknown): Configuration {
     "projects", "use a nonempty list of absolute paths");
   requireField(isPositiveNumber(value.idleMinutes),
     "idleMinutes", "use a positive number");
+  requireField(value.projectsRoot === undefined || (isNonemptyString(value.projectsRoot) && isAbsolute(value.projectsRoot)),
+    "projectsRoot", "use an absolute path");
   if (value.model !== undefined) validateModel(value.model);
   return value as unknown as Configuration;
 }

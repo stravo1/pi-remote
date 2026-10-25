@@ -23,6 +23,7 @@ for (const [field, value] of [
   ["host", "0.0.0.0"], ["port", 0], ["port", 1.5], ["port", 65536],
   ["origin", "https://pi.example.com/path"], ["origin", "file:///tmp"],
   ["allowedUser", " "], ["projects", []], ["projects", ["relative"]], ["idleMinutes", -1],
+  ["projectsRoot", "relative"], ["projectsRoot", " "],
 ] as const) {
   test(`rejects invalid ${field}: ${JSON.stringify(value)}`, () => {
     assert.throws(() => getConfiguration({ ...valid, [field]: value }), new RegExp(`"${field}"`));
@@ -35,4 +36,8 @@ test("requires a configuration file on the command line", async () => {
 
 test("validates explicit model selection", () => {
   assert.throws(() => getConfiguration({ ...valid, model: { provider: "openrouter" } }), /model.id/);
+});
+
+test("accepts an absolute projectsRoot", () => {
+  assert.equal(getConfiguration({ ...valid, projectsRoot: "/home/me" }).projectsRoot, "/home/me");
 });
