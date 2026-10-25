@@ -1,0 +1,12 @@
+[Unit]
+Description=pi remote server
+After=network-online.target
+
+[Service]
+WorkingDirectory=__DIRECTORY__
+ExecStart=__NODE__ server/src/main.ts __DIRECTORY__/config.local.json
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
