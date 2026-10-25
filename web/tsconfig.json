@@ -1,0 +1,8 @@
+{
+  "extends": "frappe-ui/tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["vite/client", "node"],
+    "erasableSyntaxOnly": true
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "test/**/*.ts", "vite.config.ts"]
+}

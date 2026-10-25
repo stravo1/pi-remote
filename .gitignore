@@ -1,3 +1,5 @@
 node_modules/
+web/dist/
+config.local.json
 spikes/*/out/
 .env

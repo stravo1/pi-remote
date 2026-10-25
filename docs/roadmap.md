@@ -22,7 +22,8 @@ Goal: one prompt from a phone, with streamed output. Covers F4, F5 (prompt only)
 
 - Server: `PiAdapter` with `prompt`, and one WebSocket endpoint. One session, created at server start.
 - Client: one page with a transcript area and an input box. Text deltas append to the last assistant message.
-- Host: an Elastic IP, DNS records for `pi.` and `auth.` on your domain, Caddy with certificates, and Authelia with a second factor.
+- Host: a public IPv4 address, DNS records for `pi.` and `auth.`, Caddy with certificates, and Authelia with a second factor.
+- An Elastic IP is optional. With an auto-assigned public IPv4, update both DNS records after a stop/start.
 - Server: the `Origin` check and the `Remote-User` check from the spec's Security section, and the 30-second ping (N6).
 - Until Authelia works, reach the server only through an SSH port forward. Do not open ports 80 and 443 before that.
 

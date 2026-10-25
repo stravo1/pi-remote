@@ -1,4 +1,4 @@
-# pi web
+# pi remote
 
 A self-hosted web client for the pi coding agent. The design is in `docs/spec.md`. The build order is in `docs/roadmap.md`.
 
@@ -16,4 +16,7 @@ To start a new phase, copy the template in `docs/phases/README.md`.
 
 - Write docs in plain English: short sentences, active voice, no em dashes.
 - Pin exact versions of `@earendil-works/pi-coding-agent`.
+- Use Conventional Commits: `<type>[optional scope]: <short imperative summary>`.
+- Choose the type that fits the change, such as `feat`, `fix`, `docs`, `refactor`, `test`, `build`, or `chore`.
+- Example: `feat(server): stream session events over WebSocket`.
 - Ask the user before you commit or push.

@@ -24,8 +24,8 @@ pi has native code only in its terminal package. It ships prebuilt binaries for 
 | Item | Requirement |
 |---|---|
 | Domain | A domain you control at any registrar |
-| `pi.<domain>` | `A` record to the Elastic IP. Serves the app. |
-| `auth.<domain>` | `A` record to the Elastic IP. Serves the Authelia login page. |
+| `pi.<domain>` | `A` record to the host's public IPv4. Serves the app. |
+| `auth.<domain>` | `A` record to the host's public IPv4. Serves the Authelia login page. |
 
 Both names must share the parent domain, because Authelia sets its session cookie on it.
 
@@ -69,13 +69,17 @@ Caddy and Authelia add tens of MB each. This is an estimate, not a measurement. 
 
 | Item | Requirement |
 |---|---|
-| Public address | An Elastic IP attached to the instance. A normal public IP changes after a stop and start. An attached Elastic IP costs the same as any public IPv4 ($0.005 per hour). AWS also charges for an Elastic IP that is not attached. |
+| Public address | An auto-assigned public IPv4 or an Elastic IP. With auto-assignment, update both DNS records after a stop/start. |
 | Inbound port 443 | Open to all. HTTPS. |
 | Inbound port 80 | Open to all. Caddy uses it for certificate challenges and the redirect to HTTPS. |
 | Inbound port 22 | Open to your IP address only, or closed. With port 22 closed, use AWS Systems Manager Session Manager for a shell. |
 | Server port | Listens on `127.0.0.1` only. Not in the security group. |
 
 Open ports 80 and 443 only after Authelia works. Before that, reach the server through an SSH port forward.
+
+An Elastic IP keeps the address stable. It is optional.
+AWS charges $0.005 per hour for one public IPv4, whether auto-assigned or elastic, before credits and taxes.
+An idle Elastic IP also incurs this charge. See [AWS VPC pricing](https://aws.amazon.com/vpc/pricing/).
 
 ### Build the client elsewhere
 

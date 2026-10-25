@@ -1,0 +1,27 @@
+{"type":"agent_start"}
+{"type":"message_start","message":{"role":"system","content":""}}
+{"type":"message_end","message":{"role":"system","content":""}}
+{"type":"message_start","message":{"role":"user","content":[{"type":"text","text":"Run `echo hello` with the bash tool, then tell me the output in one line."}]}}
+{"type":"message_end","message":{"role":"user","content":[{"type":"text","text":"Run `echo hello` with the bash tool, then tell me the output in one line."}]}}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"The"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" user wants me to run `"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"echo hello` using"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" the bash tool and then tell"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" them the output in"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" one line."}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The user wants me to run `echo hello` using the bash tool and then tell them the output in one line."},{"type":"toolCall","name":"bash","arguments":{"command":"echo hello"}}]}}
+{"type":"message_start","message":{"role":"toolResult","content":[{"type":"text","text":"hello\n"}]}}
+{"type":"message_end","message":{"role":"toolResult","content":[{"type":"text","text":"hello\n"}]}}
+{"type":"message_start","message":{"role":"assistant","content":[]}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"The"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" output of"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" `"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":"echo hello` is simply"}}
+{"type":"message_update","assistantMessageEvent":{"type":"thinking_delta","contentIndex":0,"delta":" \"hello\"."}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":"The output"}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":" of `echo"}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":" hello` is:"}}
+{"type":"message_update","assistantMessageEvent":{"type":"text_delta","contentIndex":1,"delta":" `hello`"}}
+{"type":"message_end","message":{"role":"assistant","content":[{"type":"thinking","thinking":"The output of `echo hello` is simply \"hello\"."},{"type":"text","text":"The output of `echo hello` is: `hello`"}]}}
+{"type":"agent_settled","aborted":false}

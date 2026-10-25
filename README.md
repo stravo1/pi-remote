@@ -1,4 +1,4 @@
-# pi web
+# pi remote
 
 A web client for the [pi coding agent](https://pi.dev). The server runs pi on one machine. You open the client in a browser on any of your devices and work with the same sessions.
 
@@ -6,7 +6,52 @@ The stack is self-hosted on one rented machine. Caddy serves HTTPS on your domai
 
 ## Status
 
-Phase 0 (spike) is done. The findings are in [pi events](docs/pi-events.md). No app code yet.
+Phase 0 (spike) is done. Phase 1 has a local server and client.
+The findings are in [pi events](docs/pi-events.md).
+Host setup and phone login are still pending.
+
+## Local setup
+
+Use Node 22.19 or later. Run these commands from the repository root:
+
+```sh
+npm install
+npm test
+npm run check
+npm run build
+cp config.example.json config.local.json
+```
+
+Set `projects[0]` in `config.local.json` to your project's absolute path.
+The example selects the OpenRouter model from the spike.
+Add its credentials through pi before you start the server.
+You can also select another model or omit `model` to use pi's settings.
+The server does not send credentials to the browser.
+
+Start the server:
+
+```sh
+npm start -- "$PWD/config.local.json"
+```
+
+In a second terminal, start [Caddy](https://caddyserver.com/docs/install):
+
+```sh
+caddy run --config dev/Caddyfile --adapter caddyfile
+```
+
+Open `http://127.0.0.1:8080` in your browser.
+The [local proxy configuration](dev/Caddyfile) replaces `Remote-User` with `me`.
+It listens on loopback and has no login. Use it for local development only.
+The server checks the WebSocket origin and user header.
+Direct browser connections to port 7710 fail because browsers cannot set that header.
+
+The client shows events received while the page is open.
+Reloading the page clears the transcript. Phase 2 adds history and reconnect support.
+The server logs each run's event count and JSON payload bytes sent across all connected clients.
+The byte count excludes WebSocket framing and proxy overhead.
+
+The client follows frappe-ui's [standalone setup](https://ui.frappe.io/docs/getting-started/standalone).
 
 ## Documents
 
@@ -15,10 +60,10 @@ Phase 0 (spike) is done. The findings are in [pi events](docs/pi-events.md). No 
 - [System requirements](docs/system-requirements.md): what the host machine and the client devices need.
 - [Phase docs](docs/phases/README.md): the plan, progress, and handoff for each phase. Agents start here.
 
-## Planned layout
+## Layout
 
 ```
-pi-web/
+pi-remote/
   server/   Node + TypeScript. Owns the pi sessions.
   web/      Vue 3 + frappe-ui. The browser client.
   docs/

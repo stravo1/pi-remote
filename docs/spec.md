@@ -35,7 +35,7 @@ One person runs pi on one machine and uses it from any device through a browser.
 ## Architecture
 
 ```
- phone / laptop / tablet                         host (Elastic IP)
+ phone / laptop / tablet                         host (public IP)
 +----------------------+    HTTPS      +---------------------------------+
 | Client (Vue app)     | <-----------> | Caddy :443                      |
 |  WebSocket client    |  (internet)   |   forward_auth -> Authelia      |
@@ -148,7 +148,9 @@ Recommendation: pass pi events through for now. It gives up independence from pi
 
 Recommendation: Caddy with Authelia. The project depends only on the rented machine, the domain registrar, and the certificate authority (Let's Encrypt). It gives up the protection of a closed network. Caddy and Authelia face the internet, so they must stay patched.
 
-The host has an Elastic IP. A normal EC2 public IP changes when the instance stops and starts, and the DNS records would then point at the wrong address.
+The host needs a public IPv4 address. An Elastic IP is optional and keeps the address stable.
+A normal EC2 public IPv4 changes after a stop/start. Update both DNS records when it changes.
+A reboot keeps the address. See [AWS instance lifecycle](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-lifecycle.html).
 
 ### D6. Tool approval
 
@@ -211,6 +213,7 @@ Server to client:
 ## Configuration
 
 The server reads one JSON file. There are no hidden defaults for paths.
+The configuration path comes from the command line: `npm start -- /absolute/path/to/config.json`.
 
 ```json
 {
@@ -222,6 +225,12 @@ The server reads one JSON file. There are no hidden defaults for paths.
   "idleMinutes": 30
 }
 ```
+
+An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
+Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
+Phase 1 creates one session in `projects[0]` at startup.
+Its `prompt` command can omit `sessionId` because the client has only that session.
+Each event includes the session ID. Phase 2 adds explicit session selection and snapshots.
 
 ## Security
 

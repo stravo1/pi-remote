@@ -1,0 +1,12 @@
+{
+  "host": "127.0.0.1",
+  "port": 7710,
+  "origin": "http://127.0.0.1:8080",
+  "allowedUser": "me",
+  "projects": ["/absolute/path/to/your/project"],
+  "idleMinutes": 30,
+  "model": {
+    "provider": "openrouter",
+    "id": "deepseek/deepseek-v4-flash"
+  }
+}

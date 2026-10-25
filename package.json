@@ -1,0 +1,13 @@
+{
+  "name": "pi-remote",
+  "private": true,
+  "type": "module",
+  "workspaces": ["server", "web"],
+  "engines": { "node": ">=22.19.0" },
+  "scripts": {
+    "test": "npm test --workspaces",
+    "check": "npm run check --workspaces",
+    "build": "npm run build -w web",
+    "start": "npm start -w server --"
+  }
+}
