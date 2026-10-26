@@ -9,9 +9,11 @@ self.addEventListener("notificationclick", (event) => {
 
 async function showNotice(notice) {
   const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  // Focus is not required: on mobile the app is often on screen without the
+  // browser reporting focus (after app switching, with the keyboard up), and a
+  // notice for the thread the reader is looking at is noise either way.
   const isWatching = windows.some(
-    (client) =>
-      client.focused && client.visibilityState === "visible" && new URL(client.url).hash === `#${notice.sessionId}`,
+    (client) => client.visibilityState === "visible" && new URL(client.url).hash === `#${notice.sessionId}`,
   );
   if (notice.sessionId && isWatching) return;
   await self.registration.showNotification(notice.title || "pi remote", {
