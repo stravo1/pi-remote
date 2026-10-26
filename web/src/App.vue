@@ -13,6 +13,8 @@ import { Workspace } from "./workspace.ts";
 
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
+// New content scrolls the transcript only while the reader is at the bottom.
+let isFollowing = true;
 const isProviderSettingsOpen = ref(location.hash === "#settings");
 
 onMounted(() => {
@@ -27,12 +29,24 @@ onMounted(() => {
 watch(
   () => workspace.transcript.messages,
   async () => {
+    if (!isFollowing) return;
     await nextTick();
     const element = transcriptElement.value;
     if (element) element.scrollTop = element.scrollHeight;
   },
   { deep: true },
 );
+watch(
+  () => workspace.sessionId,
+  () => {
+    isFollowing = true;
+  },
+);
+
+function trackScroll(): void {
+  const element = transcriptElement.value;
+  if (element) isFollowing = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+}
 
 watch(
   () => workspace.status,
@@ -132,6 +146,7 @@ function closeProviderSettings(): void {
       <section
         ref="transcriptElement"
         class="min-h-0 flex-1 overflow-y-auto max-sm:order-1"
+        @scroll.passive="trackScroll"
         aria-label="Conversation"
         aria-live="polite"
       >

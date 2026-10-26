@@ -164,6 +164,34 @@ for (const width of [375, 1280]) {
     assert.match((await page.locator("meta[name=viewport]").getAttribute("content")) ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByText("File diff", { exact: true }).waitFor();
+    const conversation = page.getByRole("region", { name: "Conversation" });
+    const addMessage = async (text: string) => {
+      const message = { role: "user", content: text };
+      event({ type: "message_start", message });
+      event({ type: "message_end", message });
+      await page.getByText(text, { exact: true }).waitFor();
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+    };
+    const getScroll = () =>
+      conversation.evaluate((element) => ({
+        top: element.scrollTop,
+        fromBottom: element.scrollHeight - element.scrollTop - element.clientHeight,
+      }));
+    for (let index = 0; index < 12; index++) await addMessage(`Filler message ${index} ${"text ".repeat(30)}`);
+    assert.ok((await getScroll()).fromBottom < 2, "New content follows while the reader is at the bottom");
+    const scrollTo = (place: "top" | "bottom") =>
+      conversation.evaluate(async (element, place) => {
+        element.scrollTo({ top: place === "top" ? 0 : element.scrollHeight });
+        // The browser sends the scroll event on the next frame.
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      }, place);
+    await scrollTo("top");
+    await addMessage("Arrives while reading above");
+    assert.equal((await getScroll()).top, 0, "New content does not move a reader who scrolled up");
+    await scrollTo("bottom");
+    await addMessage("Arrives at the bottom");
+    assert.ok((await getScroll()).fromBottom < 2, "Following resumes at the bottom");
     assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
     assert.equal(await page.getByText("Changed file").count(), 0);
     await page.getByRole("button", { name: /edit/ }).click();
