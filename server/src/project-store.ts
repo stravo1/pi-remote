@@ -1,5 +1,5 @@
-import { lstat, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 const folderName = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 
@@ -28,8 +28,8 @@ export class ProjectStore {
     return created;
   }
 
-  remove(path: string): Promise<void> {
-    const removed = this.pending.then(() => this.delete(path));
+  remove(path: string, isDeletingFolder = false): Promise<void> {
+    const removed = this.pending.then(() => this.delete(path, isDeletingFolder));
     this.pending = removed.catch(() => {});
     return removed;
   }
@@ -49,9 +49,13 @@ export class ProjectStore {
     return path;
   }
 
-  private async delete(path: string): Promise<void> {
+  private async delete(path: string, isDeletingFolder: boolean): Promise<void> {
     const groups = await this.list();
     if (!groups.includes(path)) throw new Error("Unknown project.");
+    if (isDeletingFolder) {
+      if (dirname(path) !== this.root) throw new Error("Only folders directly inside the projects root can be deleted.");
+      await rm(path, { recursive: true, force: true });
+    }
     await this.save(groups.filter((group) => group !== path));
   }
 

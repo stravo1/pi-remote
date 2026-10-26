@@ -43,10 +43,10 @@ export class SessionHub {
     return this.store.create(name);
   }
 
-  async removeGroup(project: string): Promise<void> {
+  async removeGroup(project: string, isDeletingFolder = false): Promise<void> {
     const open = [...this.sessions.values()].filter((entry) => entry.project === project);
     if (open.some((entry) => entry.session.is_running)) throw new Error("A session in this project is still running.");
-    await this.store.remove(project);
+    await this.store.remove(project, isDeletingFolder);
     for (const entry of open) {
       clearTimeout(this.timers.get(entry.id));
       this.timers.delete(entry.id);

@@ -29,6 +29,21 @@ test("removes a project from the list and keeps its folder", async (context) => 
   await assert.rejects(store.remove(path), /Unknown project/);
 });
 
+test("deletes a project folder only when asked and only inside the root", async (context) => {
+  const root = await setup(context);
+  const store = new ProjectStore(root);
+  const path = await store.create("notes");
+  await writeFile(join(path, "file.txt"), "data");
+  await store.remove(path, true);
+  await assert.rejects(lstat(path), /ENOENT/);
+  const outside = join(root, "nested", "deep");
+  await mkdir(outside, { recursive: true });
+  await writeFile(join(root, ".pi-remote", "projects.json"), JSON.stringify([outside]));
+  const edited = new ProjectStore(root);
+  await assert.rejects(edited.remove(outside, true), /directly inside/);
+  assert.ok((await lstat(outside)).isDirectory());
+});
+
 test("adopts an existing folder once and lists it once", async (context) => {
   const root = await setup(context);
   await mkdir(join(root, "existing"));

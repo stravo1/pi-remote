@@ -63,9 +63,9 @@ export class Workspace {
     this.run({ type: "new_session", project });
   }
 
-  removeGroup(project: string): void {
+  removeGroup(project: string, deleteFolder: boolean): void {
     this.error = "";
-    this.run({ type: "remove_group", project });
+    this.run({ type: "remove_group", project, deleteFolder });
   }
 
   createGroup(name: string): void {

@@ -16,6 +16,7 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
   const source = new FakeSource();
   source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1000 });
   const projects = [directory];
+  const removals: boolean[] = [];
   const configuration: Configuration = {
     host: "127.0.0.1", port: 7710, origin: "https://pi.example.com",
     allowedUser: "me", projectsRoot: directory, idleMinutes: 30,
@@ -28,7 +29,10 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
       projects.push(project);
       return project;
     },
-    remove: async (project: string) => { projects.splice(projects.indexOf(project), 1); },
+    remove: async (project: string, isDeletingFolder: boolean) => {
+      projects.splice(projects.indexOf(project), 1);
+      removals.push(isDeletingFolder);
+    },
   } as unknown as ProjectStore;
   const hub = new SessionHub(source, configuration, () => {}, store);
   const transport = new Transport(hub, configuration, directory, pingInterval, providers);
@@ -42,7 +46,7 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
   const address = transport.server.address();
   assert.ok(address && typeof address === "object");
   const url = `http://127.0.0.1:${address.port}`;
-  return { directory, source, transport, url };
+  return { directory, source, transport, url, removals };
 }
 
 async function connect(url: string, options = {}) {
@@ -134,7 +138,7 @@ test("bad commands return errors and leave the socket usable", { timeout: 5000 }
 });
 
 test("new_group needs a name and creates a project", { timeout: 5000 }, async (context) => {
-  const { url } = await setup(context);
+  const { url, removals } = await setup(context);
   const socket = await connect(url);
   assert.match((await request(socket, { type: "new_group" })).message, /must be a string/);
   const { project } = await request(socket, { type: "new_group", name: "notes" });
@@ -142,6 +146,9 @@ test("new_group needs a name and creates a project", { timeout: 5000 }, async (c
   const list = await request(socket, { type: "remove_group", project });
   assert.equal(list.type, "sessions");
   assert.ok(!list.projects.some((item: any) => item.path === project));
+  const { project: other } = await request(socket, { type: "new_group", name: "other" });
+  await request(socket, { type: "remove_group", project: other, deleteFolder: true });
+  assert.deepEqual(removals, [false, true]);
 });
 
 test("shares queues and settings with two clients and a reconnect", { timeout: 5000 }, async (context) => {

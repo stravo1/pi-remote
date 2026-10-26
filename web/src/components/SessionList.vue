@@ -6,7 +6,7 @@ import PiLogo from "./PiLogo.vue";
 import { getProjectName, getSessionTitle, type ConnectionStatus, type ProjectGroup } from "../protocol.ts";
 
 const props = defineProps<{ projects: ProjectGroup[]; status: ConnectionStatus; canCreateGroups: boolean; error: string }>();
-const emit = defineEmits<{ select: [sessionId: string]; create: [project: string]; createGroup: [name: string]; removeGroup: [project: string]; settings: [] }>();
+const emit = defineEmits<{ select: [sessionId: string]; create: [project: string]; createGroup: [name: string]; removeGroup: [project: string, isDeletingFolder: boolean]; settings: [] }>();
 const isCreatingGroup = ref(false);
 const collapsedKey = "pi-remote:collapsed-projects";
 const collapsed = ref(new Set<string>(readCollapsed()));
@@ -35,13 +35,18 @@ function toggle(project: string): void {
 }
 
 function confirmRemove(project: string): void {
+  const remove = (isDeletingFolder: boolean) => ({ close }: { close: () => void }) => {
+    isRemoving.value = true;
+    emit("removeGroup", project, isDeletingFolder);
+    close();
+  };
   dialog.danger({
     title: `Delete ${getProjectName(project)}?`,
-    message: "This removes the project from pi remote. The folder and its sessions stay on disk.",
-    onConfirm: () => {
-      isRemoving.value = true;
-      emit("removeGroup", project);
-    },
+    message: "Remove from list keeps the folder and its sessions on disk. Delete folder also erases the folder and every file in it.",
+    actions: [
+      { label: "Remove from list", onClick: remove(false) },
+      { label: "Delete folder", theme: "red", variant: "solid", onClick: remove(true) },
+    ],
   });
 }
 
@@ -78,7 +83,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
                 <span class="truncate">{{ getProjectName(project.path) }}</span>
               </button>
             </h2>
-            <Button variant="ghost" icon-left="lucide-plus" label="New session" @click="$emit('create', project.path)" />
+            <Button variant="ghost" icon="lucide-plus" aria-label="New session" @click="$emit('create', project.path)" />
             <Button variant="ghost" icon="lucide-trash-2" :aria-label="`Delete ${getProjectName(project.path)}`" @click="confirmRemove(project.path)" />
           </div>
           <ul v-if="!collapsed.has(project.path)" class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">

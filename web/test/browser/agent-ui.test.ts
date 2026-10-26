@@ -168,9 +168,10 @@ for (const width of [375, 1280]) {
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
     await page.getByRole("button", { name: "Delete example" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete folder" }).waitFor();
+    await page.getByRole("dialog").getByRole("button", { name: "Remove from list" }).click();
     await page.getByText("No projects found.", { exact: true }).waitFor();
-    assert.ok(commands.some((command) => command.type === "remove_group" && command.project === "/code/example"));
+    assert.ok(commands.some((command) => command.type === "remove_group" && command.project === "/code/example" && command.deleteFolder === false));
     assert.deepEqual(errors, []);
   });
 }

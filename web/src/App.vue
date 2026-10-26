@@ -53,7 +53,7 @@ function closeProviderSettings(): void {
       @login="(provider, type) => workspace.startProviderLogin(provider, type)" @answer="(value) => workspace.submitProviderLogin(value)" @cancel="() => workspace.cancelProviderLogin()" />
     <SessionList v-else-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot" :error="workspace.error" @select="(id) => workspace.select(id)"
-      @create="(project) => workspace.createSession(project)" @create-group="(name) => workspace.createGroup(name)" @remove-group="(project) => workspace.removeGroup(project)" @settings="openProviderSettings" />
+      @create="(project) => workspace.createSession(project)" @create-group="(name) => workspace.createGroup(name)" @remove-group="(project, isDeletingFolder) => workspace.removeGroup(project, isDeletingFolder)" @settings="openProviderSettings" />
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">

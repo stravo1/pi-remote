@@ -19,6 +19,7 @@ interface Command {
   authType?: unknown;
   loginId?: unknown;
   value?: unknown;
+  deleteFolder?: unknown;
 }
 
 export interface ProviderManager {
@@ -175,7 +176,7 @@ export class Transport {
   }
 
   async removeGroup(client: HubClient, command: Command): Promise<void> {
-    await this.hub.removeGroup(requireString(command.project));
+    await this.hub.removeGroup(requireString(command.project), command.deleteFolder === true);
     client.send(JSON.stringify(await this.hub.getSessionList()));
   }
 
