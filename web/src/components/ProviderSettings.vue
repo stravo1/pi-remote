@@ -52,7 +52,7 @@ function saveKey(): void {
       </div>
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto max-sm:order-1">
-    <div class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4">
+    <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4 max-sm:justify-end">
 
       <section class="space-y-3" aria-labelledby="providers-heading">
         <div class="flex items-center gap-2">
