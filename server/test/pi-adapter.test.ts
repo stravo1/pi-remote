@@ -257,6 +257,7 @@ test("provider settings mark providers that use an API key", async (context) => 
   const { adapter } = await setup(context, []);
   const faux = (await adapter.getProviderSettings()).find((provider) => provider.id === "faux");
   assert.equal(faux?.isUsingApiKey, true);
+  assert.equal(faux?.hasStoredLogin, true);
 });
 
 test("saved provider keys persist and can be read back", async (context) => {
@@ -265,6 +266,20 @@ test("saved provider keys persist and can be read back", async (context) => {
   assert.equal(await adapter.getProviderApiKey("openai"), "saved-key");
   const restarted = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
   assert.equal((await restarted.getAuth("openai"))?.auth.apiKey, "saved-key");
+});
+
+test("refuses to sign out of a provider set up outside pi's login store", async () => {
+  let isLoggedOut = false;
+  const modelRuntime = {
+    getProvider: () => ({ auth: {} }),
+    getProviderAuthStatus: () => ({ configured: true, source: "models_json_key" }),
+    logout: async () => {
+      isLoggedOut = true;
+    },
+  };
+  const adapter = new PiAdapter({ modelRuntime: modelRuntime as never });
+  await assert.rejects(adapter.logoutProvider("ollama"), /models\.json or the environment/);
+  assert.equal(isLoggedOut, false);
 });
 
 test("starting a provider login cancels the login that is still waiting", async () => {

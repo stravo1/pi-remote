@@ -38,7 +38,8 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
           JSON.stringify({ type: "provider_login_event", loginId: "login-two", event: { type: "complete" } }),
         );
       }
-      if (command.type === "list_providers" || command.type === "set_provider_key") {
+      if (command.type === "logout_provider") isKeySaved = false;
+      if (["list_providers", "set_provider_key", "logout_provider"].includes(command.type)) {
         socket.send(
           JSON.stringify({
             type: "providers",
@@ -50,8 +51,16 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
                 accountLabel: "Sign in with ChatGPT",
                 isConfigured: isKeySaved,
                 isUsingApiKey: isKeySaved,
+                hasStoredLogin: isKeySaved,
               },
-              { id: "groq", name: "Groq", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false },
+              {
+                id: "groq",
+                name: "Groq",
+                authTypes: ["api_key"],
+                isConfigured: false,
+                isUsingApiKey: false,
+                hasStoredLogin: false,
+              },
             ],
           }),
         );
@@ -130,6 +139,13 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
         command.type === "set_provider_key" && command.provider === "openai" && command.apiKey === "another-key",
     ),
   );
+  const providerList = page.getByRole("list", { name: "Connected providers" });
+  await providerList.getByText("openai", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Sign out" }).click();
+  assert.ok(!commands.some((command) => command.type === "logout_provider"), "One tap does not sign out");
+  await page.getByRole("button", { name: "Confirm sign out of OpenAI" }).click();
+  await page.getByText("No providers connected").waitFor();
+  assert.ok(commands.some((command) => command.type === "logout_provider" && command.provider === "openai"));
   await choose(page, "Sign in with ChatGPT");
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Paste the redirect URL" }).waitFor();

@@ -28,6 +28,14 @@ const emit = defineEmits<{
 }>();
 const isAdding = ref(false);
 const editingId = ref<string>();
+// The first tap on Sign out arms it in red. A second tap signs out. Focus moving away disarms it.
+const signingOutId = ref<string>();
+
+function signOut(provider: string): void {
+  if (signingOutId.value !== provider) return void (signingOutId.value = provider);
+  signingOutId.value = undefined;
+  emit("logout", provider);
+}
 const key = ref("");
 const keyInputs = ref<{ focus(): void }[]>([]);
 const connected = computed(() => props.providers.filter((provider) => provider.isConfigured));
@@ -121,7 +129,10 @@ function saveKey(): void {
                 />
               </form>
               <template v-else>
-                <h3 class="min-w-0 flex-1 truncate text-base text-ink-gray-9">{{ provider.name }}</h3>
+                <div class="min-w-0 flex-1">
+                  <h3 class="truncate text-base text-ink-gray-9">{{ provider.name }}</h3>
+                  <p class="truncate text-p-xs text-ink-gray-5">{{ provider.id }}</p>
+                </div>
                 <Button
                   v-if="provider.isUsingApiKey && provider.authTypes.includes('api_key')"
                   variant="ghost"
@@ -130,10 +141,13 @@ function saveKey(): void {
                   @click="editKey(provider.id)"
                 />
                 <Button
+                  v-if="provider.hasStoredLogin"
                   variant="ghost"
+                  :theme="signingOutId === provider.id ? 'red' : 'gray'"
                   icon="lucide-trash-2"
-                  aria-label="Sign out"
-                  @click="emit('logout', provider.id)"
+                  :aria-label="signingOutId === provider.id ? `Confirm sign out of ${provider.name}` : 'Sign out'"
+                  @click="signOut(provider.id)"
+                  @blur="signingOutId = undefined"
                 />
               </template>
             </li>

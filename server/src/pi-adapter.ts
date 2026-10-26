@@ -49,6 +49,8 @@ export interface ProviderSettings {
   authTypes: AuthType[];
   isConfigured: boolean;
   isUsingApiKey: boolean;
+  /** pi saved this login, so signing out can remove it. Keys from models.json or the environment cannot. */
+  hasStoredLogin: boolean;
   source?: string;
   accountLabel?: string;
 }
@@ -230,6 +232,7 @@ export class PiAdapter {
           authTypes,
           isConfigured: status.configured,
           isUsingApiKey: status.configured && !runtime.isUsingOAuth(provider.id),
+          hasStoredLogin: status.source === "stored" || status.source === "runtime",
           source: status.label,
           accountLabel: provider.auth.oauth?.loginLabel,
         };
@@ -264,6 +267,10 @@ export class PiAdapter {
   async logoutProvider(provider: string): Promise<void> {
     const runtime = this.getModelRuntime();
     if (!runtime.getProvider(provider)) throw new Error("Unknown provider.");
+    const { source } = runtime.getProviderAuthStatus(provider);
+    if (source !== "stored" && source !== "runtime") {
+      throw new Error("This provider is set up in models.json or the environment. Remove it there.");
+    }
     await runtime.logout(provider);
     await runtime.refresh({ providers: [provider], allowNetwork: false });
   }

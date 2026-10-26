@@ -235,7 +235,14 @@ test("lists provider status and keeps login prompts separate from credentials", 
   const received: string[] = [];
   const providers = {
     getProviderSettings: async () => [
-      { id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false },
+      {
+        id: "faux",
+        name: "Faux",
+        authTypes: ["api_key"],
+        isConfigured: false,
+        isUsingApiKey: false,
+        hasStoredLogin: false,
+      },
     ],
     setProviderApiKey: async (provider: string, key: string) => {
       received.push(`${provider}:${key}`);
@@ -260,7 +267,16 @@ test("lists provider status and keeps login prompts separate from credentials", 
   const list = await request(socket, { type: "list_providers" });
   assert.deepEqual(list, {
     type: "providers",
-    providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }],
+    providers: [
+      {
+        id: "faux",
+        name: "Faux",
+        authTypes: ["api_key"],
+        isConfigured: false,
+        isUsingApiKey: false,
+        hasStoredLogin: false,
+      },
+    ],
   });
   await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
   assert.deepEqual(received, ["faux:secret"]);
