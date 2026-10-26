@@ -77,7 +77,7 @@ export class OpenSession {
 
   broadcast(event: AgentSessionEvent): void {
     if (event.type === "agent_start") this.eventCount = this.bytes = 0;
-    const message = JSON.stringify({ type: "event", sessionId: this.id, seq: ++this.sequence, event });
+    const message = toJson({ type: "event", sessionId: this.id, seq: ++this.sequence, event });
     this.eventCount++;
     for (const client of this.subscribers) {
       client.send(message);
@@ -86,9 +86,9 @@ export class OpenSession {
     this.record(event);
   }
 
-  sendSnapshot(): void {
-    const message = JSON.stringify(this.snapshot);
-    for (const client of this.subscribers) client.send(message);
+  sendSnapshot(clients: Iterable<HubClient> = this.subscribers): void {
+    const message = toJson(this.snapshot);
+    for (const client of clients) client.send(message);
   }
 
   async close(): Promise<void> {
@@ -114,6 +114,13 @@ export class OpenSession {
       body: isAborted ? "Stopped." : getReplyText(reply),
     };
   }
+}
+
+// The client does not show images, and their base64 data can be megabytes per session.
+function toJson(value: unknown): string {
+  return JSON.stringify(value, (_key, item) =>
+    item?.type === "image" && typeof item.data === "string" ? { type: "image", mimeType: item.mimeType } : item,
+  );
 }
 
 function getReplyText(reply: Snapshot["messages"][number] | undefined): string {

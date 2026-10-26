@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
 import { Button, Dialogs, Spinner, ToastProvider, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
@@ -21,6 +21,10 @@ const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;
 const isProviderSettingsOpen = ref(location.hash === "#settings");
+// Long sessions render their last messages first and add earlier ones as the reader scrolls up.
+const renderBatch = 60;
+const renderedCount = ref(renderBatch);
+const firstRendered = computed(() => Math.max(0, workspace.transcript.messages.length - renderedCount.value));
 
 onMounted(() => {
   workspace.start();
@@ -47,6 +51,7 @@ watch(
     await nextTick();
     const element = transcriptElement.value;
     if (element) element.scrollTop = element.scrollHeight;
+    trackScroll();
   },
   { deep: true },
 );
@@ -54,12 +59,24 @@ watch(
   () => workspace.sessionId,
   () => {
     isFollowing = true;
+    renderedCount.value = renderBatch;
   },
 );
 
 function trackScroll(): void {
   const element = transcriptElement.value;
-  if (element) isFollowing = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+  if (!element) return;
+  isFollowing = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+  if (element.scrollTop < element.clientHeight && firstRendered.value > 0) renderEarlier(element);
+}
+
+// Keeps the visible messages in place while earlier ones render above them.
+async function renderEarlier(element: HTMLElement): Promise<void> {
+  const height = element.scrollHeight;
+  renderedCount.value += renderBatch;
+  await nextTick();
+  element.scrollTop += element.scrollHeight - height;
+  trackScroll();
 }
 
 watch(
@@ -175,7 +192,7 @@ function closeProviderSettings(): void {
       </header>
       <section
         ref="transcriptElement"
-        class="min-h-0 flex-1 overflow-y-auto max-sm:order-1"
+        class="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] max-sm:order-1"
         @scroll.passive="trackScroll"
         aria-label="Conversation"
         aria-live="polite"
@@ -187,10 +204,10 @@ function closeProviderSettings(): void {
             aria-label="Loading session"
           />
           <MessageItem
-            v-for="(message, index) in workspace.transcript.messages"
-            :key="index"
+            v-for="(message, index) in workspace.transcript.messages.slice(firstRendered)"
+            :key="firstRendered + index"
             :message="message"
-            :is-group-start="workspace.transcript.isGroupStart(index)"
+            :is-group-start="workspace.transcript.isGroupStart(firstRendered + index)"
             :tools="workspace.transcript.tools"
           />
           <p

@@ -85,6 +85,13 @@ test("lists, creates, and rejects an unknown project", { timeout: 5000 }, async 
   assert.match(rejected.message, /Unknown project/);
 });
 
+test("compresses messages", { timeout: 5000 }, async (context) => {
+  const { url } = await setup(context);
+  const socket = await connect(url);
+  assert.match(socket.extensions, /permessage-deflate/);
+  socket.close();
+});
+
 test("two clients share one run and either can abort it", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const first = await connect(url);

@@ -78,7 +78,7 @@ export class SessionHub {
   async subscribe(client: HubClient, sessionId: string): Promise<void> {
     const entry = await this.getSession(sessionId);
     entry.subscribers.add(client);
-    client.send(JSON.stringify(entry.snapshot));
+    entry.sendSnapshot([client]);
   }
 
   unsubscribe(client: HubClient, sessionId: string): void {

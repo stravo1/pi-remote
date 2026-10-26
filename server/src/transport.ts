@@ -39,7 +39,11 @@ export interface ProviderManager {
 
 export class Transport {
   readonly server;
-  readonly sockets = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
+  readonly sockets = new WebSocketServer({
+    noServer: true,
+    maxPayload: 64 * 1024,
+    perMessageDeflate: { threshold: 1024 },
+  });
   readonly hub: SessionHub;
   readonly configuration: Configuration;
   readonly heartbeat: ReturnType<typeof setInterval>;

@@ -5,6 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProjectStore } from "../src/project-store.ts";
+import type { AgentSessionEvent, Snapshot } from "../src/pi-adapter.ts";
 import type { RunNotice } from "../src/push-notifier.ts";
 import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 
@@ -75,6 +76,30 @@ test("fans events out in seq order and gives a late subscriber the run buffer", 
   assert.deepEqual(seqs(second), [2]);
   assert.equal(metrics.length, 1);
   assert.equal(metrics[0].eventCount, 2);
+});
+
+test("leaves image data out of snapshots and events", async (context) => {
+  const { hub, source, client } = setup();
+  context.after(() => hub.close());
+  const viewer = client();
+  await hub.subscribe(viewer, "old");
+  const session = source.sessions.get("old")!;
+  const image = { type: "image" as const, mimeType: "image/png", data: "aGVsbG8=" };
+  const message = {
+    role: "toolResult",
+    toolCallId: "t1",
+    toolName: "read",
+    content: [image],
+    isError: false,
+    timestamp: 1,
+  };
+  session.messages = [message as Snapshot["messages"][number]];
+  session.listener({ type: "message_end", message } as AgentSessionEvent);
+  const second = client();
+  await hub.subscribe(second, "old");
+  const stripped = { type: "image", mimeType: "image/png" };
+  assert.deepEqual(viewer.messages[1].event.message.content, [stripped]);
+  assert.deepEqual(second.messages[0].messages[0].content, [stripped]);
 });
 
 test("keeps the run alive when every client leaves", async (context) => {
