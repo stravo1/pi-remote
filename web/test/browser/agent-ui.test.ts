@@ -152,7 +152,7 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: /Example/ }).waitFor();
     await page.getByRole("button", { name: "New project" }).click();
     await page.getByRole("textbox", { name: "Folder name" }).fill("notes");
-    await page.getByRole("button", { name: "Create project" }).click();
+    await page.getByRole("button", { name: "Create", exact: true }).click();
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
     assert.deepEqual(errors, []);
