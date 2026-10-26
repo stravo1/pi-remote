@@ -1,5 +1,5 @@
 import {
-  createAgentSession, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent,
+  createAgentSession, ModelRuntime, SessionManager, SettingsManager, type AgentSession, type AgentSessionEvent,
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
@@ -155,6 +155,7 @@ export class PiAdapter {
   private readonly summaryDelay?: number;
   private readonly modelRuntime?: ModelRuntime;
   private readonly logins = new Map<string, PendingLogin>();
+  private settingsManager?: SettingsManager;
 
   constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string, summaryDelay?: number) {
     this.options = options;
@@ -218,7 +219,7 @@ export class PiAdapter {
       signal: pending.controller.signal,
       notify,
       prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
-    }, { agentName: "pi remote" }).then(async () => {
+    }, { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() }).then(async () => {
       await runtime.refresh({ providers: [provider], allowNetwork: false });
       notify({ type: "complete" });
     }).catch((error: unknown) => {
@@ -259,6 +260,11 @@ export class PiAdapter {
       session.dispose();
       throw error;
     }
+  }
+
+  private getSettingsManager(): SettingsManager {
+    this.settingsManager ??= SettingsManager.create(process.cwd());
+    return this.settingsManager;
   }
 
   private getModelRuntime(): ModelRuntime {
