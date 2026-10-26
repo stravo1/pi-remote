@@ -15,7 +15,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <header class="shrink-0 border-b border-outline-gray-1">
-      <div class="mx-auto flex h-14 w-full max-w-2xl items-center gap-3 px-4">
+      <div class="flex h-14 w-full items-center gap-3 px-4">
       <span class="size-8 shrink-0"><PiLogo /></span>
       <div class="min-w-0 flex-1">
         <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
