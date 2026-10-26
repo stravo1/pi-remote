@@ -42,6 +42,7 @@ export interface ProviderSettings {
   name: string;
   authTypes: AuthType[];
   isConfigured: boolean;
+  isUsingApiKey: boolean;
   source?: string;
   accountLabel?: string;
 }
@@ -188,7 +189,8 @@ export class PiAdapter {
       const authTypes: AuthType[] = [];
       if (provider.auth.apiKey?.login) authTypes.push("api_key");
       if (provider.auth.oauth) authTypes.push("oauth");
-      return { id: provider.id, name: provider.name, authTypes, isConfigured: status.configured, source: status.label, accountLabel: provider.auth.oauth?.loginLabel };
+      return { id: provider.id, name: provider.name, authTypes, isConfigured: status.configured,
+        isUsingApiKey: status.configured && !runtime.isUsingOAuth(provider.id), source: status.label, accountLabel: provider.auth.oauth?.loginLabel };
     }).sort((first, second) => first.name.localeCompare(second.name));
   }
 

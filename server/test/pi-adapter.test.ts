@@ -184,6 +184,12 @@ test("summary skips busy sessions and retries after a failed response", async (c
   assert.equal(session.session.sessionName, "New summary");
 });
 
+test("provider settings mark providers that use an API key", async (context) => {
+  const { adapter } = await setup(context, []);
+  const faux = (await adapter.getProviderSettings()).find((provider) => provider.id === "faux");
+  assert.equal(faux?.isUsingApiKey, true);
+});
+
 test("starting a provider login cancels the login that is still waiting", async () => {
   const started: string[] = [];
   const aborted: string[] = [];

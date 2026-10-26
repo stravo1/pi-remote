@@ -30,8 +30,8 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
       if (command.type === "list_sessions") socket.send(JSON.stringify({ type: "sessions", projects: [] }));
       if (command.type === "list_providers" || command.type === "set_provider_key") {
         socket.send(JSON.stringify({ type: "providers", providers: [{
-          id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key",
-        }, { id: "groq", name: "Groq", authTypes: ["api_key"], isConfigured: false }] }));
+          id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key", isUsingApiKey: command.type === "set_provider_key",
+        }, { id: "groq", name: "Groq", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }] }));
       }
       if (command.type === "start_provider_login" && command.authType === "api_key") {
         socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-two" }));
@@ -59,6 +59,13 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   }
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Edit key" }).click();
+  await page.getByLabel("OpenAI API key").fill("another-key");
+  await page.getByRole("button", { name: "Save key" }).click();
+  for (let attempt = 0; attempt < 100 && !commands.some((command) => command.apiKey === "another-key"); attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.ok(commands.some((command) => command.type === "set_provider_key" && command.provider === "openai" && command.apiKey === "another-key"));
   await choose(page, "Sign in with ChatGPT");
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Paste the redirect URL" }).waitFor();

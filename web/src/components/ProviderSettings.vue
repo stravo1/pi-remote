@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { Button, toast } from "frappe-ui";
+import { Button, TextInput, toast } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
 
@@ -14,10 +14,23 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 const isAdding = ref(false);
+const editingId = ref<string>();
+const key = ref("");
 const connected = computed(() => props.providers.filter((provider) => provider.isConfigured));
 
 onBeforeUnmount(() => { if (props.login) emit("cancel"); });
 watch(() => props.error, (message) => { if (message) toast.error(message); });
+
+function editKey(provider: string): void {
+  key.value = "";
+  editingId.value = provider;
+}
+
+function saveKey(): void {
+  if (!key.value.trim()) return;
+  emit("saveKey", editingId.value!, key.value.trim());
+  editingId.value = undefined;
+}
 </script>
 
 <template>
@@ -42,12 +55,20 @@ watch(() => props.error, (message) => { if (message) toast.error(message); });
           <p class="text-p-sm text-ink-gray-5">Add a provider to start sessions with its models.</p>
         </div>
         <ul v-else class="divide-y divide-outline-gray-1 rounded-4 border border-outline-gray-2" aria-label="Connected providers">
-          <li v-for="provider in connected" :key="provider.id" class="flex items-center gap-3 px-4 py-3">
+          <li v-for="provider in connected" :key="provider.id" class="flex min-h-16 items-center gap-3 px-4 py-3">
+            <form v-if="editingId === provider.id" class="flex w-full items-center gap-2" @submit.prevent="saveKey" @keydown.esc="editingId = undefined">
+              <TextInput v-model="key" class="min-w-0 flex-1" type="password" autocomplete="off" placeholder="New API key" :aria-label="`${provider.name} API key`" autofocus />
+              <Button variant="ghost" icon="lucide-x" aria-label="Cancel" @click="editingId = undefined" />
+              <Button type="submit" variant="solid" icon="lucide-check" aria-label="Save key" :disabled="!key.trim()" />
+            </form>
+            <template v-else>
             <div class="min-w-0 flex-1">
               <h3 class="truncate text-base font-medium text-ink-gray-9">{{ provider.name }}</h3>
               <p class="truncate text-p-sm text-ink-gray-5">{{ provider.source ?? provider.id }}</p>
             </div>
+            <Button v-if="provider.isUsingApiKey && provider.authTypes.includes('api_key')" variant="ghost" icon="lucide-pencil" aria-label="Edit key" @click="editKey(provider.id)" />
             <Button variant="ghost" theme="red" label="Sign out" @click="emit('logout', provider.id)" />
+            </template>
           </li>
         </ul>
       </section>

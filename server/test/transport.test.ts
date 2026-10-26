@@ -189,7 +189,7 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
 test("lists provider status and keeps login prompts separate from credentials", async (context) => {
   const received: string[] = [];
   const providers = {
-    getProviderSettings: async () => [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false }],
+    getProviderSettings: async () => [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }],
     setProviderApiKey: async (provider: string, key: string) => { received.push(`${provider}:${key}`); },
     logoutProvider: async (provider: string) => { received.push(`logout:${provider}`); },
     startProviderLogin: (_provider: string, _type: string, notify: (event: any) => void) => {
@@ -202,7 +202,7 @@ test("lists provider status and keeps login prompts separate from credentials", 
   const { url } = await setup(context, 10_000, providers);
   const socket = await connect(url);
   const list = await request(socket, { type: "list_providers" });
-  assert.deepEqual(list, { type: "providers", providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false }] });
+  assert.deepEqual(list, { type: "providers", providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }] });
   await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
   assert.deepEqual(received, ["faux:secret"]);
   const loginMessages: any[] = [];
