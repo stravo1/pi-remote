@@ -2,12 +2,25 @@
   "name": "pi-remote",
   "private": true,
   "type": "module",
-  "workspaces": ["server", "web"],
-  "engines": { "node": ">=22.19.0" },
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "scripts": {
     "test": "npm test --workspaces",
     "check": "npm run check --workspaces",
     "build": "npm run build -w web",
-    "start": "npm start -w server --"
+    "start": "npm start -w server --",
+    "prepare": "node .husky/install.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "husky": "9.1.7",
+    "lint-staged": "17.6.0",
+    "prettier": "3.9.10"
   }
 }
