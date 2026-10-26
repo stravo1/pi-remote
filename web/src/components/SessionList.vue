@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import { Button, ContextMenu, dialog, Skeleton, toast } from "frappe-ui";
 import NewGroupForm from "./NewGroupForm.vue";
 import PiLogo from "./PiLogo.vue";
@@ -21,6 +21,18 @@ const emit = defineEmits<{
   settings: [];
 }>();
 const isCreatingGroup = ref(false);
+const listElement = ref<HTMLElement>();
+// On phones the header sits at the bottom, so the list opens at its bottom too.
+const isPhone = !window.matchMedia("(min-width: 640px)").matches;
+
+async function scrollToBottom(): Promise<void> {
+  if (!isPhone || props.isLoading) return;
+  await nextTick();
+  listElement.value?.scrollTo({ top: listElement.value.scrollHeight });
+}
+
+onMounted(scrollToBottom);
+watch(() => props.isLoading, scrollToBottom);
 const collapsedKey = "pi-remote:collapsed-projects";
 const collapsed = ref(new Set<string>(readCollapsed()));
 const isRemoving = ref(false);
@@ -184,7 +196,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
         </template>
       </div>
     </header>
-    <main class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Sessions">
+    <main ref="listElement" class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Sessions">
       <div
         class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
       >

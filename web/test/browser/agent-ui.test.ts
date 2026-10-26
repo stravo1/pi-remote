@@ -121,7 +121,15 @@ for (const width of [375, 1280]) {
                   projects: [
                     {
                       path: "/code/example",
-                      sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }],
+                      sessions: [
+                        { id: "one", firstMessage: "Example", modified: 1, isRunning },
+                        ...Array.from({ length: 15 }, (_, index) => ({
+                          id: `older-${index}`,
+                          firstMessage: `Older task ${index}`,
+                          modified: 0,
+                          isRunning: false,
+                        })),
+                      ],
                     },
                   ],
                 }),
@@ -172,6 +180,17 @@ for (const width of [375, 1280]) {
     await page.goto(`http://127.0.0.1:${address.port}/`);
     await page.getByRole("region", { name: "Loading sessions" }).waitFor();
     assert.equal(await page.getByText("No projects found.").count(), 0);
+    await page.getByRole("button", { name: /Example/ }).waitFor();
+    if (width === 375) {
+      const list = page.getByRole("main", { name: "Sessions" });
+      await waitFor(async () =>
+        list.evaluate(
+          (element) =>
+            element.scrollHeight > element.clientHeight &&
+            element.scrollHeight - element.scrollTop - element.clientHeight < 2,
+        ),
+      );
+    }
     assert.match((await page.locator("meta[name=viewport]").getAttribute("content")) ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByText("Loading session...").waitFor();
