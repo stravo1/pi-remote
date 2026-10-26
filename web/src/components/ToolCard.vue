@@ -20,12 +20,12 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
       </div>
     </div>
     <details v-if="diff" class="group border-t border-outline-gray-1" open>
-      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6 sm:py-1">{{ tool.diff ? 'File diff' : 'Requested changes' }}</summary>
+      <summary class="flex cursor-pointer select-none list-none items-center gap-1.5 px-3 py-2 text-ink-gray-6 hover:text-ink-gray-8 sm:py-1"><span class="lucide-chevron-right size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />{{ tool.diff ? 'File diff' : 'Requested changes' }}</summary>
       <pre class="max-h-96 overflow-y-auto border-t border-outline-gray-1 font-mono text-p-sm"><code v-for="(line, index) in diff.split('\n')" :key="index"
         :class="['block whitespace-pre-wrap break-all px-3', { 'bg-surface-green-1 text-ink-green-4': getDiffKind(line) === 'added', 'bg-surface-red-1 text-ink-red-4': getDiffKind(line) === 'removed' }]">{{ line || ' ' }}</code></pre>
     </details>
     <details v-if="tool.output" class="group border-t border-outline-gray-1">
-      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6 sm:py-1">Output</summary>
+      <summary class="flex cursor-pointer select-none list-none items-center gap-1.5 px-3 py-2 text-ink-gray-6 hover:text-ink-gray-8 sm:py-1"><span class="lucide-chevron-right size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />Output</summary>
       <pre class="max-h-96 overflow-y-auto whitespace-pre-wrap break-all border-t border-outline-gray-1 p-3 font-mono text-p-sm text-ink-gray-7">{{ tool.output }}</pre>
     </details>
   </div>
