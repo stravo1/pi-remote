@@ -19,7 +19,7 @@ function submit(): void {
 <template>
   <form class="flex items-center gap-2" aria-label="New project" @submit.prevent="submit" @keydown.esc="emit('cancel')">
     <TextInput v-model="name" class="min-w-0 flex-1" placeholder="Folder name" aria-label="Folder name" autofocus />
-    <Button label="Cancel" @click="emit('cancel')" />
-    <Button type="submit" variant="solid" label="Create" :disabled="!name.trim()" />
+    <Button variant="ghost" icon="lucide-x" aria-label="Cancel" @click="emit('cancel')" />
+    <Button type="submit" variant="solid" icon="lucide-check" aria-label="Create" :disabled="!name.trim()" />
   </form>
 </template>
