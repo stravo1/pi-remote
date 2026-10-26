@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Button, Dialog, FormControl, Radio, RadioGroup } from "frappe-ui";
+import { Button, Dialog, FormControl, Password, Radio, RadioGroup } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import ProviderLoginPanel from "./ProviderLoginPanel.vue";
 
@@ -80,7 +80,7 @@ function goBack(): void {
       <Radio v-if="selected.authTypes.includes('api_key')" value="api_key" label="API key" />
     </RadioGroup>
     <form v-else-if="step === 'key' && selected" @submit.prevent="saveKey">
-      <FormControl v-model="key" type="password" autocomplete="off" :label="`${selected.name} API key`" autofocus />
+      <Password v-model="key" autocomplete="off" :label="`${selected.name} API key`" autofocus />
     </form>
     <ProviderLoginPanel v-else-if="step === 'login'" :event="login?.event" :notice="login?.notice" @answer="emit('answer', $event)" />
     <template #actions="{ close }">

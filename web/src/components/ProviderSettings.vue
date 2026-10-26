@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
-import { Button, TextInput, toast } from "frappe-ui";
+import { Button, Password, toast } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
 
@@ -65,7 +65,7 @@ function saveKey(): void {
         <ul v-else class="divide-y divide-outline-gray-1 rounded-4 border border-outline-gray-2" aria-label="Connected providers">
           <li v-for="provider in connected" :key="provider.id" class="flex min-h-16 items-center gap-3 px-4 py-3">
             <form v-if="editingId === provider.id" class="flex w-full items-center gap-2" @submit.prevent="saveKey" @keydown.esc="editingId = undefined">
-              <TextInput v-model="key" class="min-w-0 flex-1" type="password" autocomplete="off" placeholder="New API key" :aria-label="`${provider.name} API key`" autofocus />
+              <Password v-model="key" class="min-w-0 flex-1" autocomplete="off" placeholder="New API key" :aria-label="`${provider.name} API key`" autofocus />
               <Button variant="ghost" icon="lucide-x" aria-label="Cancel" @click="editingId = undefined" />
               <Button type="submit" variant="solid" icon="lucide-check" aria-label="Save key" :disabled="!key.trim()" />
             </form>
