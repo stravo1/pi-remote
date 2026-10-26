@@ -1,0 +1,12 @@
+[Unit]
+Description=pi remote authentication server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+ExecStart=__AUTHELIA__ --config __AUTHELIA_CONFIG__
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

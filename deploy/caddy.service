@@ -1,0 +1,13 @@
+[Unit]
+Description=pi remote HTTPS proxy
+Wants=network-online.target authelia.service pi-remote.service
+After=network-online.target authelia.service pi-remote.service
+
+[Service]
+ExecStart=__CADDY__ run --config __CADDY_CONFIG__ --adapter caddyfile
+ExecReload=__CADDY__ reload --config __CADDY_CONFIG__ --adapter caddyfile
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
