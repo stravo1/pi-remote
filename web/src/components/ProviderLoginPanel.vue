@@ -17,7 +17,7 @@ function submit(): void {
 </script>
 
 <template>
-  <section class="space-y-3 rounded-4 border border-outline-gray-2 bg-surface-gray-1 p-4" aria-label="Provider login">
+  <section class="w-full space-y-3" aria-label="Provider login">
     <template v-if="notice?.type === 'auth_url'">
       <p class="text-p-sm text-ink-gray-7">{{ notice.instructions ?? 'Open the sign-in page to continue.' }}</p>
       <Button variant="solid" icon-left="lucide-external-link" label="Open sign-in page" :href="notice.url" target="_blank" rel="noopener noreferrer" />

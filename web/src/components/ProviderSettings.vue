@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, h, onBeforeUnmount, ref, watch } from "vue";
 import { Button, toast } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import AddProviderMenu from "./AddProviderMenu.vue";
@@ -19,6 +19,14 @@ const keyProvider = ref<Provider>();
 const connected = computed(() => props.providers.filter((provider) => provider.isConfigured));
 
 watch(connected, (current, previous) => { if (current.length > previous.length) keyProvider.value = undefined; });
+const loginToastId = "provider-login";
+
+watch(() => props.login, (login) => {
+  if (!login) return void toast.dismiss(loginToastId);
+  toast(h(ProviderLoginPanel, { event: login.event, notice: login.notice, onAnswer: (value: string) => emit("answer", value), onCancel: () => emit("cancel") }),
+    { id: loginToastId, duration: Infinity, onDismiss: () => emit("cancel") });
+}, { deep: true });
+onBeforeUnmount(() => toast.dismiss(loginToastId));
 watch(() => props.error, (message) => { if (message) toast.error(message); });
 
 function addProvider(provider: Provider, type: "api_key" | "oauth"): void {
@@ -42,7 +50,6 @@ function startGuidedSetup(provider: string): void {
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto">
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4">
-      <ProviderLoginPanel v-if="login" :event="login.event" :notice="login.notice" @answer="emit('answer', $event)" @cancel="emit('cancel')" />
 
       <section class="space-y-3" aria-labelledby="providers-heading">
         <div class="flex items-center gap-2">
