@@ -14,6 +14,7 @@ async function setup(context: TestContext, responses: Parameters<ReturnType<type
   faux.setResponses(responses);
   const modelRuntime = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
   modelRuntime.registerNativeProvider(faux.provider);
+  await modelRuntime.setRuntimeApiKey(faux.provider.id, "test");
   const adapter = new PiAdapter({ agentDir: directory, modelRuntime, model: faux.getModel() }, join(directory, "sessions"));
   return { directory, faux, adapter };
 }
