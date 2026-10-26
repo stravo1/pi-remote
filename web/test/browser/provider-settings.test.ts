@@ -141,8 +141,10 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   );
   const providerList = page.getByRole("list", { name: "Connected providers" });
   await providerList.getByText("openai", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   assert.ok(!commands.some((command) => command.type === "logout_provider"), "One tap does not sign out");
+  await page.getByRole("button", { name: "Sign out", exact: true }).waitFor({ timeout: 4000 });
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("button", { name: "Confirm sign out of OpenAI" }).click();
   await page.getByText("No providers connected").waitFor();
   assert.ok(commands.some((command) => command.type === "logout_provider" && command.provider === "openai"));

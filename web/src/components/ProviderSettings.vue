@@ -28,19 +28,26 @@ const emit = defineEmits<{
 }>();
 const isAdding = ref(false);
 const editingId = ref<string>();
-// The first tap on Sign out arms it in red. A second tap signs out. Focus moving away disarms it.
+// The first tap on Sign out arms it in red. A second tap within 3 seconds signs out.
 const signingOutId = ref<string>();
+let disarmTimer: ReturnType<typeof setTimeout> | undefined;
 
 function signOut(provider: string): void {
-  if (signingOutId.value !== provider) return void (signingOutId.value = provider);
-  signingOutId.value = undefined;
-  emit("logout", provider);
+  clearTimeout(disarmTimer);
+  if (signingOutId.value === provider) {
+    signingOutId.value = undefined;
+    emit("logout", provider);
+    return;
+  }
+  signingOutId.value = provider;
+  disarmTimer = setTimeout(() => (signingOutId.value = undefined), 3000);
 }
 const key = ref("");
 const keyInputs = ref<{ focus(): void }[]>([]);
 const connected = computed(() => props.providers.filter((provider) => provider.isConfigured));
 
 onBeforeUnmount(() => {
+  clearTimeout(disarmTimer);
   if (props.login) emit("cancel");
 });
 watch(
