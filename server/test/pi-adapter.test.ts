@@ -162,6 +162,21 @@ test("summary uses only recent text and discards a result when the conversation 
   assert.equal(faux.state.callCount, 3);
 });
 
+test("summary requests carry the session ID for providers that route by it", async (context) => {
+  let sessionId: string | undefined;
+  const { directory, adapter } = await setup(context, [
+    fauxAssistantMessage("Done."),
+    (_context, options) => { sessionId = options?.sessionId; return fauxAssistantMessage("Summary"); },
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Task");
+  const job = new SessionSummaryJob(session.session, () => session.is_running);
+  context.after(() => job.close());
+  await job.update();
+  assert.equal(sessionId, session.session.sessionId);
+});
+
 test("summary skips busy sessions and retries after a failed response", async (context) => {
   const { directory, adapter, faux } = await setup(context, [
     fauxAssistantMessage("Done."),
