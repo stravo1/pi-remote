@@ -13,7 +13,9 @@ if (Number(origin.port) === configuration.port) {
 const target = `http://${configuration.host}:${configuration.port}`;
 const server = await createServer({
   server: {
-    host: "127.0.0.1", port: Number(origin.port), strictPort: true,
+    host: "127.0.0.1",
+    port: Number(origin.port),
+    strictPort: true,
     proxy: {
       "/api": { target },
       "/ws": { target, ws: true, headers: { "Remote-User": configuration.allowedUser } },

@@ -33,9 +33,12 @@ export class SessionHub {
   }
 
   async getSessionList() {
-    const projects = await Promise.all((await this.getProjects()).map(async (path) => ({
-      path, sessions: await this.getProjectSessions(path),
-    })));
+    const projects = await Promise.all(
+      (await this.getProjects()).map(async (path) => ({
+        path,
+        sessions: await this.getProjectSessions(path),
+      })),
+    );
     return { type: "sessions", projects, groupsRoot: this.store.root };
   }
 
@@ -121,10 +124,12 @@ export class SessionHub {
     const storedIds = new Set(stored.map((summary) => summary.id));
     const summaries = [
       ...stored.map(({ id, name, firstMessage, modified }) => ({ id, name, firstMessage, modified })),
-      ...open.filter((entry) => !storedIds.has(entry.id))
+      ...open
+        .filter((entry) => !storedIds.has(entry.id))
         .map((entry) => ({ id: entry.id, name: undefined, firstMessage: "", modified: entry.openedAt })),
     ];
-    return summaries.sort((a, b) => b.modified - a.modified)
+    return summaries
+      .sort((a, b) => b.modified - a.modified)
       .map((summary) => ({ ...summary, isRunning: this.sessions.get(summary.id)?.session.is_running ?? false }));
   }
 

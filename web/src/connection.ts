@@ -81,7 +81,7 @@ export class Connection {
     if (socket !== this.socket || this.isReconnectPending) return;
     this.isReconnectPending = true;
     this.handlers.onStatus("disconnected");
-    if (!await this.environment.isLoginValid()) return this.environment.reload();
+    if (!(await this.environment.isLoginValid())) return this.environment.reload();
     this.environment.schedule(() => {
       if (this.isReconnectPending) this.connect();
     }, getBackoffDelay(this.attempt++));

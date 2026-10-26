@@ -9,9 +9,17 @@ class FakeSocket {
   onclose: () => void = () => {};
   onmessage: (event: { data: string }) => void = () => {};
   sent: string[] = [];
-  send(data: string): void { this.sent.push(data); }
-  open(): void { this.readyState = WebSocket.OPEN; this.onopen(); }
-  drop(): void { this.readyState = WebSocket.CLOSED; this.onclose(); }
+  send(data: string): void {
+    this.sent.push(data);
+  }
+  open(): void {
+    this.readyState = WebSocket.OPEN;
+    this.onopen();
+  }
+  drop(): void {
+    this.readyState = WebSocket.CLOSED;
+    this.onclose();
+  }
 }
 
 function setup(isLoginValid = true) {
@@ -21,14 +29,28 @@ function setup(isLoginValid = true) {
   const reloads: number[] = [];
   let opens = 0;
   const environment: ConnectionEnvironment = {
-    createSocket: () => { const socket = new FakeSocket(); sockets.push(socket); return socket as unknown as WebSocket; },
+    createSocket: () => {
+      const socket = new FakeSocket();
+      sockets.push(socket);
+      return socket as unknown as WebSocket;
+    },
     isLoginValid: async () => isLoginValid,
     reload: () => reloads.push(1),
-    schedule: (callback, delay) => { delays.push(delay); callback(); },
+    schedule: (callback, delay) => {
+      delays.push(delay);
+      callback();
+    },
   };
-  const connection = new Connection({
-    onStatus: (status) => statuses.push(status), onOpen: () => { opens++; }, onMessage: () => {},
-  }, environment);
+  const connection = new Connection(
+    {
+      onStatus: (status) => statuses.push(status),
+      onOpen: () => {
+        opens++;
+      },
+      onMessage: () => {},
+    },
+    environment,
+  );
   return { connection, sockets, delays, statuses, reloads, getOpens: () => opens };
 }
 

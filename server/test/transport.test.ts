@@ -18,8 +18,12 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
   const projects = [directory];
   const removals: boolean[] = [];
   const configuration: Configuration = {
-    host: "127.0.0.1", port: 7710, origin: "https://pi.example.com",
-    allowedUser: "me", projectsRoot: directory, idleMinutes: 30,
+    host: "127.0.0.1",
+    port: 7710,
+    origin: "https://pi.example.com",
+    allowedUser: "me",
+    projectsRoot: directory,
+    idleMinutes: 30,
   };
   const store = {
     root: directory,
@@ -51,7 +55,9 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
 
 async function connect(url: string, options = {}) {
   const socket = new WebSocket(`${url}/ws`, {
-    origin: "https://pi.example.com", headers: { "Remote-User": "me" }, ...options,
+    origin: "https://pi.example.com",
+    headers: { "Remote-User": "me" },
+    ...options,
   });
   await once(socket, "open");
   return socket;
@@ -67,7 +73,10 @@ test("lists, creates, and rejects an unknown project", { timeout: 5000 }, async 
   const { url, directory } = await setup(context);
   const socket = await connect(url);
   const list = await request(socket, { type: "list_sessions" });
-  assert.deepEqual(list.projects.map((project: any) => project.path), [directory]);
+  assert.deepEqual(
+    list.projects.map((project: any) => project.path),
+    [directory],
+  );
   assert.equal(list.projects[0].sessions[0].id, "stored");
   const created = await request(socket, { type: "new_session", project: directory });
   assert.equal(created.type, "session_created");
@@ -95,8 +104,10 @@ test("two clients share one run and either can abort it", { timeout: 5000 }, asy
 });
 
 for (const options of [
-  { origin: "https://evil.example.com" }, { origin: undefined },
-  { headers: { "Remote-User": "other" } }, { headers: {} },
+  { origin: "https://evil.example.com" },
+  { origin: undefined },
+  { headers: { "Remote-User": "other" } },
+  { headers: {} },
 ]) {
   test(`rejects an unauthorized upgrade: ${JSON.stringify(options)}`, { timeout: 5000 }, async (context) => {
     const { url } = await setup(context);
@@ -128,8 +139,14 @@ test("serves ping and static files, with 404 for unknown paths", async (context)
 test("bad commands return errors and leave the socket usable", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const socket = await connect(url);
-  for (const command of ["not json", "null", '{"type":"abort"}', '{"type":"prompt","sessionId":"stored","text":" "}',
-    '{"type":"prompt","sessionId":"wrong","text":"hello"}', '{"type":"other"}']) {
+  for (const command of [
+    "not json",
+    "null",
+    '{"type":"abort"}',
+    '{"type":"prompt","sessionId":"stored","text":" "}',
+    '{"type":"prompt","sessionId":"wrong","text":"hello"}',
+    '{"type":"other"}',
+  ]) {
     const reply = once(socket, "message");
     socket.send(command);
     assert.equal(JSON.parse((await reply)[0].toString()).type, "error");
@@ -182,7 +199,10 @@ test("shares queues and settings with two clients and a reconnect", { timeout: 5
   const third = await connect(url);
   const restored = await request(third, { type: "subscribe", sessionId: "stored" });
   assert.deepEqual(restored.queue, { steering: ["steer", "follow_up"], followUp: [] });
-  assert.match((await request(first, { type: "set_model", sessionId: "stored", provider: "faux", modelId: "first" })).message, /idle/);
+  assert.match(
+    (await request(first, { type: "set_model", sessionId: "stored", provider: "faux", modelId: "first" })).message,
+    /idle/,
+  );
   await request(first, { type: "abort", sessionId: "stored" });
 });
 
@@ -194,7 +214,8 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
     { type: "set_model", modelId: "first" },
     { type: "set_thinking_level", level: "impossible" },
     { type: "set_thinking_level", level: 1 },
-    { type: "steer", text: " " }, { type: "follow_up", text: "" },
+    { type: "steer", text: " " },
+    { type: "follow_up", text: "" },
   ]) {
     assert.equal((await request(socket, { ...command, sessionId: "stored" })).type, "error");
   }
@@ -203,35 +224,58 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
 test("lists provider status and keeps login prompts separate from credentials", async (context) => {
   const received: string[] = [];
   const providers = {
-    getProviderSettings: async () => [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }],
-    setProviderApiKey: async (provider: string, key: string) => { received.push(`${provider}:${key}`); },
+    getProviderSettings: async () => [
+      { id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false },
+    ],
+    setProviderApiKey: async (provider: string, key: string) => {
+      received.push(`${provider}:${key}`);
+    },
     getProviderApiKey: async (provider: string) => `${provider}-key`,
-    logoutProvider: async (provider: string) => { received.push(`logout:${provider}`); },
+    logoutProvider: async (provider: string) => {
+      received.push(`logout:${provider}`);
+    },
     startProviderLogin: (_provider: string, _type: string, notify: (event: any) => void) => {
       notify({ type: "prompt", prompt: { type: "secret", message: "API key" } });
       return "login-one";
     },
-    submitProviderLogin: (loginId: string, value: string) => { received.push(`${loginId}:${value}`); },
-    cancelProviderLogin: (loginId: string) => { received.push(`cancel:${loginId}`); },
+    submitProviderLogin: (loginId: string, value: string) => {
+      received.push(`${loginId}:${value}`);
+    },
+    cancelProviderLogin: (loginId: string) => {
+      received.push(`cancel:${loginId}`);
+    },
   } as unknown as ProviderManager;
   const { url } = await setup(context, 10_000, providers);
   const socket = await connect(url);
   const list = await request(socket, { type: "list_providers" });
-  assert.deepEqual(list, { type: "providers", providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }] });
+  assert.deepEqual(list, {
+    type: "providers",
+    providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }],
+  });
   await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
   assert.deepEqual(received, ["faux:secret"]);
-  assert.deepEqual(await request(socket, { type: "get_provider_key", provider: "faux" }), { type: "provider_key", provider: "faux", apiKey: "faux-key" });
+  assert.deepEqual(await request(socket, { type: "get_provider_key", provider: "faux" }), {
+    type: "provider_key",
+    provider: "faux",
+    apiKey: "faux-key",
+  });
   const loginMessages: any[] = [];
   const recordMessage = (message: Buffer) => loginMessages.push(JSON.parse(message.toString()));
   socket.on("message", recordMessage);
   socket.send(JSON.stringify({ type: "start_provider_login", provider: "faux", authType: "api_key" }));
-  for (let attempt = 0; attempt < 20 && loginMessages.length < 2; attempt++) await new Promise((resolve) => setImmediate(resolve));
+  for (let attempt = 0; attempt < 20 && loginMessages.length < 2; attempt++)
+    await new Promise((resolve) => setImmediate(resolve));
   socket.off("message", recordMessage);
   assert.deepEqual(loginMessages, [
     { type: "provider_login_started", loginId: "login-one" },
-    { type: "provider_login_event", loginId: "login-one", event: { type: "prompt", prompt: { type: "secret", message: "API key" } } },
+    {
+      type: "provider_login_event",
+      loginId: "login-one",
+      event: { type: "prompt", prompt: { type: "secret", message: "API key" } },
+    },
   ]);
   socket.send(JSON.stringify({ type: "submit_provider_login", loginId: "login-one", value: "secret" }));
-  for (let attempt = 0; attempt < 20 && received.length < 2; attempt++) await new Promise((resolve) => setImmediate(resolve));
+  for (let attempt = 0; attempt < 20 && received.length < 2; attempt++)
+    await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(received, ["faux:secret", "login-one:secret"]);
 });

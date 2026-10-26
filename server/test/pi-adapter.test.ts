@@ -8,7 +8,11 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { PiAdapter } from "../src/pi-adapter.ts";
 import { SessionSummaryJob } from "../src/session-summary-job.ts";
 
-async function setup(context: TestContext, responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0], summaryDelay = 60_000) {
+async function setup(
+  context: TestContext,
+  responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0],
+  summaryDelay = 60_000,
+) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-adapter-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const faux = fauxProvider({ models: [{ id: "first" }, { id: "second", reasoning: true }] });
@@ -16,7 +20,11 @@ async function setup(context: TestContext, responses: Parameters<ReturnType<type
   const modelRuntime = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
   modelRuntime.registerNativeProvider(faux.provider);
   await modelRuntime.setRuntimeApiKey(faux.provider.id, "test");
-  const adapter = new PiAdapter({ agentDir: directory, modelRuntime, model: faux.getModel() }, join(directory, "sessions"), summaryDelay);
+  const adapter = new PiAdapter(
+    { agentDir: directory, modelRuntime, model: faux.getModel() },
+    join(directory, "sessions"),
+    summaryDelay,
+  );
   return { directory, faux, adapter };
 }
 
@@ -54,7 +62,6 @@ test("lists a stored session and reopens it with the same messages", async (cont
   context.after(() => reopened.close());
   assert.deepEqual(reopened.snapshot.messages, messages);
 });
-
 
 for (const mode of ["steer", "follow_up"] as const) {
   test(`delivers ${mode} through the SDK and exposes the pending queue`, async (context) => {
@@ -102,7 +109,9 @@ test("steers a queued follow-up once and keeps the other follow-ups", async (con
   });
   await session.prompt("Work");
   await queued;
-  const users = session.snapshot.messages.filter((message) => message.role === "user").map((message) => JSON.stringify(message.content));
+  const users = session.snapshot.messages
+    .filter((message) => message.role === "user")
+    .map((message) => JSON.stringify(message.content));
   assert.equal(users.length, 3);
   assert.match(users[1], /Steer this/);
   assert.match(users[2], /Keep this/);
@@ -139,9 +148,11 @@ test("a queued message arriving after a run starts a new prompt", async (context
 });
 
 test("updates the summary after the conversation changes without polling", async (context) => {
-  const { directory, adapter, faux } = await setup(context, [
-    fauxAssistantMessage("Done."), fauxAssistantMessage("Update session summaries"),
-  ], 10);
+  const { directory, adapter, faux } = await setup(
+    context,
+    [fauxAssistantMessage("Done."), fauxAssistantMessage("Update session summaries")],
+    10,
+  );
   const session = await adapter.create(directory);
   context.after(() => session.close());
   await session.prompt("Add session summaries");
@@ -163,7 +174,9 @@ test("summary uses only recent text and discards a result when the conversation 
     fauxAssistantMessage("Done."),
     (request) => {
       received = JSON.stringify(request.messages);
-      return new Promise((resolve) => { release = resolve; });
+      return new Promise((resolve) => {
+        release = resolve;
+      });
     },
     fauxAssistantMessage("Current task summary"),
   ]);
@@ -193,7 +206,10 @@ test("summary requests carry the session ID for providers that route by it", asy
   let sessionId: string | undefined;
   const { directory, adapter } = await setup(context, [
     fauxAssistantMessage("Done."),
-    (_context, options) => { sessionId = options?.sessionId; return fauxAssistantMessage("Summary"); },
+    (_context, options) => {
+      sessionId = options?.sessionId;
+      return fauxAssistantMessage("Summary");
+    },
   ]);
   const session = await adapter.create(directory);
   context.after(() => session.close());
@@ -246,11 +262,15 @@ test("starting a provider login cancels the login that is still waiting", async 
   const modelRuntime = {
     getProvider: () => ({ auth: { oauth: {} } }),
     refresh: async () => undefined,
-    login: (provider: string, _type: string, interaction: { signal: AbortSignal }) => new Promise<void>((resolve, reject) => {
-      const name = `${provider}-${started.length}`;
-      started.push(name);
-      interaction.signal.addEventListener("abort", () => { aborted.push(name); reject(new Error("Login cancelled")); });
-    }),
+    login: (provider: string, _type: string, interaction: { signal: AbortSignal }) =>
+      new Promise<void>((resolve, reject) => {
+        const name = `${provider}-${started.length}`;
+        started.push(name);
+        interaction.signal.addEventListener("abort", () => {
+          aborted.push(name);
+          reject(new Error("Login cancelled"));
+        });
+      }),
   };
   const adapter = new PiAdapter({ modelRuntime: modelRuntime as never });
   const events: unknown[] = [];
@@ -268,9 +288,13 @@ test("cancelling all provider logins releases every waiting login", async () => 
   const modelRuntime = {
     getProvider: () => ({ auth: { oauth: {} } }),
     refresh: async () => undefined,
-    login: (_provider: string, _type: string, interaction: { signal: AbortSignal }) => new Promise<void>((_resolve, reject) => {
-      interaction.signal.addEventListener("abort", () => { isWaiting = false; reject(new Error("Login cancelled")); });
-    }),
+    login: (_provider: string, _type: string, interaction: { signal: AbortSignal }) =>
+      new Promise<void>((_resolve, reject) => {
+        interaction.signal.addEventListener("abort", () => {
+          isWaiting = false;
+          reject(new Error("Login cancelled"));
+        });
+      }),
   };
   const adapter = new PiAdapter({ modelRuntime: modelRuntime as never });
   adapter.startProviderLogin("openai", "oauth", () => undefined);

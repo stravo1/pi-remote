@@ -1,5 +1,10 @@
 import {
-  createAgentSession, ModelRuntime, SessionManager, SettingsManager, type AgentSession, type AgentSessionEvent,
+  createAgentSession,
+  ModelRuntime,
+  SessionManager,
+  SettingsManager,
+  type AgentSession,
+  type AgentSessionEvent,
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
@@ -47,8 +52,8 @@ export interface ProviderSettings {
   accountLabel?: string;
 }
 
-export type ProviderLoginEvent = AuthEvent | { type: "prompt"; prompt: AuthPrompt }
-  | { type: "complete" } | { type: "failed"; message: string };
+export type ProviderLoginEvent =
+  AuthEvent | { type: "prompt"; prompt: AuthPrompt } | { type: "complete" } | { type: "failed"; message: string };
 
 // pi queues already-expanded text. These add it back without running input handlers again.
 interface QueueInternals {
@@ -130,7 +135,8 @@ export class PiSession {
 
   async setModel(provider: string, id: string): Promise<void> {
     this.requireIdle();
-    const model = this.session.modelRuntime.getAvailableSnapshot()
+    const model = this.session.modelRuntime
+      .getAvailableSnapshot()
       .find((choice) => choice.provider === provider && choice.id === id);
     if (!model) throw new Error("Unknown or unavailable model.");
     this.isChangingModel = true;
@@ -194,20 +200,34 @@ export class PiAdapter {
   async list(project: string): Promise<SessionSummary[]> {
     const sessions = await SessionManager.list(project, this.sessionDirectory);
     return sessions.map((info) => ({
-      id: info.id, path: info.path, name: info.name, firstMessage: info.firstMessage, modified: info.modified.getTime(),
+      id: info.id,
+      path: info.path,
+      name: info.name,
+      firstMessage: info.firstMessage,
+      modified: info.modified.getTime(),
     }));
   }
 
   async getProviderSettings(): Promise<ProviderSettings[]> {
     const runtime = this.getModelRuntime();
-    return runtime.getProviders().map((provider) => {
-      const status = runtime.getProviderAuthStatus(provider.id);
-      const authTypes: AuthType[] = [];
-      if (provider.auth.apiKey?.login) authTypes.push("api_key");
-      if (provider.auth.oauth) authTypes.push("oauth");
-      return { id: provider.id, name: provider.name, authTypes, isConfigured: status.configured,
-        isUsingApiKey: status.configured && !runtime.isUsingOAuth(provider.id), source: status.label, accountLabel: provider.auth.oauth?.loginLabel };
-    }).sort((first, second) => first.name.localeCompare(second.name));
+    return runtime
+      .getProviders()
+      .map((provider) => {
+        const status = runtime.getProviderAuthStatus(provider.id);
+        const authTypes: AuthType[] = [];
+        if (provider.auth.apiKey?.login) authTypes.push("api_key");
+        if (provider.auth.oauth) authTypes.push("oauth");
+        return {
+          id: provider.id,
+          name: provider.name,
+          authTypes,
+          isConfigured: status.configured,
+          isUsingApiKey: status.configured && !runtime.isUsingOAuth(provider.id),
+          source: status.label,
+          accountLabel: provider.auth.oauth?.loginLabel,
+        };
+      })
+      .sort((first, second) => first.name.localeCompare(second.name));
   }
 
   async setProviderApiKey(provider: string, apiKey: string): Promise<void> {
@@ -218,7 +238,8 @@ export class PiAdapter {
     await runtime.login(provider, "api_key", {
       notify: () => undefined,
       prompt: async (prompt) => {
-        if (isAnswered || prompt.type !== "secret") throw new Error("This provider needs more than a key. Add it again from Add provider.");
+        if (isAnswered || prompt.type !== "secret")
+          throw new Error("This provider needs more than a key. Add it again from Add provider.");
         isAnswered = true;
         return apiKey;
       },
@@ -251,16 +272,28 @@ export class PiAdapter {
     const previous = [...this.logins.values()];
     for (const login of previous) login.controller.abort();
     this.logins.set(loginId, pending);
-    pending.settled = Promise.allSettled(previous.map((login) => login.settled)).then(() => runtime.login(provider, type, {
-      signal: pending.controller.signal,
-      notify,
-      prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
-    }, { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() })).then(async () => {
-      await runtime.refresh({ providers: [provider], allowNetwork: false });
-      notify({ type: "complete" });
-    }).catch((error: unknown) => {
-      if (!pending.controller.signal.aborted) notify({ type: "failed", message: error instanceof Error ? error.message : "Login failed." });
-    }).finally(() => this.logins.delete(loginId));
+    pending.settled = Promise.allSettled(previous.map((login) => login.settled))
+      .then(() =>
+        runtime.login(
+          provider,
+          type,
+          {
+            signal: pending.controller.signal,
+            notify,
+            prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
+          },
+          { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() },
+        ),
+      )
+      .then(async () => {
+        await runtime.refresh({ providers: [provider], allowNetwork: false });
+        notify({ type: "complete" });
+      })
+      .catch((error: unknown) => {
+        if (!pending.controller.signal.aborted)
+          notify({ type: "failed", message: error instanceof Error ? error.message : "Login failed." });
+      })
+      .finally(() => this.logins.delete(loginId));
     return loginId;
   }
 
@@ -314,8 +347,12 @@ export class PiAdapter {
     return this.modelRuntime;
   }
 
-  private requestLoginInput(loginId: string, pending: PendingLogin, prompt: AuthPrompt,
-    notify: (event: ProviderLoginEvent) => void): Promise<string> {
+  private requestLoginInput(
+    loginId: string,
+    pending: PendingLogin,
+    prompt: AuthPrompt,
+    notify: (event: ProviderLoginEvent) => void,
+  ): Promise<string> {
     notify({ type: "prompt", prompt });
     return new Promise((resolve, reject) => {
       pending.answer = resolve;

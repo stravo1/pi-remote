@@ -3,8 +3,12 @@ import { test } from "node:test";
 import { getConfiguration, getConfigurationFile } from "../src/config.ts";
 
 const valid = {
-  host: "127.0.0.1", port: 7710, origin: "https://pi.example.com", allowedUser: "me",
-  projectsRoot: "/tmp/projects", idleMinutes: 30,
+  host: "127.0.0.1",
+  port: 7710,
+  origin: "https://pi.example.com",
+  allowedUser: "me",
+  projectsRoot: "/tmp/projects",
+  idleMinutes: 30,
 };
 
 test("accepts the spec configuration", () => {
@@ -20,10 +24,17 @@ for (const field of Object.keys(valid)) {
 }
 
 for (const [field, value] of [
-  ["host", "0.0.0.0"], ["port", 0], ["port", 1.5], ["port", 65536],
-  ["origin", "https://pi.example.com/path"], ["origin", "file:///tmp"],
-  ["allowedUser", " "], ["projects", ["/tmp/project"]], ["idleMinutes", -1],
-  ["projectsRoot", "relative"], ["projectsRoot", " "],
+  ["host", "0.0.0.0"],
+  ["port", 0],
+  ["port", 1.5],
+  ["port", 65536],
+  ["origin", "https://pi.example.com/path"],
+  ["origin", "file:///tmp"],
+  ["allowedUser", " "],
+  ["projects", ["/tmp/project"]],
+  ["idleMinutes", -1],
+  ["projectsRoot", "relative"],
+  ["projectsRoot", " "],
 ] as const) {
   test(`rejects invalid ${field}: ${JSON.stringify(value)}`, () => {
     assert.throws(() => getConfiguration({ ...valid, [field]: value }), new RegExp(`"${field}"`));

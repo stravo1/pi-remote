@@ -82,10 +82,10 @@ Pick these as needed. Each one is independent.
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| pi changes its SDK or event shapes. pi went from 0.82 to 1.4 in three months, with breaking changes on the way. | Pin the exact version (N5). Keep all pi calls in `PiAdapter`. Read the changelog before each upgrade. |
-| A flaw in Caddy or Authelia lets an attacker past the login. The attacker then has a shell. | Second factor on, lockout on, automatic OS updates, and prompt Caddy and Authelia updates. Keep the `Origin` and `Remote-User` checks in the server. |
-| A run executes a harmful command while you are away. | Same risk as pi in a terminal. Add tool approval in Phase 5 if this becomes a concern. |
-| Tool runs use up the memory of a small instance. | Use `t4g.small` or larger, add swap, and build the client elsewhere. See [system requirements](system-requirements.md). |
-| Snapshots get too large on long sessions. | Measure in Phase 2. Page old messages if needed. |
+| Risk                                                                                                            | Mitigation                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| pi changes its SDK or event shapes. pi went from 0.82 to 1.4 in three months, with breaking changes on the way. | Pin the exact version (N5). Keep all pi calls in `PiAdapter`. Read the changelog before each upgrade.                                                |
+| A flaw in Caddy or Authelia lets an attacker past the login. The attacker then has a shell.                     | Second factor on, lockout on, automatic OS updates, and prompt Caddy and Authelia updates. Keep the `Origin` and `Remote-User` checks in the server. |
+| A run executes a harmful command while you are away.                                                            | Same risk as pi in a terminal. Add tool approval in Phase 5 if this becomes a concern.                                                               |
+| Tool runs use up the memory of a small instance.                                                                | Use `t4g.small` or larger, add swap, and build the client elsewhere. See [system requirements](system-requirements.md).                              |
+| Snapshots get too large on long sessions.                                                                       | Measure in Phase 2. Page old messages if needed.                                                                                                     |

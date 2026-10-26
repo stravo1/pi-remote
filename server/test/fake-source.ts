@@ -7,8 +7,12 @@ export class FakeSession implements HubSession {
   pending = { steering: [] as string[], followUp: [] as string[] };
   settings: SessionSettings = {
     model: { provider: "faux", id: "first", name: "First" },
-    models: [{ provider: "faux", id: "first", name: "First" }, { provider: "faux", id: "second", name: "Second" }],
-    thinkingLevel: "off", thinkingLevels: ["off", "high"],
+    models: [
+      { provider: "faux", id: "first", name: "First" },
+      { provider: "faux", id: "second", name: "Second" },
+    ],
+    thinkingLevel: "off",
+    thinkingLevels: ["off", "high"],
   };
   listener: (event: AgentSessionEvent) => void = () => {};
   finish: () => void = () => {};
@@ -20,19 +24,28 @@ export class FakeSession implements HubSession {
   }
 
   get snapshot(): Snapshot {
-    return { messages: [], isStreaming: this.is_running, queue: structuredClone(this.pending), settings: this.settings };
+    return {
+      messages: [],
+      isStreaming: this.is_running,
+      queue: structuredClone(this.pending),
+      settings: this.settings,
+    };
   }
 
   subscribe(listener: (event: AgentSessionEvent) => void): () => void {
     this.listener = listener;
-    return () => { this.listener = () => {}; };
+    return () => {
+      this.listener = () => {};
+    };
   }
 
   async prompt(): Promise<void> {
     if (this.is_running) throw new Error("A run is already active.");
     this.is_running = true;
     this.listener({ type: "agent_start" });
-    await new Promise<void>((resolve) => { this.finish = resolve; });
+    await new Promise<void>((resolve) => {
+      this.finish = resolve;
+    });
     this.is_running = false;
     this.listener({ type: "agent_settled", aborted: false });
   }

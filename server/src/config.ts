@@ -22,14 +22,19 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function getConfiguration(value: unknown): Configuration {
   requireField(isRecord(value), "configuration", "use a JSON object");
   requireField(value.host === "127.0.0.1", "host", "use 127.0.0.1");
-  requireField(isPort(value.port),
-    "port", "use an integer from 1 to 65535");
-  requireField(typeof value.origin === "string" && isOrigin(value.origin), "origin", "use an HTTP or HTTPS origin without a path");
+  requireField(isPort(value.port), "port", "use an integer from 1 to 65535");
+  requireField(
+    typeof value.origin === "string" && isOrigin(value.origin),
+    "origin",
+    "use an HTTP or HTTPS origin without a path",
+  );
   requireField(isNonemptyString(value.allowedUser), "allowedUser", "use a nonempty user name");
-  requireField(isPositiveNumber(value.idleMinutes),
-    "idleMinutes", "use a positive number");
-  requireField(isNonemptyString(value.projectsRoot) && isAbsolute(value.projectsRoot),
-    "projectsRoot", "use an absolute path");
+  requireField(isPositiveNumber(value.idleMinutes), "idleMinutes", "use a positive number");
+  requireField(
+    isNonemptyString(value.projectsRoot) && isAbsolute(value.projectsRoot),
+    "projectsRoot",
+    "use an absolute path",
+  );
   requireField(value.projects === undefined, "projects", "use projectsRoot instead");
   if (value.model !== undefined) validateModel(value.model);
   return value as unknown as Configuration;

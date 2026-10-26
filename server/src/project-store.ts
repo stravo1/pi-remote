@@ -40,7 +40,8 @@ export class ProjectStore {
 
   private async add(name: string): Promise<string> {
     if (!this.is_enabled) throw new Error("Creating groups is not enabled.");
-    if (!folderName.test(name)) throw new Error("Use letters, numbers, dots, dashes, or underscores. Start with a letter or number.");
+    if (!folderName.test(name))
+      throw new Error("Use letters, numbers, dots, dashes, or underscores. Start with a letter or number.");
     const path = join(this.root!, name);
     await mkdir(path, { recursive: true });
     if (!(await lstat(path)).isDirectory()) throw new Error("That name is not a folder.");
@@ -53,7 +54,8 @@ export class ProjectStore {
     const groups = await this.list();
     if (!groups.includes(path)) throw new Error("Unknown project.");
     if (isDeletingFolder) {
-      if (dirname(path) !== this.root) throw new Error("Only folders directly inside the projects root can be deleted.");
+      if (dirname(path) !== this.root)
+        throw new Error("Only folders directly inside the projects root can be deleted.");
       await rm(path, { recursive: true, force: true });
     }
     await this.save(groups.filter((group) => group !== path));

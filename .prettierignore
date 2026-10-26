@@ -1,1 +1,3 @@
 package-lock.json
+# A template that people fill with secrets by hand. Single quotes keep backslashes literal.
+deploy/authelia.configuration.yml

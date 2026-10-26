@@ -17,6 +17,11 @@ if (!info) throw new Error(`Session ${originalId} not in list: ${JSON.stringify(
 console.log("listed:", JSON.stringify({ ...info, allMessagesText: undefined }));
 
 const reopened = await openSession(SessionManager.open(info.path, sessionDir));
-console.log("roles:", originalMessages.map((m) => m.role).join(","), "|", reopened.messages.map((m) => m.role).join(","));
+console.log(
+  "roles:",
+  originalMessages.map((m) => m.role).join(","),
+  "|",
+  reopened.messages.map((m) => m.role).join(","),
+);
 console.log("messages match:", isDeepStrictEqual(originalMessages, reopened.messages));
 reopened.dispose();

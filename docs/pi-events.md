@@ -127,10 +127,10 @@ Script: `p06-storage.ts`. It writes to `out/sessions/`, not to `~/.pi/agent/sess
 
 Script: `p07-snapshot.ts`. Log: `out/snapshot.jsonl`. The run has two parallel tool calls and one follow-up. A listener that subscribes before all others checks three things at each of the 101 events.
 
-| Check | Result |
-|---|---|
-| `session.messages` equals the messages of all `message_end` events so far | True at every event, also inside the `message_end` listener. |
-| Running tools can be found from the events since the last `message_end` | True at every event. |
+| Check                                                                                          | Result                                                                                                                |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `session.messages` equals the messages of all `message_end` events so far                      | True at every event, also inside the `message_end` listener.                                                          |
+| Running tools can be found from the events since the last `message_end`                        | True at every event.                                                                                                  |
 | Pending steer and follow-up messages can be found from the events since the last `message_end` | False. After `queue_update`, three `message_end` events came before the follow-up entered. The buffer lost the queue. |
 
 Result: `session.messages` plus the events since the last `message_end` rebuild the transcript, the partial assistant message, and running tools. They do not rebuild the queue. The snapshot must also carry `session.getSteeringMessages()` and `session.getFollowUpMessages()`.
@@ -146,12 +146,16 @@ import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-work
 
 const faux = fauxProvider();
 faux.setResponses([
-	fauxAssistantMessage([fauxToolCall("bash", { command: "echo faux" })], { stopReason: "toolUse" }),
-	(context) => fauxAssistantMessage(`Saw ${context.messages.at(-1)?.role}.`),
+  fauxAssistantMessage([fauxToolCall("bash", { command: "echo faux" })], { stopReason: "toolUse" }),
+  (context) => fauxAssistantMessage(`Saw ${context.messages.at(-1)?.role}.`),
 ]);
 const modelRuntime = await ModelRuntime.create({ authPath: "<temp dir>/auth.json", refreshOnCreate: false });
 modelRuntime.registerNativeProvider(faux.provider);
-const { session } = await createAgentSession({ model: faux.getModel(), modelRuntime, sessionManager: SessionManager.inMemory(cwd) });
+const { session } = await createAgentSession({
+  model: faux.getModel(),
+  modelRuntime,
+  sessionManager: SessionManager.inMemory(cwd),
+});
 ```
 
 - The event order matches the real model, without `thinking_*` updates.

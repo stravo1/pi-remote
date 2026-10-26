@@ -25,12 +25,24 @@ export class Transcript {
   apply(event: AgentSessionEvent): void {
     if (event.type.startsWith("tool_execution_")) return this.applyTool(event);
     switch (event.type) {
-      case "agent_start": this.is_running = true; break;
-      case "agent_settled": this.settle(); break;
-      case "queue_update": this.queue = { steering: [...event.steering], followUp: [...event.followUp] }; break;
-      case "message_start": this.start(event.message); break;
-      case "message_update": this.update(event); break;
-      case "message_end": this.end(event.message); break;
+      case "agent_start":
+        this.is_running = true;
+        break;
+      case "agent_settled":
+        this.settle();
+        break;
+      case "queue_update":
+        this.queue = { steering: [...event.steering], followUp: [...event.followUp] };
+        break;
+      case "message_start":
+        this.start(event.message);
+        break;
+      case "message_update":
+        this.update(event);
+        break;
+      case "message_end":
+        this.end(event.message);
+        break;
     }
   }
 
@@ -54,9 +66,21 @@ export class Transcript {
     if (!snapshot.isStreaming) this.settle();
   }
 
-  start(message: { role: string; content?: unknown; timestamp?: number; toolCallId?: string; isError?: boolean; details?: unknown }): void {
+  start(message: {
+    role: string;
+    content?: unknown;
+    timestamp?: number;
+    toolCallId?: string;
+    isError?: boolean;
+    details?: unknown;
+  }): void {
     if (message.role === "system") return;
-    this.active = { role: message.role, timestamp: message.timestamp, toolCallId: message.toolCallId, content: getBlocks(message.content) };
+    this.active = {
+      role: message.role,
+      timestamp: message.timestamp,
+      toolCallId: message.toolCallId,
+      content: getBlocks(message.content),
+    };
     this.registerTools(this.active);
     this.messages.push(this.active);
   }
@@ -76,7 +100,14 @@ export class Transcript {
     content[update.contentIndex].text += update.delta;
   }
 
-  end(message: { role: string; content?: unknown; timestamp?: number; toolCallId?: string; isError?: boolean; details?: unknown }): void {
+  end(message: {
+    role: string;
+    content?: unknown;
+    timestamp?: number;
+    toolCallId?: string;
+    isError?: boolean;
+    details?: unknown;
+  }): void {
     if (message.role === "system") return;
     if (!this.active) this.start(message);
     this.active!.content = getBlocks(message.content);
@@ -90,9 +121,15 @@ export class Transcript {
 
   private applyTool(event: AgentSessionEvent): void {
     switch (event.type) {
-      case "tool_execution_start": this.startTool(event); break;
-      case "tool_execution_update": this.updateTool(event.toolCallId, event.partialResult); break;
-      case "tool_execution_end": this.updateTool(event.toolCallId, event.result, event.isError); break;
+      case "tool_execution_start":
+        this.startTool(event);
+        break;
+      case "tool_execution_update":
+        this.updateTool(event.toolCallId, event.partialResult);
+        break;
+      case "tool_execution_end":
+        this.updateTool(event.toolCallId, event.result, event.isError);
+        break;
     }
   }
 
@@ -107,7 +144,11 @@ export class Transcript {
 
   private startTool(event: Extract<AgentSessionEvent, { type: "tool_execution_start" }>): void {
     this.tools[event.toolCallId] = {
-      id: event.toolCallId, name: event.toolName, arguments: event.args, status: "running", output: "",
+      id: event.toolCallId,
+      name: event.toolName,
+      arguments: event.args,
+      status: "running",
+      output: "",
     };
   }
 
@@ -136,11 +177,18 @@ function getBlocks(content: unknown): TranscriptBlock[] {
   if (!Array.isArray(content)) return [];
   return content.map((block): TranscriptBlock => {
     switch (block.type) {
-      case "text": return { type: "text", text: block.text };
-      case "thinking": return { type: "thinking", text: block.thinking };
-      case "toolCall": return { type: "toolCall", text: `${block.name} ${JSON.stringify(block.arguments)}`,
-        toolCall: { id: block.id, name: block.name, arguments: block.arguments ?? {} } };
-      default: return { type: "text", text: "" };
+      case "text":
+        return { type: "text", text: block.text };
+      case "thinking":
+        return { type: "thinking", text: block.thinking };
+      case "toolCall":
+        return {
+          type: "toolCall",
+          text: `${block.name} ${JSON.stringify(block.arguments)}`,
+          toolCall: { id: block.id, name: block.name, arguments: block.arguments ?? {} },
+        };
+      default:
+        return { type: "text", text: "" };
     }
   });
 }

@@ -3,9 +3,13 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { extname, resolve, sep } from "node:path";
 
 const contentTypes: Record<string, string> = {
-  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8", ".json": "application/json",
-  ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2",
+  ".html": "text/html; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".json": "application/json",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
 };
 
 export async function serveHttp(request: IncomingMessage, response: ServerResponse, directory: string): Promise<void> {

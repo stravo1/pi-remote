@@ -31,15 +31,21 @@ export class Workspace {
   }
 
   get is_disabled(): boolean {
-    return this.status !== "connected" || !this.sessionId || this.isSyncing
-      || this.isSending || this.isUpdatingSettings;
+    return (
+      this.status !== "connected" || !this.sessionId || this.isSyncing || this.isSending || this.isUpdatingSettings
+    );
   }
 
   start(): void {
     this.sessionId = this.getHashSessionId();
     this.connection = new Connection({
-      onStatus: (status) => { this.status = status; },
-      onOpen: () => { this.refreshList(); this.subscribe(); },
+      onStatus: (status) => {
+        this.status = status;
+      },
+      onOpen: () => {
+        this.refreshList();
+        this.subscribe();
+      },
       onMessage: (message) => this.handle(message),
     });
     this.connection.connect();
@@ -140,18 +146,42 @@ export class Workspace {
 
   handle(message: any): void {
     switch (message.type) {
-      case "sessions": this.projects = message.projects; this.groupsRoot = message.groupsRoot; break;
-      case "providers": this.providers = message.providers; break;
-      case "provider_key": this.providerKey = { provider: message.provider, apiKey: message.apiKey }; break;
-      case "provider_login_started": this.providerLogin = { id: message.loginId }; break;
-      case "provider_login_event": this.handleProviderLoginEvent(message); break;
-      case "group_created": this.lastGroup = message.project; this.createSession(message.project); break;
-      case "session_created": this.refreshList(); this.select(message.sessionId); break;
-      case "snapshot": this.applySnapshot(message); break;
-      case "event": this.applyEvent(message); break;
+      case "sessions":
+        this.projects = message.projects;
+        this.groupsRoot = message.groupsRoot;
+        break;
+      case "providers":
+        this.providers = message.providers;
+        break;
+      case "provider_key":
+        this.providerKey = { provider: message.provider, apiKey: message.apiKey };
+        break;
+      case "provider_login_started":
+        this.providerLogin = { id: message.loginId };
+        break;
+      case "provider_login_event":
+        this.handleProviderLoginEvent(message);
+        break;
+      case "group_created":
+        this.lastGroup = message.project;
+        this.createSession(message.project);
+        break;
+      case "session_created":
+        this.refreshList();
+        this.select(message.sessionId);
+        break;
+      case "snapshot":
+        this.applySnapshot(message);
+        break;
+      case "event":
+        this.applyEvent(message);
+        break;
       case "error":
         if (message.sessionId && message.sessionId !== this.sessionId) break;
-        this.isSending = false; this.isUpdatingSettings = false; this.error = message.message; break;
+        this.isSending = false;
+        this.isUpdatingSettings = false;
+        this.error = message.message;
+        break;
     }
   }
 
@@ -193,7 +223,11 @@ export class Workspace {
   private handleProviderLoginEvent(message: { loginId: string; event: ProviderLoginEvent }): void {
     if (this.providerLogin?.id && message.loginId !== this.providerLogin.id) return;
     const isNotice = message.event.type === "auth_url" || message.event.type === "device_code";
-    this.providerLogin = { id: message.loginId, event: message.event, notice: isNotice ? message.event : this.providerLogin?.notice };
+    this.providerLogin = {
+      id: message.loginId,
+      event: message.event,
+      notice: isNotice ? message.event : this.providerLogin?.notice,
+    };
     if (message.event.type === "failed") {
       this.error = message.event.message;
       this.providerLogin = undefined;

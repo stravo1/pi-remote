@@ -7,7 +7,13 @@ import { Transport } from "./transport.ts";
 const configuration = await getConfigurationFile(process.argv[2]);
 const adapter = await PiAdapter.fromConfiguration(configuration);
 const hub = new SessionHub(adapter, configuration);
-const transport = new Transport(hub, configuration, fileURLToPath(new URL("../../web/dist/", import.meta.url)), undefined, adapter);
+const transport = new Transport(
+  hub,
+  configuration,
+  fileURLToPath(new URL("../../web/dist/", import.meta.url)),
+  undefined,
+  adapter,
+);
 
 try {
   await new Promise<void>((resolve, reject) => {
@@ -30,8 +36,12 @@ async function close(): Promise<void> {
   await transport.close();
 }
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.on(signal, () => void close().catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  }));
+  process.on(
+    signal,
+    () =>
+      void close().catch((error: unknown) => {
+        console.error(error);
+        process.exitCode = 1;
+      }),
+  );
 }

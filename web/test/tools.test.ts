@@ -3,7 +3,13 @@ import { test } from "node:test";
 import { getDiffKind, getRequestedDiff, getToolCommand, type ToolCall } from "../src/tools.ts";
 
 test("shows commands and requested edit and write diffs as plain text", () => {
-  const tool: ToolCall = { id: "one", name: "edit", arguments: { path: "a.ts", oldText: "old\nline", newText: "<script>" }, status: "pending", output: "" };
+  const tool: ToolCall = {
+    id: "one",
+    name: "edit",
+    arguments: { path: "a.ts", oldText: "old\nline", newText: "<script>" },
+    status: "pending",
+    output: "",
+  };
   assert.equal(getToolCommand(tool), "a.ts");
   assert.equal(getRequestedDiff(tool), "-old\n-line\n+<script>");
   tool.name = "write";

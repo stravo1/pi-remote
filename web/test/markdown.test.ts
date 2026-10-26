@@ -12,13 +12,16 @@ test("renders common markdown", () => {
 });
 
 test("escapes raw HTML", () => {
-  const html = renderMarkdown('<script>alert(1)</script> <img src=x onerror=alert(1)>');
+  const html = renderMarkdown("<script>alert(1)</script> <img src=x onerror=alert(1)>");
   assert.doesNotMatch(html, /<script|<img/);
   assert.match(html, /&lt;script&gt;/);
 });
 
 test("keeps only http, https, and mailto links and opens them safely", () => {
-  assert.match(renderMarkdown("[ok](https://example.com)"), /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer">ok<\/a>/);
+  assert.match(
+    renderMarkdown("[ok](https://example.com)"),
+    /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer">ok<\/a>/,
+  );
   assert.doesNotMatch(renderMarkdown("[bad](javascript:alert(1))"), /<a /);
   assert.doesNotMatch(renderMarkdown("[bad](data:text/html;base64,AAAA)"), /<a /);
 });
@@ -34,9 +37,8 @@ test("handles unfinished markdown while a reply streams", () => {
   assert.doesNotThrow(() => renderMarkdown("**half"));
 });
 
-
 test("escapes unknown code languages and highlights without allowing HTML", () => {
   assert.match(renderMarkdown('```unknown\n<img onerror="evil()">\n```'), /&lt;img/);
-  assert.doesNotMatch(renderMarkdown('```html\n<script>alert(1)</script>\n```'), /<script/);
+  assert.doesNotMatch(renderMarkdown("```html\n<script>alert(1)</script>\n```"), /<script/);
   assert.doesNotMatch(renderMarkdown('```x" onmouseover="evil\nhello\n```'), /onmouseover/);
 });

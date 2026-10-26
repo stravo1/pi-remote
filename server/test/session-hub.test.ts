@@ -15,7 +15,13 @@ function setup(idleMinutes = 30) {
   );
   const metrics: RunMetrics[] = [];
   const removed: string[] = [];
-  const store = { root: "/p", list: async () => ["/p/one", "/p/two"], remove: async (project: string) => { removed.push(project); } } as unknown as ProjectStore;
+  const store = {
+    root: "/p",
+    list: async () => ["/p/one", "/p/two"],
+    remove: async (project: string) => {
+      removed.push(project);
+    },
+  } as unknown as ProjectStore;
   const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store);
   const client = () => {
     const messages: any[] = [];
@@ -29,7 +35,10 @@ test("lists sessions by project, newest first, and merges open unsaved sessions"
   context.after(() => hub.close());
   const id = await hub.createSession("/p/two");
   const { projects } = await hub.getSessionList();
-  assert.deepEqual(projects.map((project) => project.sessions.map((session) => session.id)), [["newer", "old"], [id]]);
+  assert.deepEqual(
+    projects.map((project) => project.sessions.map((session) => session.id)),
+    [["newer", "old"], [id]],
+  );
   assert.equal(projects[0].sessions[0].isRunning, false);
 });
 
@@ -50,7 +59,10 @@ test("fans events out in seq order and gives a late subscriber the run buffer", 
   await hub.subscribe(second, "newer");
   assert.equal(second.messages[0].type, "snapshot");
   assert.equal(second.messages[0].isStreaming, true);
-  assert.deepEqual(second.messages[0].runEvents.map((event: any) => event.type), ["agent_start"]);
+  assert.deepEqual(
+    second.messages[0].runEvents.map((event: any) => event.type),
+    ["agent_start"],
+  );
   assert.equal(second.messages[0].seq, 1);
   source.sessions.get("newer")!.finish();
   await run;
@@ -110,11 +122,19 @@ test("disposes an idle session after idleMinutes and keeps a running one", async
 test("a new group becomes a project that can hold sessions", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "pi-remote-hub-groups-"));
   context.after(() => rm(root, { recursive: true, force: true }));
-  const hub = new SessionHub(new FakeSource(), { projectsRoot: root, idleMinutes: 30 }, () => {}, new ProjectStore(root));
+  const hub = new SessionHub(
+    new FakeSource(),
+    { projectsRoot: root, idleMinutes: 30 },
+    () => {},
+    new ProjectStore(root),
+  );
   context.after(() => hub.close());
   const project = await hub.createGroup("notes");
   const list = await hub.getSessionList();
-  assert.deepEqual(list.projects.map((item) => item.path), [project]);
+  assert.deepEqual(
+    list.projects.map((item) => item.path),
+    [project],
+  );
   assert.equal(list.groupsRoot, root);
   assert.ok(await hub.createSession(project));
   await assert.rejects(hub.createGroup("../x"), /Use letters/);

@@ -9,7 +9,12 @@ export interface ToolCall {
 
 export function getToolOutput(result: unknown): string {
   const content = (result as { content?: { type: string; text?: string }[] } | undefined)?.content;
-  return content?.filter((block) => block.type === "text").map((block) => block.text ?? "").join("\n") ?? "";
+  return (
+    content
+      ?.filter((block) => block.type === "text")
+      .map((block) => block.text ?? "")
+      .join("\n") ?? ""
+  );
 }
 
 export function getToolDiff(result: unknown): string | undefined {
@@ -30,7 +35,10 @@ export function getRequestedDiff(tool: ToolCall): string {
 }
 
 function prefixLines(text: string, prefix: string): string {
-  return text.split("\n").map((line) => `${prefix}${line}`).join("\n");
+  return text
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
 }
 
 export function getDiffKind(line: string): "added" | "removed" | "context" {

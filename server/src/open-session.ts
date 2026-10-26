@@ -4,7 +4,20 @@ export interface HubClient {
   send(message: string): void;
 }
 
-export type HubSession = Pick<PiSession, "id" | "is_running" | "snapshot" | "prompt" | "queue" | "steerFollowUp" | "setModel" | "setThinkingLevel" | "abort" | "subscribe" | "close">;
+export type HubSession = Pick<
+  PiSession,
+  | "id"
+  | "is_running"
+  | "snapshot"
+  | "prompt"
+  | "queue"
+  | "steerFollowUp"
+  | "setModel"
+  | "setThinkingLevel"
+  | "abort"
+  | "subscribe"
+  | "close"
+>;
 
 export interface RunMetrics {
   type: "run";
@@ -43,7 +56,13 @@ export class OpenSession {
   }
 
   get snapshot(): { type: "snapshot"; sessionId: string; runEvents: AgentSessionEvent[]; seq: number } & Snapshot {
-    return { type: "snapshot", sessionId: this.id, ...this.session.snapshot, runEvents: [...this.runEvents], seq: this.sequence };
+    return {
+      type: "snapshot",
+      sessionId: this.id,
+      ...this.session.snapshot,
+      runEvents: [...this.runEvents],
+      seq: this.sequence,
+    };
   }
 
   broadcast(event: AgentSessionEvent): void {

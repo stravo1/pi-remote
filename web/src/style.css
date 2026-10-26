@@ -3,32 +3,100 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #app { height: 100%; }
-body { @apply bg-surface-base text-ink-gray-9; }
+html,
+body,
+#app {
+  height: 100%;
+}
+body {
+  @apply bg-surface-base text-ink-gray-9;
+}
 
-.bottom-sheet-content { border-radius: var(--radius-4) var(--radius-4) 0 0; corner-shape: round; }
+.bottom-sheet-content {
+  border-radius: var(--radius-4) var(--radius-4) 0 0;
+  corner-shape: round;
+}
 
-.markdown { @apply break-words leading-relaxed text-ink-gray-8 sm:leading-normal text-p-base; }
-.markdown > * + * { @apply mt-3 sm:mt-2; }
-.markdown h1, .markdown h2, .markdown h3, .markdown h4 { @apply mt-5 sm:mt-3 font-semibold text-ink-gray-9; }
-.markdown h1 { @apply text-lg font-semibold; }
-.markdown h2, .markdown h3, .markdown h4 { @apply text-base font-semibold; }
-.markdown ul { @apply list-disc pl-5; }
-.markdown ol { @apply list-decimal pl-5; }
-.markdown li + li { @apply mt-1; }
-.markdown a { @apply underline underline-offset-2 hover:text-ink-gray-9; }
-.markdown blockquote { @apply border-l-2 border-outline-gray-3 pl-3 text-ink-gray-6; }
-.markdown hr { @apply border-outline-gray-2; }
-.markdown code { @apply rounded-3 bg-surface-gray-2 px-1 py-0.5 font-mono text-[0.9em]; }
-.markdown pre { @apply overflow-x-auto rounded-4 border border-outline-gray-1 bg-surface-gray-1 p-3 text-p-sm; }
-.markdown pre code { @apply bg-transparent p-0 text-[1em]; }
-.markdown table { @apply block w-full overflow-x-auto text-p-sm; }
-.markdown th, .markdown td { @apply border border-outline-gray-2 px-2 py-1 text-left; }
-.markdown th { @apply bg-surface-gray-1 font-medium; }
+.markdown {
+  @apply break-words leading-relaxed text-ink-gray-8 sm:leading-normal text-p-base;
+}
+.markdown > * + * {
+  @apply mt-3 sm:mt-2;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  @apply mt-5 sm:mt-3 font-semibold text-ink-gray-9;
+}
+.markdown h1 {
+  @apply text-lg font-semibold;
+}
+.markdown h2,
+.markdown h3,
+.markdown h4 {
+  @apply text-base font-semibold;
+}
+.markdown ul {
+  @apply list-disc pl-5;
+}
+.markdown ol {
+  @apply list-decimal pl-5;
+}
+.markdown li + li {
+  @apply mt-1;
+}
+.markdown a {
+  @apply underline underline-offset-2 hover:text-ink-gray-9;
+}
+.markdown blockquote {
+  @apply border-l-2 border-outline-gray-3 pl-3 text-ink-gray-6;
+}
+.markdown hr {
+  @apply border-outline-gray-2;
+}
+.markdown code {
+  @apply rounded-3 bg-surface-gray-2 px-1 py-0.5 font-mono text-[0.9em];
+}
+.markdown pre {
+  @apply overflow-x-auto rounded-4 border border-outline-gray-1 bg-surface-gray-1 p-3 text-p-sm;
+}
+.markdown pre code {
+  @apply bg-transparent p-0 text-[1em];
+}
+.markdown table {
+  @apply block w-full overflow-x-auto text-p-sm;
+}
+.markdown th,
+.markdown td {
+  @apply border border-outline-gray-2 px-2 py-1 text-left;
+}
+.markdown th {
+  @apply bg-surface-gray-1 font-medium;
+}
 
-.markdown .hljs-keyword, .markdown .hljs-selector-tag, .markdown .hljs-literal { @apply font-semibold text-ink-gray-9; }
-.markdown .hljs-string, .markdown .hljs-attr, .markdown .hljs-regexp { @apply text-ink-gray-6; }
-.markdown .hljs-number, .markdown .hljs-symbol { @apply text-ink-gray-6; }
-.markdown .hljs-title, .markdown .hljs-built_in { @apply font-medium text-ink-gray-9; }
-.markdown .hljs-comment, .markdown .hljs-meta { @apply italic text-ink-gray-5; }
-.markdown pre { @apply whitespace-pre-wrap break-all; }
+.markdown .hljs-keyword,
+.markdown .hljs-selector-tag,
+.markdown .hljs-literal {
+  @apply font-semibold text-ink-gray-9;
+}
+.markdown .hljs-string,
+.markdown .hljs-attr,
+.markdown .hljs-regexp {
+  @apply text-ink-gray-6;
+}
+.markdown .hljs-number,
+.markdown .hljs-symbol {
+  @apply text-ink-gray-6;
+}
+.markdown .hljs-title,
+.markdown .hljs-built_in {
+  @apply font-medium text-ink-gray-9;
+}
+.markdown .hljs-comment,
+.markdown .hljs-meta {
+  @apply italic text-ink-gray-5;
+}
+.markdown pre {
+  @apply whitespace-pre-wrap break-all;
+}

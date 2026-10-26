@@ -12,7 +12,18 @@ import diff from "highlight.js/lib/languages/diff";
 import sql from "highlight.js/lib/languages/sql";
 import yaml from "highlight.js/lib/languages/yaml";
 
-for (const [name, language] of Object.entries({ javascript, typescript, python, bash, json, css, xml, diff, sql, yaml })) {
+for (const [name, language] of Object.entries({
+  javascript,
+  typescript,
+  python,
+  bash,
+  json,
+  css,
+  xml,
+  diff,
+  sql,
+  yaml,
+})) {
   highlight.registerLanguage(name, language);
 }
 
@@ -29,7 +40,8 @@ const marked = new Marked({
     code({ text, lang }: Tokens.Code) {
       const language = lang?.split(/\s/)[0] ?? "";
       const html = highlight.getLanguage(language)
-        ? highlight.highlight(text, { language, ignoreIllegals: true }).value : escapeHtml(text);
+        ? highlight.highlight(text, { language, ignoreIllegals: true }).value
+        : escapeHtml(text);
       return `<pre><code class="hljs">${html}</code></pre>`;
     },
     html: ({ text }: Tokens.HTML | Tokens.Tag) => escapeHtml(text),
