@@ -6,6 +6,7 @@ import { test, type TestContext } from "node:test";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { PiAdapter } from "../src/pi-adapter.ts";
+import { SessionSummaryJob } from "../src/session-summary-job.ts";
 
 async function setup(context: TestContext, responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-adapter-"));
@@ -108,4 +109,82 @@ test("a queued message arriving after a run starts a new prompt", async (context
   context.after(() => session.close());
   await session.queue("A late follow-up", "follow_up");
   assert.match(JSON.stringify(session.snapshot.messages), /A late follow-up/);
+});
+
+test("periodically saves a summary without changing the transcript and skips unchanged messages", async (context) => {
+  const { directory, adapter, faux } = await setup(context, [
+    fauxAssistantMessage("Done."), fauxAssistantMessage("Update session summaries"),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Add session summaries");
+  const messages = session.snapshot.messages;
+  context.mock.timers.enable({ apis: ["setInterval"] });
+  const periodic = new SessionSummaryJob(session.session, () => session.is_running);
+  context.after(() => periodic.close());
+  context.mock.timers.tick(60_000);
+  await periodic.update();
+  assert.equal((await adapter.list(directory))[0].name, "Update session summaries");
+  assert.deepEqual(session.snapshot.messages, messages);
+  await periodic.update();
+  assert.equal(faux.state.callCount, 2);
+  await periodic.close();
+  context.mock.timers.tick(60_000);
+  await periodic.update();
+  assert.equal(faux.state.callCount, 2);
+});
+
+test("summary uses only recent text and discards a result when the conversation changes", async (context) => {
+  let release!: (value: ReturnType<typeof fauxAssistantMessage>) => void;
+  let received = "";
+  const { directory, adapter, faux } = await setup(context, [
+    fauxAssistantMessage("Done."),
+    (request) => {
+      received = JSON.stringify(request.messages);
+      return new Promise((resolve) => { release = resolve; });
+    },
+    fauxAssistantMessage("Current task summary"),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Original task");
+  for (let index = 0; index < 8; index++) {
+    session.session.agent.state.messages.push({ role: "user", content: `Recent ${index}`, timestamp: index });
+  }
+  const job = new SessionSummaryJob(session.session, () => session.is_running);
+  context.after(() => job.close());
+  const first = job.update();
+  assert.equal(job.update(), first);
+  while (!release) await new Promise((resolve) => setImmediate(resolve));
+  assert.doesNotMatch(received, /Original task|Recent 0|Recent 1/);
+  assert.match(received, /Recent 7/);
+  session.session.agent.state.messages.push({ role: "user", content: "Changed task", timestamp: 9 });
+  release(fauxAssistantMessage("Stale summary"));
+  await first;
+  assert.equal(session.session.sessionName, undefined);
+  await job.update();
+  assert.equal(session.session.sessionName, "Current task summary");
+  assert.equal(faux.state.callCount, 3);
+});
+
+test("summary skips busy sessions and retries after a failed response", async (context) => {
+  const { directory, adapter, faux } = await setup(context, [
+    fauxAssistantMessage("Done."),
+    fauxAssistantMessage("", { stopReason: "error", errorMessage: "Unavailable" }),
+    fauxAssistantMessage("New summary"),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  let busy = true;
+  const job = new SessionSummaryJob(session.session, () => busy);
+  context.after(() => job.close());
+  await job.update();
+  await session.prompt("Work");
+  await job.update();
+  assert.equal(faux.state.callCount, 1);
+  busy = false;
+  await assert.rejects(job.update(), /Unavailable/);
+  assert.equal(session.session.sessionName, undefined);
+  await job.update();
+  assert.equal(session.session.sessionName, "New summary");
 });

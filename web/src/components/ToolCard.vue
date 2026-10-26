@@ -15,7 +15,7 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
 <template>
   <div class="min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-p-sm" :aria-label="`${tool.name}: ${statusLabels[tool.status]}`">
     <component :is="tool.output ? 'button' : 'div'" :type="tool.output ? 'button' : undefined" :aria-expanded="tool.output ? isOutputOpen : undefined"
-      :class="['flex w-full flex-wrap items-center gap-x-2 bg-surface-gray-1 px-3 py-2 text-left sm:flex-nowrap sm:items-baseline sm:py-1.5', tool.output && 'hover:bg-surface-gray-2']"
+      :class="['flex w-full flex-wrap items-center gap-x-2 bg-surface-gray-1 px-3 py-2 text-left sm:flex-nowrap sm:py-1.5', tool.output && 'hover:bg-surface-gray-2']"
       @click="tool.output && (isOutputOpen = !isOutputOpen)">
       <span class="lucide-terminal size-4 shrink-0 self-center text-ink-gray-6" aria-hidden="true" />
       <span class="order-1 min-w-0 flex-1 font-medium text-ink-gray-9 sm:flex-none">{{ tool.name }}</span>

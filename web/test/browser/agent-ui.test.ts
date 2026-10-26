@@ -92,21 +92,42 @@ for (const width of [375, 1280]) {
     assert.equal(await page.getByText("Changed file").count(), 0);
     await page.getByRole("button", { name: /edit/ }).click();
     await page.getByText("Changed file").waitFor();
+    const toolRow = page.getByRole("button", { name: /edit/ });
+    const rowCenters = await toolRow.locator(":scope > span").evaluateAll((elements) => elements.map((element) => {
+      const bounds = element.getBoundingClientRect();
+      return bounds.top + bounds.height / 2;
+    }));
+    const alignedCenters = width === 375 ? rowCenters.slice(0, 4) : rowCenters;
+    assert.ok(Math.max(...alignedCenters) - Math.min(...alignedCenters) <= 1, "Tool row controls align vertically");
     await checkWidth(page);
     await page.getByRole("button", { name: "Session settings", exact: true }).click();
     const dialog = page.locator("[data-session-settings]");
     await dialog.waitFor();
+    const drawerHeight = await dialog.evaluate((element) => element.getBoundingClientRect().height);
+    if (width === 375) {
+      const bottomSpace = await dialog.evaluate((element) => {
+        const footer = element.lastElementChild!;
+        return element.getBoundingClientRect().bottom - footer.getBoundingClientRect().bottom;
+      });
+      assert.ok(bottomSpace <= 20, "The initial drawer has no extra space below its content");
+    }
+    const checkDrawerHeight = async () => {
+      if (width === 375) assert.equal(await dialog.evaluate((element) => element.getBoundingClientRect().height), drawerHeight);
+    };
     await checkWidth(page);
     await screenshot(page, `settings-${width}`);
     await dialog.getByRole("button", { name: "More models" }).click();
+    await checkDrawerHeight();
     await screenshot(page, `model-picker-${width}`);
     await checkWidth(page);
     if (width === 375) assert.ok(await getFontSize(page.getByPlaceholder("Search models")) >= 16);
     await page.getByPlaceholder("Search models").fill("reasoner");
+    await checkDrawerHeight();
     assert.equal(await page.getByRole("option").count(), 1);
     await page.getByRole("option", { name: /Second model/ }).click();
     await waitFor(async () => state.model.id === "reasoner");
     await dialog.getByRole("button", { name: /^Effort/ }).click();
+    await checkDrawerHeight();
     await page.getByRole("option", { name: "high", exact: true }).click();
     await waitFor(async () => state.thinkingLevel === "high");
     await page.keyboard.press("Escape");

@@ -3,6 +3,7 @@ import {
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
 import type { Configuration } from "./config.ts";
+import { SessionSummaryJob } from "./session-summary-job.ts";
 
 export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
@@ -38,9 +39,11 @@ export class PiSession {
   readonly session: AgentSession;
   private _isRunning = false;
   private isChangingModel = false;
+  private readonly summaryJob: SessionSummaryJob;
 
   constructor(session: AgentSession) {
     this.session = session;
+    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChangingModel);
   }
 
   get id(): string {
@@ -120,6 +123,7 @@ export class PiSession {
   }
 
   async close(): Promise<void> {
+    await this.summaryJob.close();
     await this.session.abort();
     this.session.dispose();
   }

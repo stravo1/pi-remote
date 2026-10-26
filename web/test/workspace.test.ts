@@ -10,6 +10,14 @@ function setup() {
   return { workspace, sent };
 }
 
+test("refreshes session names when the summary changes", () => {
+  const { workspace, sent } = setup();
+  workspace.handle({ type: "event", sessionId: "one", seq: 1, event: { type: "session_info_changed", name: "New summary" } });
+  assert.deepEqual(sent, [{ type: "list_sessions" }]);
+  workspace.handle({ type: "sessions", projects: [{ path: "/p", sessions: [{ id: "one", name: "New summary" }] }] });
+  assert.equal(workspace.activeSession?.name, "New summary");
+});
+
 const snapshot = { type: "snapshot", sessionId: "one", seq: 4, isStreaming: true, queue: { steering: [], followUp: [] },
   messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
   runEvents: [

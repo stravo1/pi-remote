@@ -118,7 +118,7 @@ export class Workspace {
     this.lastSequence = message.seq;
     this.isSending = false;
     this.transcript.apply(message.event);
-    if (message.event.type === "agent_settled" || message.event.type === "agent_start") this.refreshList();
+    if (["agent_settled", "agent_start", "session_info_changed"].includes(message.event.type)) this.refreshList();
   }
 
   private subscribe(): void {
