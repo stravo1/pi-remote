@@ -362,6 +362,11 @@ for (const width of [375, 1280]) {
     const row = page.getByRole("button", { name: /Example/ });
     if (width === 375) {
       // The open menu hides the page from the accessibility tree, so release through a handle.
+      const header = await page.getByRole("button", { name: "example", exact: true }).elementHandle();
+      await header!.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true, button: 0 });
+      await page.waitForTimeout(900);
+      await header!.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true, button: 0 });
+      assert.equal(await page.getByRole("menu").count(), 0, "A long press outside a session row opens no menu");
       const pressed = await row.elementHandle();
       const box = (await row.boundingBox())!;
       const touch = { pointerType: "touch", isPrimary: true, button: 0, clientX: box.x + 150, clientY: box.y + 20 };

@@ -55,12 +55,16 @@ function pickMenuRow(event: MouseEvent): void {
 }
 
 // The menu's own long press waits 700ms and frappe-ui cannot change it. This press opens the menu
-// after 400ms at the finger, and preventDefault keeps the menu's own timer from also firing.
+// after 400ms at the finger.
 let pressTimer: ReturnType<typeof setTimeout> | undefined;
+
+// The whole list is the menu trigger, so its own long press would open the menu anywhere.
+function stopMenuLongPress(event: PointerEvent): void {
+  if (event.pointerType === "touch") event.preventDefault();
+}
 
 function startPress(event: PointerEvent): void {
   if (event.pointerType !== "touch") return;
-  event.preventDefault();
   const { clientX, clientY } = event;
   const row = event.currentTarget as HTMLElement;
   pressTimer = setTimeout(() => {
@@ -218,6 +222,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
         <div
           class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
           @contextmenu="pickMenuRow"
+          @pointerdown="stopMenuLongPress"
         >
           <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
             <div class="mb-2 flex items-center gap-1">
