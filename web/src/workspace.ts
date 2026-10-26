@@ -6,6 +6,7 @@ import { Transcript } from "./transcript.ts";
 export class Workspace {
   status: ConnectionStatus = "connecting";
   projects: ProjectGroup[] = [];
+  hasSessionList = false;
   groupsRoot?: string;
   lastGroup = "";
   sessionId = "";
@@ -17,7 +18,7 @@ export class Workspace {
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
   providerKey?: { provider: string; apiKey: string };
-  private isSyncing = false;
+  isSyncing = false;
   private lastSequence = 0;
   private connection?: Connection;
 
@@ -153,6 +154,7 @@ export class Workspace {
     switch (message.type) {
       case "sessions":
         this.projects = message.projects;
+        this.hasSessionList = true;
         this.groupsRoot = message.groupsRoot;
         break;
       case "providers":

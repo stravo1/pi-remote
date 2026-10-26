@@ -109,17 +109,26 @@ for (const width of [375, 1280]) {
       route.onMessage((raw) => {
         const command = JSON.parse(String(raw));
         commands.push(command);
+        // The first list and snapshot arrive late, so the loading states are visible.
+        const delay = (type: string) => (commands.filter((item) => item.type === type).length === 1 ? 300 : 0);
         if (command.type === "list_sessions")
-          route.send(
-            JSON.stringify({
-              type: "sessions",
-              groupsRoot: "/code",
-              projects: [
-                { path: "/code/example", sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }] },
-              ],
-            }),
+          setTimeout(
+            () =>
+              route.send(
+                JSON.stringify({
+                  type: "sessions",
+                  groupsRoot: "/code",
+                  projects: [
+                    {
+                      path: "/code/example",
+                      sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }],
+                    },
+                  ],
+                }),
+              ),
+            delay("list_sessions"),
           );
-        if (command.type === "subscribe") snapshot();
+        if (command.type === "subscribe") setTimeout(snapshot, delay("subscribe"));
         if (command.type === "set_model") {
           state.model = state.models.find((model) => model.id === command.modelId)!;
           snapshot();
@@ -161,8 +170,11 @@ for (const width of [375, 1280]) {
     const address = server.httpServer.address();
     assert.ok(address && typeof address === "object");
     await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.getByRole("region", { name: "Loading sessions" }).waitFor();
+    assert.equal(await page.getByText("No projects found.").count(), 0);
     assert.match((await page.locator("meta[name=viewport]").getAttribute("content")) ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
+    await page.getByText("Loading session...").waitFor();
     await page.getByText("File diff", { exact: true }).waitFor();
     const conversation = page.getByRole("region", { name: "Conversation" });
     const addMessage = async (text: string) => {
@@ -317,6 +329,13 @@ for (const width of [375, 1280]) {
     await page.getByRole("textbox", { name: "Folder name" }).fill("taken");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await page.getByText("Folder exists.", { exact: true }).waitFor();
+    const toastTop = await page
+      .getByText("Folder exists.", { exact: true })
+      .evaluate((toast) => toast.getBoundingClientRect().top);
+    assert.ok(
+      width === 375 ? toastTop < 120 : toastTop > 600,
+      `The toast shows at the ${width === 375 ? "top" : "bottom"}`,
+    );
     await page.getByRole("textbox", { name: "Folder name" }).fill("notes");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));

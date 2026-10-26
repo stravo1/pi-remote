@@ -179,3 +179,10 @@ test("keeps the sign-in link while the login waits for a pasted code", () => {
   assert.equal(workspace.providerLogin?.event?.type, "prompt");
   assert.deepEqual(workspace.providerLogin?.notice, link);
 });
+
+test("knows when the first session list has arrived", () => {
+  const { workspace } = setup();
+  assert.equal(workspace.hasSessionList, false);
+  workspace.handle({ type: "sessions", projects: [] });
+  assert.equal(workspace.hasSessionList, true);
+});

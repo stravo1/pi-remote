@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { Button, Dialogs, ToastProvider } from "frappe-ui";
+import { Button, Dialogs, LoadingText, ToastProvider } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
@@ -13,6 +13,7 @@ import { Workspace } from "./workspace.ts";
 
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
+const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-right" : "top-center";
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;
 const isProviderSettingsOpen = ref(location.hash === "#settings");
@@ -66,7 +67,8 @@ function closeProviderSettings(): void {
 
 <template>
   <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
-    <ToastProvider />
+    <!-- On phones the header sits at the bottom, so toasts move to the top. -->
+    <ToastProvider :position="toastPosition" />
     <Dialogs />
     <ProviderSettings
       v-if="isProviderSettingsOpen"
@@ -85,6 +87,7 @@ function closeProviderSettings(): void {
     <SessionList
       v-else-if="!workspace.sessionId"
       :projects="workspace.projects"
+      :is-loading="!workspace.hasSessionList"
       :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot"
       :error="workspace.error"
@@ -151,6 +154,11 @@ function closeProviderSettings(): void {
         aria-live="polite"
       >
         <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-3">
+          <LoadingText
+            v-if="workspace.isSyncing && !workspace.transcript.messages.length"
+            class="m-auto"
+            text="Loading session..."
+          />
           <MessageItem
             v-for="(message, index) in workspace.transcript.messages"
             :key="index"

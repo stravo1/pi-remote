@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { Button, ContextMenu, dialog, toast } from "frappe-ui";
+import { Button, ContextMenu, dialog, Skeleton, toast } from "frappe-ui";
 import NewGroupForm from "./NewGroupForm.vue";
 import PiLogo from "./PiLogo.vue";
 import { getProjectName, getSessionTitle, type ConnectionStatus, type ProjectGroup } from "../protocol.ts";
 
 const props = defineProps<{
   projects: ProjectGroup[];
+  isLoading: boolean;
   status: ConnectionStatus;
   canCreateGroups: boolean;
   error: string;
@@ -268,7 +269,16 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
             <li v-if="!project.sessions.length" class="px-4 py-3 text-p-sm text-ink-gray-5">No sessions yet.</li>
           </ul>
         </section>
-        <p v-if="!projects.length" class="text-p-base text-ink-gray-5">No projects found.</p>
+        <section v-if="isLoading" aria-label="Loading sessions" aria-busy="true">
+          <Skeleton class="mb-3 h-4 w-24" />
+          <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
+            <div v-for="index in 3" :key="index" class="flex min-h-14 flex-col justify-center gap-1.5 px-4 sm:min-h-12">
+              <Skeleton class="h-4 w-2/3" />
+              <Skeleton class="h-3 w-24" />
+            </div>
+          </div>
+        </section>
+        <p v-else-if="!projects.length" class="text-p-base text-ink-gray-5">No projects found.</p>
       </div>
     </main>
   </div>
