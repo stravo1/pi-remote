@@ -363,9 +363,26 @@ for (const width of [375, 1280]) {
     if (width === 375) {
       // The open menu hides the page from the accessibility tree, so release through a handle.
       const pressed = await row.elementHandle();
-      await pressed!.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true, button: 0 });
+      const box = (await row.boundingBox())!;
+      const touch = { pointerType: "touch", isPrimary: true, button: 0, clientX: box.x + 150, clientY: box.y + 20 };
+      await pressed!.dispatchEvent("pointerdown", touch);
       await page.getByRole("menuitem", { name: "Select" }).waitFor({ timeout: 650 });
-      await pressed!.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true, button: 0 });
+      await pressed!.dispatchEvent("pointerup", touch);
+      const menu = (await page.getByRole("menu").boundingBox())!;
+      assert.ok(
+        Math.abs(menu.x - touch.clientX) < 40 && Math.abs(menu.y - touch.clientY) < 40,
+        "The menu opens at the finger",
+      );
+      const other = await page.locator('[data-session-id="older-0"]').elementHandle();
+      await other!.dispatchEvent("pointerdown", { ...touch, clientY: touch.clientY + 60 });
+      await page.waitForTimeout(500);
+      await other!.dispatchEvent("pointerup", touch);
+      assert.equal(await page.getByRole("menu").count(), 1, "Only one menu is open");
+      await page.keyboard.press("Escape");
+      await page.getByRole("menu").waitFor({ state: "detached" });
+      await pressed!.dispatchEvent("pointerdown", touch);
+      await page.getByRole("menuitem", { name: "Select" }).waitFor({ timeout: 650 });
+      await pressed!.dispatchEvent("pointerup", touch);
     } else await row.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Select" }).click();
     await page.getByText("1 selected", { exact: true }).waitFor();

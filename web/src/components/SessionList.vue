@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { Button, ContextMenu, dialog, Skeleton, toast } from "frappe-ui";
 import NewGroupForm from "./NewGroupForm.vue";
 import PiLogo from "./PiLogo.vue";
@@ -44,11 +44,28 @@ function trackMenu(open: boolean): void {
   isMenuOpen = open;
 }
 
-// The menu's own long press waits 700ms and frappe-ui cannot change it, so touch opens it sooner here.
+// One menu serves every row. A right-click or long press on a row picks the row it acts on.
+const menuSessionId = ref("");
+const menuOptions = computed(() => (menuSessionId.value ? getMenuOptions(menuSessionId.value) : []));
+
+function pickMenuRow(event: MouseEvent): void {
+  const row = (event.target as Element).closest<HTMLElement>("[data-session-id]");
+  if (row) menuSessionId.value = row.dataset.sessionId!;
+  else event.preventDefault();
+}
+
+// The menu's own long press waits 700ms and frappe-ui cannot change it. This press opens the menu
+// after 400ms at the finger, and preventDefault keeps the menu's own timer from also firing.
 let pressTimer: ReturnType<typeof setTimeout> | undefined;
 
-function startPress(event: PointerEvent, setOpen: (open: boolean) => void): void {
-  if (event.pointerType === "touch") pressTimer = setTimeout(() => setOpen(true), 400);
+function startPress(event: PointerEvent): void {
+  if (event.pointerType !== "touch") return;
+  event.preventDefault();
+  const { clientX, clientY } = event;
+  const row = event.currentTarget as HTMLElement;
+  pressTimer = setTimeout(() => {
+    row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX, clientY }));
+  }, 400);
 }
 
 function cancelPress(): void {
@@ -197,55 +214,57 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
       </div>
     </header>
     <main ref="listElement" class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Sessions">
-      <div
-        class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
-      >
-        <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
-          <div class="mb-2 flex items-center gap-1">
-            <h2 class="min-w-0 flex-1">
-              <button
-                type="button"
-                class="flex max-w-full items-center gap-1 rounded-3 py-1 pr-2 text-left text-p-sm font-medium text-ink-gray-5 hover:text-ink-gray-7"
-                :aria-expanded="!collapsed.has(project.path)"
-                @click="toggle(project.path)"
-              >
-                <span
-                  :class="[
-                    collapsed.has(project.path) ? 'lucide-chevron-right' : 'lucide-chevron-down',
-                    'size-4 shrink-0',
-                  ]"
-                  aria-hidden="true"
-                />
-                <span class="truncate">{{ getProjectName(project.path) }}</span>
-              </button>
-            </h2>
-            <Button
-              variant="ghost"
-              icon="lucide-plus"
-              aria-label="New session"
-              :disabled="!!selected"
-              @click="$emit('create', project.path)"
-            />
-            <Button
-              variant="ghost"
-              icon="lucide-trash-2"
-              :aria-label="`Delete ${getProjectName(project.path)}`"
-              :disabled="!!selected"
-              @click="confirmRemove(project.path)"
-            />
-          </div>
-          <ul
-            v-if="!collapsed.has(project.path)"
-            class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
-          >
-            <li v-for="session in project.sessions" :key="session.id">
-              <ContextMenu v-slot="{ setOpen }" :options="getMenuOptions(session.id)" @update:open="trackMenu">
+      <ContextMenu :options="menuOptions" @update:open="trackMenu">
+        <div
+          class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
+          @contextmenu="pickMenuRow"
+        >
+          <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
+            <div class="mb-2 flex items-center gap-1">
+              <h2 class="min-w-0 flex-1">
+                <button
+                  type="button"
+                  class="flex max-w-full items-center gap-1 rounded-3 py-1 pr-2 text-left text-p-sm font-medium text-ink-gray-5 hover:text-ink-gray-7"
+                  :aria-expanded="!collapsed.has(project.path)"
+                  @click="toggle(project.path)"
+                >
+                  <span
+                    :class="[
+                      collapsed.has(project.path) ? 'lucide-chevron-right' : 'lucide-chevron-down',
+                      'size-4 shrink-0',
+                    ]"
+                    aria-hidden="true"
+                  />
+                  <span class="truncate">{{ getProjectName(project.path) }}</span>
+                </button>
+              </h2>
+              <Button
+                variant="ghost"
+                icon="lucide-plus"
+                aria-label="New session"
+                :disabled="!!selected"
+                @click="$emit('create', project.path)"
+              />
+              <Button
+                variant="ghost"
+                icon="lucide-trash-2"
+                :aria-label="`Delete ${getProjectName(project.path)}`"
+                :disabled="!!selected"
+                @click="confirmRemove(project.path)"
+              />
+            </div>
+            <ul
+              v-if="!collapsed.has(project.path)"
+              class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
+            >
+              <li v-for="session in project.sessions" :key="session.id">
                 <button
                   type="button"
                   class="flex min-h-14 w-full select-none items-center gap-3 px-4 py-2 text-left [-webkit-touch-callout:none] sm:min-h-12 sm:py-2 hover:bg-surface-gray-2 active:bg-surface-gray-3"
                   :aria-pressed="selected ? selected.has(session.id) : undefined"
+                  :data-session-id="session.id"
                   @click="openSession(session.id)"
-                  @pointerdown="startPress($event, setOpen)"
+                  @pointerdown="startPress"
                   @pointerup="cancelPress"
                   @pointercancel="cancelPress"
                   @pointerleave="cancelPress"
@@ -276,22 +295,26 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
                     aria-hidden="true"
                   />
                 </button>
-              </ContextMenu>
-            </li>
-            <li v-if="!project.sessions.length" class="px-4 py-3 text-p-sm text-ink-gray-5">No sessions yet.</li>
-          </ul>
-        </section>
-        <section v-if="isLoading" aria-label="Loading sessions" aria-busy="true">
-          <Skeleton class="mb-3 h-4 w-24" />
-          <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
-            <div v-for="index in 3" :key="index" class="flex min-h-14 flex-col justify-center gap-1.5 px-4 sm:min-h-12">
-              <Skeleton class="h-4 w-2/3" />
-              <Skeleton class="h-3 w-24" />
+              </li>
+              <li v-if="!project.sessions.length" class="px-4 py-3 text-p-sm text-ink-gray-5">No sessions yet.</li>
+            </ul>
+          </section>
+          <section v-if="isLoading" aria-label="Loading sessions" aria-busy="true">
+            <Skeleton class="mb-3 h-4 w-24" />
+            <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
+              <div
+                v-for="index in 3"
+                :key="index"
+                class="flex min-h-14 flex-col justify-center gap-1.5 px-4 sm:min-h-12"
+              >
+                <Skeleton class="h-4 w-2/3" />
+                <Skeleton class="h-3 w-24" />
+              </div>
             </div>
-          </div>
-        </section>
-        <p v-else-if="!projects.length" class="text-p-base text-ink-gray-5">No projects found.</p>
-      </div>
+          </section>
+          <p v-else-if="!projects.length" class="text-p-base text-ink-gray-5">No projects found.</p>
+        </div>
+      </ContextMenu>
     </main>
   </div>
 </template>
