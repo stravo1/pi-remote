@@ -55,8 +55,8 @@ function onEnter(event: KeyboardEvent): void {
         <Button variant="ghost" size="sm" icon="lucide-arrow-up" aria-label="Send now" @click="emit('steer', message)" />
       </li>
     </ul>
-    <div class="flex items-end gap-2 rounded-7 border border-outline-gray-2 bg-surface-base p-1.5 transition-colors hover:border-outline-gray-3 hover:shadow-sm focus-within:border-outline-gray-4 focus-within:shadow-sm">
-      <Textarea v-model="text" class="min-w-0 flex-1 resize-none !py-2.5 sm:!min-h-8 sm:!py-1.5 !text-lg sm:!text-p-base" variant="ghost" size="md" :rows="1"
+    <div class="flex items-end gap-1.5 rounded-6 border border-outline-gray-2 bg-surface-base p-1 transition-colors hover:border-outline-gray-3 hover:shadow-sm focus-within:border-outline-gray-4 focus-within:shadow-sm">
+      <Textarea v-model="text" class="min-w-0 flex-1 resize-none !py-2 sm:!min-h-8 sm:!py-1.5 !text-lg sm:!text-p-base" variant="ghost" size="md" :rows="1"
         :disabled="disabled" aria-label="Message" placeholder="Message pi"
         @keydown.enter="onEnter" />
       <Button v-if="isRunning" type="button" variant="solid" :size="buttonSize" class="shrink-0" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
