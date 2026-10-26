@@ -36,7 +36,22 @@ onMounted(() => {
 let resizeStart: { y: number; height: number } | undefined;
 
 function startResize(event: TouchEvent): void {
-  if (props.isSheet && panel.value) resizeStart = { y: event.touches[0].clientY, height: panel.value.offsetHeight };
+  if (!props.isSheet || !panel.value) return;
+  const origin = event.target;
+  if (!(origin instanceof Element)) return;
+  // A swipe that starts on a form field belongs to the field, and a swipe that
+  // starts inside a scrollable region (the model list) scrolls it. Growing the
+  // sheet there would eat the gesture and its preventDefault would block the
+  // native scroll, so the grow gesture only claims swipes that start elsewhere.
+  if (origin.closest("input, textarea, select")) return;
+  for (let el: Element | null = origin; el; el = el.parentElement) {
+    if (el instanceof HTMLElement && el.scrollHeight > el.clientHeight) {
+      const overflowY = getComputedStyle(el).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") return;
+    }
+    if (el === panel.value) break;
+  }
+  resizeStart = { y: event.touches[0].clientY, height: panel.value.offsetHeight };
 }
 
 function resize(event: TouchEvent): void {

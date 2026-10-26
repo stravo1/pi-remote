@@ -290,6 +290,25 @@ for (const width of [375, 1280]) {
     await screenshot(page, `model-picker-${width}`);
     await checkWidth(page);
     if (width === 375) assert.ok((await getFontSize(page.getByPlaceholder("Search models"))) >= 16);
+    if (width === 375) {
+      // A swipe that starts on a model row belongs to the list's native scroll,
+      // not to the grow-drawer gesture, which must leave it unprevented.
+      const heightBeforeSwipe = await dialog.evaluate((element) => element.getBoundingClientRect().height);
+      await dialog.evaluate((element) => {
+        const row = element.querySelector('[role="listbox"][aria-label="Models"] [role="option"]')!;
+        const touch = (y: number) => new Touch({ identifier: 1, target: row, clientX: 180, clientY: y });
+        const send = (type: string, y: number) =>
+          row.dispatchEvent(new TouchEvent(type, { touches: [touch(y)], bubbles: true, cancelable: true }));
+        send("touchstart", 600);
+        for (let y = 600; y >= 300; y -= 50) send("touchmove", y);
+        send("touchend", 300);
+      });
+      assert.equal(
+        await dialog.evaluate((element) => element.getBoundingClientRect().height),
+        heightBeforeSwipe,
+        "A swipe on a model row does not grow the drawer",
+      );
+    }
     await page.getByPlaceholder("Search models").fill("reasoner");
     await checkDrawerHeight();
     assert.equal(await page.getByRole("option").count(), 1);
