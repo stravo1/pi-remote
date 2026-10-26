@@ -24,7 +24,8 @@ const method = ref<AuthType>();
 const key = ref("");
 const options = computed(() => props.providers.filter((provider) => provider.authTypes.length).map((provider) => ({ label: provider.name, value: provider.id })));
 const selected = computed(() => props.providers.find((provider) => provider.id === providerId.value));
-const progress = computed(() => ({ provider: 0, method: 1, key: 2, login: 2 })[step.value]);
+const stepCount = computed(() => selected.value?.authTypes.length === 1 ? 2 : 3);
+const progress = computed(() => step.value === "provider" ? 0 : step.value === "method" ? 1 : stepCount.value - 1);
 const titles: Record<Step, string> = { provider: "Add provider", method: "Choose a sign-in method", key: "Enter API key", login: "Sign in" };
 const title = computed(() => selected.value && step.value !== "provider" ? `${titles[step.value]}: ${selected.value.name}` : titles[step.value]);
 const canContinue = computed(() => step.value === "provider" ? Boolean(selected.value) : Boolean(method.value));
@@ -71,7 +72,7 @@ function goBack(): void {
 <template>
   <Dialog :open="open" :title="title" size="md" :dismissible="step === 'provider'" :show-close-button="step !== 'login'" @update:open="emit('update:open', $event)">
     <div class="mb-5 flex items-center gap-1.5" aria-hidden="true">
-      <span v-for="index in 3" :key="index" class="h-1 flex-1 rounded-full transition-colors" :class="index - 1 <= progress ? 'bg-surface-gray-10' : 'bg-surface-gray-3'" />
+      <span v-for="index in stepCount" :key="index" class="h-1 flex-1 rounded-full transition-colors" :class="index - 1 <= progress ? 'bg-surface-gray-10' : 'bg-surface-gray-3'" />
     </div>
     <FormControl v-if="step === 'provider'" v-model="providerId" type="combobox" label="Provider" placeholder="Search providers" :options="options" />
     <RadioGroup v-else-if="step === 'method' && selected" v-model="method" label="Sign-in method" padded>

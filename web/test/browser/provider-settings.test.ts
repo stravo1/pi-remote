@@ -31,7 +31,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
       if (command.type === "list_providers" || command.type === "set_provider_key") {
         socket.send(JSON.stringify({ type: "providers", providers: [{
           id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key",
-        }] }));
+        }, { id: "groq", name: "Groq", authTypes: ["api_key"], isConfigured: false }] }));
       }
       if (command.type === "start_provider_login" && command.authType === "api_key") {
         socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-two" }));
@@ -69,4 +69,14 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByText("Setup failed.", { exact: true }).waitFor();
   assert.ok(commands.some((command) => command.type === "set_provider_key" && command.apiKey === "not-a-real-key"));
   assert.ok(commands.some((command) => command.type === "start_provider_login" && command.authType === "oauth"));
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Add provider" }).click();
+  const bars = page.getByRole("dialog").locator("span.h-1");
+  assert.equal(await bars.count(), 3);
+  await page.getByRole("combobox", { name: "Provider" }).click();
+  await page.getByRole("option", { name: "Groq" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Groq API key").waitFor();
+  assert.equal(await bars.count(), 2);
 });
