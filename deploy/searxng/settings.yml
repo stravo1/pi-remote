@@ -1,0 +1,9 @@
+use_default_settings: true
+server:
+  secret_key: "__SECRET_KEY__"
+  # Only this host can reach the server, so the public-instance rate limiter is off.
+  limiter: false
+  bind_address: "127.0.0.1"
+  port: 8888
+search:
+  formats: [html, json]

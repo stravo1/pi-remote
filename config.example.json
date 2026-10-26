@@ -3,7 +3,6 @@
   "port": 7710,
   "origin": "http://127.0.0.1:8080",
   "allowedUser": "me",
-  "projects": ["/absolute/path/to/your/project"],
   "projectsRoot": "/absolute/path/to/your/home",
   "idleMinutes": 30,
   "model": {
