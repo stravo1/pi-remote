@@ -18,11 +18,26 @@ export interface Snapshot {
   messages: AgentSession["messages"];
   isStreaming: boolean;
   queue: { steering: string[]; followUp: string[] };
+  settings?: SessionSettings;
+}
+
+export interface ModelChoice {
+  provider: string;
+  id: string;
+  name: string;
+}
+
+export interface SessionSettings {
+  model?: ModelChoice;
+  models: ModelChoice[];
+  thinkingLevel: string;
+  thinkingLevels: string[];
 }
 
 export class PiSession {
   readonly session: AgentSession;
   private _isRunning = false;
+  private isChangingModel = false;
 
   constructor(session: AgentSession) {
     this.session = session;
@@ -41,10 +56,12 @@ export class PiSession {
       messages: [...this.session.messages],
       isStreaming: this.is_running || this.session.isStreaming,
       queue: { steering: [...this.session.getSteeringMessages()], followUp: [...this.session.getFollowUpMessages()] },
+      settings: this.settings,
     };
   }
 
   async prompt(text: string): Promise<void> {
+    if (this.isChangingModel) throw new Error("The model is changing. Try again when it finishes.");
     if (this.is_running) throw new Error("A run is already active.");
     this._isRunning = true;
     try {
@@ -52,6 +69,46 @@ export class PiSession {
     } finally {
       this._isRunning = false;
     }
+  }
+
+  get settings(): SessionSettings {
+    const describe = ({ provider, id, name }: ModelChoice): ModelChoice => ({ provider, id, name });
+    return {
+      model: this.session.model ? describe(this.session.model) : undefined,
+      models: this.session.modelRuntime.getAvailableSnapshot().map(describe),
+      thinkingLevel: this.session.thinkingLevel,
+      thinkingLevels: this.session.getAvailableThinkingLevels(),
+    };
+  }
+
+  async queue(text: string, mode: "steer" | "follow_up"): Promise<void> {
+    if (!this.is_running) return this.prompt(text);
+    if (mode === "steer") await this.session.steer(text);
+    else await this.session.followUp(text);
+  }
+
+  async setModel(provider: string, id: string): Promise<void> {
+    this.requireIdle();
+    const model = this.session.modelRuntime.getAvailableSnapshot()
+      .find((choice) => choice.provider === provider && choice.id === id);
+    if (!model) throw new Error("Unknown or unavailable model.");
+    this.isChangingModel = true;
+    try {
+      await this.session.setModel(model);
+    } finally {
+      this.isChangingModel = false;
+    }
+  }
+
+  setThinkingLevel(level: string): void {
+    this.requireIdle();
+    const supported = this.session.getAvailableThinkingLevels().find((choice) => choice === level);
+    if (!supported) throw new Error("Unsupported thinking level.");
+    this.session.setThinkingLevel(supported);
+  }
+
+  private requireIdle(): void {
+    if (this.is_running || this.isChangingModel) throw new Error("Change settings when the session is idle.");
   }
 
   async abort(): Promise<void> {
@@ -102,7 +159,14 @@ export class PiAdapter {
   }
 
   private async start(project: string, sessionManager: SessionManager): Promise<PiSession> {
-    const { session } = await createAgentSession({ ...this.options, cwd: project, sessionManager });
-    return new PiSession(session);
+    const model = sessionManager.buildSessionContext().model ? undefined : this.options.model;
+    const { session } = await createAgentSession({ ...this.options, model, cwd: project, sessionManager });
+    try {
+      await session.modelRuntime.getAvailable();
+      return new PiSession(session);
+    } catch (error) {
+      session.dispose();
+      throw error;
+    }
   }
 }

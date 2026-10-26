@@ -85,7 +85,7 @@ function create(project: string): void {
             </div>
           </div>
           <MessageItem v-for="(message, index) in workspace.transcript.messages" :key="index" :message="message"
-            :is-group-start="workspace.transcript.isGroupStart(index)" />
+            :is-group-start="workspace.transcript.isGroupStart(index)" :tools="workspace.transcript.tools" />
         </div>
       </section>
       <div class="flex shrink-0 items-center gap-1 border-t border-outline-gray-1 px-2 py-1 sm:hidden">
@@ -100,9 +100,11 @@ function create(project: string): void {
         <Button variant="ghost" size="lg" icon="lucide-plus" aria-label="New session"
           :disabled="!workspace.activeProjectPath" @click="create(workspace.activeProjectPath!)" />
       </div>
-      <Composer v-if="workspace.sessionId" :disabled="workspace.is_disabled" :is-sending="workspace.isSending"
-        :is-running="workspace.transcript.is_running" :error="workspace.error"
-        @send="(text) => workspace.sendPrompt(text)" @abort="workspace.abort()" />
+      <Composer v-if="workspace.sessionId" :key="workspace.sessionId" :disabled="workspace.is_disabled" :is-sending="workspace.isSending"
+        :is-running="workspace.transcript.is_running" :error="workspace.error" :settings="workspace.settings"
+        :queue="workspace.transcript.queue" :is-updating-settings="workspace.isUpdatingSettings"
+        @send="(text, mode) => workspace.sendPrompt(text, mode)" @model="(value) => workspace.setModel(value)"
+        @thinking="(level) => workspace.setThinkingLevel(level)" @abort="workspace.abort()" />
     </main>
   </div>
 </template>

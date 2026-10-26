@@ -1,0 +1,124 @@
+import assert from "node:assert/strict";
+import { mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { preview } from "vite";
+import { chromium, type Page, type WebSocketRoute } from "playwright";
+
+const settings = {
+  model: { provider: "faux", id: "first", name: "First model" },
+  models: [{ provider: "faux", id: "first", name: "First model" }, { provider: "other", id: "reasoner", name: "Second model" }],
+  thinkingLevel: "off", thinkingLevels: ["off", "high"],
+};
+
+async function waitFor(check: () => Promise<boolean>): Promise<void> {
+  await assert.doesNotReject(async () => {
+    for (let attempt = 0; attempt < 100; attempt++) {
+      if (await check()) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.fail("The UI did not reach the expected state.");
+  });
+}
+
+async function checkWidth(page: Page): Promise<void> {
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+}
+
+async function screenshot(page: Page, name: string): Promise<void> {
+  const directory = join(tmpdir(), "pi-remote-phase-3");
+  await mkdir(directory, { recursive: true });
+  await page.screenshot({ path: join(directory, `${name}.png`), animations: "disabled" });
+}
+
+for (const width of [375, 1280]) {
+  test(`agent UI at ${width}px`, { timeout: 30_000 }, async (context) => {
+    const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
+    context.after(() => {
+      if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
+      return new Promise<void>((resolve) => server.httpServer.close(() => resolve()));
+    });
+    const browser = await chromium.launch({ headless: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH });
+    context.after(() => browser.close());
+    const page = await browser.newPage({ viewport: { width, height: 812 }, hasTouch: width === 375 });
+    page.setDefaultTimeout(5000);
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    let socket: WebSocketRoute;
+    let sequence = 0;
+    const state = structuredClone(settings);
+    state.models.push(...Array.from({ length: 60 }, (_, index) => ({
+      provider: "faux", id: `extra-${index}`, name: `Extra model ${index} with a very long name that should stay within the drawer`,
+    })));
+    const commands: any[] = [];
+    let isRunning = false;
+    const snapshot = () => socket.send(JSON.stringify({
+      type: "snapshot", sessionId: "one", seq: sequence, isStreaming: isRunning, settings: state,
+      queue: { steering: [], followUp: [] }, runEvents: [], messages: [
+        { role: "user", content: "Update the example" },
+        { role: "assistant", content: [{ type: "text", text: "**Updated**\n```ts\nconst answer = 42;\n```" },
+          { type: "toolCall", id: "edit-1", name: "edit", arguments: { path: "src/example.ts", oldText: "old", newText: "new" } }] },
+        { role: "toolResult", toolCallId: "edit-1", isError: false, content: [{ type: "text", text: "Changed file" }],
+          details: { diff: `-1 old\n+1 ${"long line ".repeat(20)}` } },
+      ],
+    }));
+    const event = (value: object) => socket.send(JSON.stringify({ type: "event", sessionId: "one", seq: ++sequence, event: value }));
+    await page.routeWebSocket("**/ws", (route) => {
+      socket = route;
+      route.onMessage((raw) => {
+        const command = JSON.parse(String(raw));
+        commands.push(command);
+        if (command.type === "list_sessions") route.send(JSON.stringify({ type: "sessions", projects: [{ path: "/code/example", sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }] }] }));
+        if (command.type === "subscribe") snapshot();
+        if (command.type === "set_model") { state.model = state.models.find((model) => model.id === command.modelId)!; snapshot(); }
+        if (command.type === "set_thinking_level") { state.thinkingLevel = command.level; snapshot(); }
+        if (command.type === "prompt") { isRunning = true; event({ type: "agent_start" }); }
+        if (command.type === "follow_up") event({ type: "queue_update", steering: [], followUp: [command.text] });
+        if (command.type === "steer") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
+        if (command.type === "abort") { isRunning = false; event({ type: "agent_settled", aborted: true }); }
+      });
+    });
+    const address = server.httpServer.address();
+    assert.ok(address && typeof address === "object");
+    await page.goto(`http://127.0.0.1:${address.port}/#one`);
+    await page.getByText("File diff", { exact: true }).waitFor();
+    assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
+    await checkWidth(page);
+    await page.getByRole("button", { name: "Session settings", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Session settings" });
+    await dialog.waitFor();
+    await checkWidth(page);
+    await page.getByLabel("Model", { exact: true }).click();
+    const popup = page.locator('[data-selection]').filter({ has: page.getByPlaceholder("Search models") });
+    const bounds = await popup.boundingBox();
+    const triggerBounds = await page.getByLabel("Model", { exact: true }).boundingBox();
+    assert.ok(bounds && triggerBounds && Math.abs(bounds.width - triggerBounds.width) < 2);
+    assert.ok(bounds && bounds.width <= 360 && bounds.height <= 320);
+    await screenshot(page, `model-picker-${width}`);
+    await page.getByPlaceholder("Search models").fill("reasoner");
+    assert.equal(await page.getByRole("option").count(), 1);
+    await page.getByRole("option", { name: /Second model/ }).click();
+    await waitFor(async () => state.model.id === "reasoner");
+    await page.getByLabel("Thinking", { exact: true }).click();
+    await page.getByRole("option", { name: "high", exact: true }).click();
+    await waitFor(async () => state.thinkingLevel === "high");
+    await dialog.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("Start work");
+    await page.getByRole("button", { name: "Send prompt" }).click();
+    await page.getByRole("button", { name: "Stop run" }).waitFor();
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("Next task");
+    await page.getByRole("button", { name: "Send follow-up" }).click();
+    await page.getByLabel("Queued messages").waitFor();
+    await page.getByRole("combobox", { name: "Message mode" }).click();
+    await page.getByRole("option", { name: "Steer", exact: true }).click();
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("Change direction");
+    await page.getByRole("button", { name: "Send steer" }).click();
+    await waitFor(async () => commands.some((command) => command.type === "steer"));
+    await checkWidth(page);
+    await screenshot(page, `agent-${width}`);
+    await page.getByRole("button", { name: "Stop run" }).click();
+    await page.getByRole("button", { name: "Send prompt" }).waitFor();
+    assert.deepEqual(errors, []);
+  });
+}

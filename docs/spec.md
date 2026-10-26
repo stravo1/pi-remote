@@ -64,6 +64,10 @@ One person runs pi on one machine and uses it from any device through a browser.
 
 - Session list: sessions grouped by project, newest first. A button starts a new session in a project.
 - Session view: the transcript, live output, tool calls, and an input box. While a run is active, the input box sends a follow-up by default and offers "steer" as a second action. A stop button aborts the run.
+- Session settings: a native frappe-ui bottom drawer holds the searchable model picker and the thinking level picker.
+  The model list matches the field width and scrolls within a fixed height limit.
+  Only models with configured access and supported thinking levels appear. Settings changes require an idle session.
+  Choices apply to that session and survive reopening it. They do not change the global defaults.
 
 ## Functional requirements
 
@@ -192,9 +196,11 @@ Client to server:
 | `subscribe` | `sessionId` | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages. |
 | `unsubscribe` | `sessionId` | Stops events for this client. |
 | `prompt` | `sessionId`, `text` | Starts a run. Rejected during a run. |
-| `steer` | `sessionId`, `text` | Adds a message after the current turn. |
-| `follow_up` | `sessionId`, `text` | Adds a message after the current run. |
+| `steer` | `sessionId`, `text` | Adds a message after the current turn. Starts a prompt if the run has ended. |
+| `follow_up` | `sessionId`, `text` | Adds a message after the current run. Starts a prompt if the run has ended. |
 | `abort` | `sessionId` | Stops the active run. |
+| `set_model` | `sessionId`, `provider`, `modelId` | Selects an available model while idle. Sends a fresh snapshot to all subscribers. |
+| `set_thinking_level` | `sessionId`, `level` | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers. |
 
 Server to client:
 
@@ -203,9 +209,13 @@ Server to client:
 | `sessions` | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]`, optional `groupsRoot` | Session list. `groupsRoot` is present only when the client can create groups. |
 | `group_created` | `project` | The new group is ready. |
 | `session_created` | `sessionId` | The new session is ready. |
-| `snapshot` | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq` | Full state at subscribe time. |
+| `snapshot` | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings` | Full state at subscribe time or after a settings change. |
 | `event` | `sessionId`, `seq`, `event` | One pi event, unchanged. |
 | `error` | `message`, optional `sessionId` | A command failed. |
+
+`settings` contains `model`, `models`, `thinkingLevel`, and `thinkingLevels`.
+Each model contains only `provider`, `id`, and `name`. The server never sends credentials.
+The thinking levels come from the selected model's SDK capabilities.
 
 `seq` increases by one for each event in a session. A client that sees a gap sends `subscribe` again and gets a new snapshot.
 
@@ -233,6 +243,7 @@ The configuration path comes from the command line: `npm start -- /absolute/path
 ```
 
 An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
+This selects the default for new sessions. Existing sessions restore their saved model.
 Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
 An optional `projectsRoot` (an absolute path) lets the client create groups.
 A group name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.

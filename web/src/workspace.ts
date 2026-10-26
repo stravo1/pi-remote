@@ -1,3 +1,4 @@
+import type { SessionSettings } from "../../server/src/pi-adapter.ts";
 import { Connection } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
 import { Transcript } from "./transcript.ts";
@@ -11,6 +12,8 @@ export class Workspace {
   transcript = new Transcript();
   error = "";
   isSending = false;
+  isUpdatingSettings = false;
+  settings?: SessionSettings;
   private isSyncing = false;
   private lastSequence = 0;
   private connection?: Connection;
@@ -26,7 +29,7 @@ export class Workspace {
 
   get is_disabled(): boolean {
     return this.status !== "connected" || !this.sessionId || this.isSyncing
-      || this.transcript.is_running || this.isSending;
+      || this.isSending || this.isUpdatingSettings;
   }
 
   start(): void {
@@ -47,6 +50,9 @@ export class Workspace {
     this.sessionId = sessionId;
     if (location.hash.slice(1) !== sessionId) location.hash = sessionId;
     this.transcript = new Transcript();
+    this.settings = undefined;
+    this.isSending = false;
+    this.isUpdatingSettings = false;
     this.subscribe();
   }
 
@@ -59,10 +65,24 @@ export class Workspace {
     this.run({ type: "new_group", name });
   }
 
-  sendPrompt(text: string): void {
+  sendPrompt(text: string, mode: "follow_up" | "steer" = "follow_up"): void {
     this.isSending = true;
     this.error = "";
-    this.run({ type: "prompt", sessionId: this.sessionId, text });
+    this.run({ type: this.transcript.is_running ? mode : "prompt", sessionId: this.sessionId, text });
+  }
+
+  setModel(value: string): void {
+    const model = this.settings?.models.find((choice) => JSON.stringify([choice.provider, choice.id]) === value);
+    if (!model) return;
+    this.isUpdatingSettings = true;
+    this.error = "";
+    this.run({ type: "set_model", sessionId: this.sessionId, provider: model.provider, modelId: model.id });
+  }
+
+  setThinkingLevel(level: string): void {
+    this.isUpdatingSettings = true;
+    this.error = "";
+    this.run({ type: "set_thinking_level", sessionId: this.sessionId, level });
   }
 
   abort(): void {
@@ -76,13 +96,17 @@ export class Workspace {
       case "session_created": this.refreshList(); this.select(message.sessionId); break;
       case "snapshot": this.applySnapshot(message); break;
       case "event": this.applyEvent(message); break;
-      case "error": this.isSending = false; this.error = message.message; break;
+      case "error":
+        if (message.sessionId && message.sessionId !== this.sessionId) break;
+        this.isSending = false; this.isUpdatingSettings = false; this.error = message.message; break;
     }
   }
 
   private applySnapshot(message: any): void {
     if (message.sessionId !== this.sessionId) return;
     this.transcript.load(message);
+    this.settings = message.settings;
+    this.isUpdatingSettings = false;
     this.lastSequence = message.seq;
     this.isSyncing = false;
     this.isSending = false;
@@ -118,6 +142,7 @@ export class Workspace {
       this.connection!.send(command);
     } catch (error) {
       this.isSending = false;
+      this.isUpdatingSettings = false;
       this.error = error instanceof Error ? error.message : "The command failed.";
     }
   }

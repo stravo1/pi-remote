@@ -53,6 +53,18 @@ npm run check
 npm run build
 ```
 
+Run the isolated browser checks with:
+
+```sh
+npx playwright install chromium
+npm run test:browser -w web
+```
+
+These checks use headless Chromium with a temporary profile at 375 px and 1280 px.
+They cover tool diffs, the searchable model drawer, thinking levels, follow-up, steer, and Stop.
+Screenshots go to `pi-remote-phase-3` inside the system temporary directory.
+If Chromium is already installed elsewhere, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to that test browser's executable.
+
 To test the production build locally, start the backend without watch mode:
 
 ```sh

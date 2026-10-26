@@ -66,3 +66,29 @@ test("keeps the groups root from the session list", () => {
   workspace.handle({ type: "sessions", projects: [], groupsRoot: "/home/me" });
   assert.equal(workspace.groupsRoot, "/home/me");
 });
+
+test("allows input during a run and sends follow-up by default or steer explicitly", () => {
+  const { workspace, sent } = setup();
+  workspace.status = "connected";
+  workspace.transcript.is_running = true;
+  assert.equal(workspace.is_disabled, false);
+  workspace.sendPrompt("Next");
+  workspace.handle({ type: "event", sessionId: "one", seq: 1, event: { type: "queue_update", steering: [], followUp: ["Next"] } });
+  assert.equal(workspace.isSending, false);
+  workspace.sendPrompt("Change", "steer");
+  assert.deepEqual(sent, [{ type: "follow_up", sessionId: "one", text: "Next" }, { type: "steer", sessionId: "one", text: "Change" }]);
+});
+
+test("uses server settings and ignores errors from another session", () => {
+  const { workspace, sent } = setup();
+  const settings = { model: { provider: "faux", id: "one", name: "One" }, models: [{ provider: "faux", id: "one", name: "One" }], thinkingLevel: "off", thinkingLevels: ["off", "high"] };
+  workspace.handle({ ...snapshot, settings });
+  workspace.setModel(JSON.stringify(["faux", "one"]));
+  workspace.setThinkingLevel("high");
+  assert.deepEqual(sent, [{ type: "set_model", sessionId: "one", provider: "faux", modelId: "one" }, { type: "set_thinking_level", sessionId: "one", level: "high" }]);
+  workspace.handle({ type: "error", sessionId: "other", message: "old failure" });
+  assert.equal(workspace.error, "");
+  workspace.handle({ ...snapshot, settings: { ...settings, thinkingLevel: "high" } });
+  assert.equal(workspace.settings?.thinkingLevel, "high");
+  assert.equal(workspace.isUpdatingSettings, false);
+});

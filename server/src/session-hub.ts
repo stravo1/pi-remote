@@ -72,6 +72,22 @@ export class SessionHub {
     await (await this.getSession(sessionId)).session.abort();
   }
 
+  async queue(sessionId: string, text: string, mode: "steer" | "follow_up"): Promise<void> {
+    await (await this.getSession(sessionId)).session.queue(text, mode);
+  }
+
+  async setModel(sessionId: string, provider: string, id: string): Promise<void> {
+    const entry = await this.getSession(sessionId);
+    await entry.session.setModel(provider, id);
+    entry.sendSnapshot();
+  }
+
+  async setThinkingLevel(sessionId: string, level: string): Promise<void> {
+    const entry = await this.getSession(sessionId);
+    entry.session.setThinkingLevel(level);
+    entry.sendSnapshot();
+  }
+
   async close(): Promise<void> {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();

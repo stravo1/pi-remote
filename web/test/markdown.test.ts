@@ -8,7 +8,7 @@ test("renders common markdown", () => {
   assert.match(html, /<strong>bold<\/strong>/);
   assert.match(html, /<code>code<\/code>/);
   assert.match(html, /<li>one<\/li>/);
-  assert.match(html, /<pre><code class="language-ts">const a = 1;/);
+  assert.match(html, /<span class="hljs-keyword">const<\/span>/);
 });
 
 test("escapes raw HTML", () => {
@@ -32,4 +32,11 @@ test("never loads images", () => {
 test("handles unfinished markdown while a reply streams", () => {
   assert.doesNotThrow(() => renderMarkdown("```ts\nconst a ="));
   assert.doesNotThrow(() => renderMarkdown("**half"));
+});
+
+
+test("escapes unknown code languages and highlights without allowing HTML", () => {
+  assert.match(renderMarkdown('```unknown\n<img onerror="evil()">\n```'), /&lt;img/);
+  assert.doesNotMatch(renderMarkdown('```html\n<script>alert(1)</script>\n```'), /<script/);
+  assert.doesNotMatch(renderMarkdown('```x" onmouseover="evil\nhello\n```'), /onmouseover/);
 });

@@ -11,6 +11,9 @@ interface Command {
   project?: unknown;
   name?: unknown;
   text?: unknown;
+  provider?: unknown;
+  modelId?: unknown;
+  level?: unknown;
 }
 
 export class Transport {
@@ -72,16 +75,25 @@ export class Transport {
   async command(client: HubClient, data: RawData, isBinary: boolean): Promise<void> {
     if (isBinary) throw new Error("Send a JSON text message.");
     const command: Command = JSON.parse(data.toString());
-    switch (command?.type) {
-      case "list_sessions": return client.send(JSON.stringify(await this.hub.getSessionList()));
-      case "new_session": return this.createSession(client, command);
-      case "new_group": return this.createGroup(client, command);
-      case "subscribe": return this.hub.subscribe(client, requireSessionId(command));
-      case "unsubscribe": return this.hub.unsubscribe(client, requireSessionId(command));
-      case "prompt": return this.hub.prompt(requireSessionId(command), requireText(command));
-      case "abort": return this.hub.abort(requireSessionId(command));
-      default: throw new Error("Unknown command.");
-    }
+    const handlers = this.getCommandHandlers(client, command);
+    if (typeof command?.type !== "string" || !Object.hasOwn(handlers, command.type)) throw new Error("Unknown command.");
+    await handlers[command.type]();
+  }
+
+  getCommandHandlers(client: HubClient, command: Command): Record<string, () => void | Promise<void>> {
+    return {
+      list_sessions: async () => client.send(JSON.stringify(await this.hub.getSessionList())),
+      new_session: () => this.createSession(client, command),
+      new_group: () => this.createGroup(client, command),
+      subscribe: () => this.hub.subscribe(client, requireSessionId(command)),
+      unsubscribe: () => this.hub.unsubscribe(client, requireSessionId(command)),
+      prompt: () => this.hub.prompt(requireSessionId(command), requireText(command)),
+      steer: () => this.hub.queue(requireSessionId(command), requireText(command), "steer"),
+      follow_up: () => this.hub.queue(requireSessionId(command), requireText(command), "follow_up"),
+      set_model: () => this.hub.setModel(requireSessionId(command), requireString(command.provider), requireString(command.modelId)),
+      set_thinking_level: () => this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level)),
+      abort: () => this.hub.abort(requireSessionId(command)),
+    };
   }
 
   async createGroup(client: HubClient, command: Command): Promise<void> {
@@ -115,6 +127,11 @@ export class Transport {
       this.server.close((error) => error ? reject(error) : resolve());
     });
   }
+}
+
+function requireString(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error("The setting must be a nonempty string.");
+  return value;
 }
 
 function requireSessionId(command: Command): string {

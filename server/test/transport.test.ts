@@ -127,3 +127,50 @@ test("new_group needs a name and reports when groups are off", { timeout: 5000 }
   assert.match((await request(socket, { type: "new_group" })).message, /must be a string/);
   assert.match((await request(socket, { type: "new_group", name: "notes" })).message, /not enabled/);
 });
+
+test("shares queues and settings with two clients and a reconnect", { timeout: 5000 }, async (context) => {
+  const { url } = await setup(context);
+  const first = await connect(url);
+  const second = await connect(url);
+  await request(first, { type: "subscribe", sessionId: "stored" });
+  await request(second, { type: "subscribe", sessionId: "stored" });
+  for (const command of [
+    { type: "set_model", provider: "faux", modelId: "second" },
+    { type: "set_thinking_level", level: "high" },
+  ]) {
+    const other = once(second, "message");
+    const reply = await request(first, { ...command, sessionId: "stored" });
+    assert.deepEqual(reply, JSON.parse((await other)[0].toString()));
+    assert.equal(reply.settings.model.id, "second");
+  }
+  const current = await request(first, { type: "subscribe", sessionId: "stored" });
+  assert.equal(current.settings.thinkingLevel, "high");
+  const started = once(second, "message");
+  await request(first, { type: "prompt", sessionId: "stored", text: "Work" });
+  await started;
+  for (const type of ["steer", "follow_up"]) {
+    const other = once(second, "message");
+    const reply = await request(first, { type, sessionId: "stored", text: type });
+    assert.equal(reply.event.type, "queue_update");
+    assert.deepEqual(reply, JSON.parse((await other)[0].toString()));
+  }
+  const third = await connect(url);
+  const restored = await request(third, { type: "subscribe", sessionId: "stored" });
+  assert.deepEqual(restored.queue, { steering: ["steer"], followUp: ["follow_up"] });
+  assert.match((await request(first, { type: "set_model", sessionId: "stored", provider: "faux", modelId: "first" })).message, /idle/);
+  await request(first, { type: "abort", sessionId: "stored" });
+});
+
+test("rejects invalid settings and empty queued messages", { timeout: 5000 }, async (context) => {
+  const { url } = await setup(context);
+  const socket = await connect(url);
+  for (const command of [
+    { type: "set_model", provider: "faux", modelId: "missing" },
+    { type: "set_model", modelId: "first" },
+    { type: "set_thinking_level", level: "impossible" },
+    { type: "set_thinking_level", level: 1 },
+    { type: "steer", text: " " }, { type: "follow_up", text: "" },
+  ]) {
+    assert.equal((await request(socket, { ...command, sessionId: "stored" })).type, "error");
+  }
+});

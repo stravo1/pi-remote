@@ -4,7 +4,7 @@ export interface HubClient {
   send(message: string): void;
 }
 
-export type HubSession = Pick<PiSession, "id" | "is_running" | "snapshot" | "prompt" | "abort" | "subscribe" | "close">;
+export type HubSession = Pick<PiSession, "id" | "is_running" | "snapshot" | "prompt" | "queue" | "setModel" | "setThinkingLevel" | "abort" | "subscribe" | "close">;
 
 export interface RunMetrics {
   type: "run";
@@ -55,6 +55,11 @@ export class OpenSession {
       this.bytes += Buffer.byteLength(message);
     }
     this.record(event);
+  }
+
+  sendSnapshot(): void {
+    const message = JSON.stringify(this.snapshot);
+    for (const client of this.subscribers) client.send(message);
   }
 
   async close(): Promise<void> {

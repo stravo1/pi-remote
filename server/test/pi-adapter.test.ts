@@ -10,7 +10,7 @@ import { PiAdapter } from "../src/pi-adapter.ts";
 async function setup(context: TestContext, responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-adapter-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
-  const faux = fauxProvider();
+  const faux = fauxProvider({ models: [{ id: "first" }, { id: "second", reasoning: true }] });
   faux.setResponses(responses);
   const modelRuntime = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
   modelRuntime.registerNativeProvider(faux.provider);
@@ -51,4 +51,60 @@ test("lists a stored session and reopens it with the same messages", async (cont
   const reopened = await adapter.open(directory, summary.path);
   context.after(() => reopened.close());
   assert.deepEqual(reopened.snapshot.messages, messages);
+});
+
+
+for (const mode of ["steer", "follow_up"] as const) {
+  test(`delivers ${mode} through the SDK and exposes the pending queue`, async (context) => {
+    const { directory, adapter } = await setup(context, [
+      fauxAssistantMessage([fauxToolCall("bash", { command: "sleep 0.05" })], { stopReason: "toolUse" }),
+      fauxAssistantMessage("First result."),
+      fauxAssistantMessage("Follow-up result."),
+    ]);
+    const session = await adapter.create(directory);
+    context.after(() => session.close());
+    const queues: string[][] = [];
+    let queued: Promise<void> | undefined;
+    session.subscribe((event) => {
+      if (event.type === "tool_execution_start") queued = session.queue("Queued instruction", mode);
+      if (event.type === "queue_update") queues.push([...event.steering, ...event.followUp]);
+    });
+    await session.prompt("Work");
+    await queued;
+    assert.ok(queues.some((messages) => messages.includes("Queued instruction")));
+    assert.deepEqual(session.snapshot.queue, { steering: [], followUp: [] });
+    const users = session.snapshot.messages.filter((message) => message.role === "user");
+    assert.equal(users.length, 2);
+    assert.match(JSON.stringify(users[1]), /Queued instruction/);
+  });
+}
+
+test("offers available models and thinking levels and saves session choices", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage("Saved.")]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  assert.equal(session.settings.models.filter((model) => model.provider === "faux").length, 2);
+  await assert.rejects(session.setModel("faux", "missing"), /unavailable/);
+  await session.setModel("faux", "second");
+  assert.equal(session.settings.model?.id, "second");
+  assert.throws(() => session.setThinkingLevel("impossible"), /Unsupported/);
+  session.setThinkingLevel("high");
+  assert.equal(session.settings.thinkingLevel, "high");
+  const run = session.prompt("Save the choices");
+  await assert.rejects(session.setModel("faux", "first"), /idle/);
+  assert.throws(() => session.setThinkingLevel("off"), /idle/);
+  await run;
+  const [summary] = await adapter.list(directory);
+  const reopened = await adapter.open(directory, summary.path);
+  context.after(() => reopened.close());
+  assert.equal(reopened.settings.model?.id, "second");
+  assert.equal(reopened.settings.thinkingLevel, "high");
+});
+
+test("a queued message arriving after a run starts a new prompt", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage("Done.")]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.queue("A late follow-up", "follow_up");
+  assert.match(JSON.stringify(session.snapshot.messages), /A late follow-up/);
 });

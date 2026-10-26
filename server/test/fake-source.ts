@@ -1,9 +1,15 @@
-import type { AgentSessionEvent, Snapshot } from "../src/pi-adapter.ts";
+import type { AgentSessionEvent, SessionSettings, Snapshot } from "../src/pi-adapter.ts";
 import type { HubSession, SessionSource } from "../src/session-hub.ts";
 
 export class FakeSession implements HubSession {
   is_running = false;
   closed = false;
+  pending = { steering: [] as string[], followUp: [] as string[] };
+  settings: SessionSettings = {
+    model: { provider: "faux", id: "first", name: "First" },
+    models: [{ provider: "faux", id: "first", name: "First" }, { provider: "faux", id: "second", name: "Second" }],
+    thinkingLevel: "off", thinkingLevels: ["off", "high"],
+  };
   listener: (event: AgentSessionEvent) => void = () => {};
   finish: () => void = () => {};
 
@@ -14,7 +20,7 @@ export class FakeSession implements HubSession {
   }
 
   get snapshot(): Snapshot {
-    return { messages: [], isStreaming: this.is_running, queue: { steering: [], followUp: [] } };
+    return { messages: [], isStreaming: this.is_running, queue: structuredClone(this.pending), settings: this.settings };
   }
 
   subscribe(listener: (event: AgentSessionEvent) => void): () => void {
@@ -29,6 +35,25 @@ export class FakeSession implements HubSession {
     await new Promise<void>((resolve) => { this.finish = resolve; });
     this.is_running = false;
     this.listener({ type: "agent_settled", aborted: false });
+  }
+
+  async queue(text: string, mode: "steer" | "follow_up"): Promise<void> {
+    if (!this.is_running) return this.prompt();
+    this.pending[mode === "steer" ? "steering" : "followUp"].push(text);
+    this.listener({ type: "queue_update", ...this.pending });
+  }
+
+  async setModel(provider: string, id: string): Promise<void> {
+    if (this.is_running) throw new Error("Change settings when the session is idle.");
+    const model = this.settings.models.find((choice) => choice.provider === provider && choice.id === id);
+    if (!model) throw new Error("Unknown or unavailable model.");
+    this.settings.model = model;
+  }
+
+  setThinkingLevel(level: string): void {
+    if (this.is_running) throw new Error("Change settings when the session is idle.");
+    if (!this.settings.thinkingLevels.includes(level)) throw new Error("Unsupported thinking level.");
+    this.settings.thinkingLevel = level;
   }
 
   async abort(): Promise<void> {
