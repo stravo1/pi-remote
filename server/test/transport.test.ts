@@ -70,6 +70,12 @@ async function request(socket: WebSocket, command: object) {
   return JSON.parse((await reply)[0].toString());
 }
 
+/** Waits for unsolicited messages. A setImmediate spin loses that race under load. */
+async function waitFor(ready: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 500 && !ready(); attempt++) await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(ready(), "The expected message did not arrive.");
+}
+
 test("lists, creates, and rejects an unknown project", { timeout: 5000 }, async (context) => {
   const { url, directory } = await setup(context);
   const socket = await connect(url);
@@ -297,8 +303,7 @@ test("lists provider status and keeps login prompts separate from credentials", 
   const recordMessage = (message: Buffer) => loginMessages.push(JSON.parse(message.toString()));
   socket.on("message", recordMessage);
   socket.send(JSON.stringify({ type: "start_provider_login", provider: "faux", authType: "api_key" }));
-  for (let attempt = 0; attempt < 20 && loginMessages.length < 2; attempt++)
-    await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => loginMessages.length >= 2);
   socket.off("message", recordMessage);
   assert.deepEqual(loginMessages, [
     { type: "provider_login_started", loginId: "login-one" },
@@ -309,8 +314,7 @@ test("lists provider status and keeps login prompts separate from credentials", 
     },
   ]);
   socket.send(JSON.stringify({ type: "submit_provider_login", loginId: "login-one", value: "secret" }));
-  for (let attempt = 0; attempt < 20 && received.length < 2; attempt++)
-    await new Promise((resolve) => setImmediate(resolve));
+  await waitFor(() => received.length >= 2);
   assert.deepEqual(received, ["faux:secret", "login-one:secret"]);
 });
 
