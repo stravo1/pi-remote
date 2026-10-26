@@ -137,15 +137,18 @@ function saveKey(): void {
             </li>
           </ul>
         </section>
-        <section class="flex items-center gap-2" aria-labelledby="appearance-heading">
-          <h2 id="appearance-heading" class="min-w-0 flex-1 text-base font-medium text-ink-gray-9">Appearance</h2>
-          <Select
-            class="w-32"
-            aria-label="Appearance"
-            :options="schemeOptions"
-            :model-value="colorScheme"
-            @update:model-value="(scheme) => setColorScheme(scheme as ColorScheme)"
-          />
+        <section class="space-y-3" aria-labelledby="appearance-heading">
+          <h2 id="appearance-heading" class="text-base font-medium text-ink-gray-9">Appearance</h2>
+          <div class="flex items-center gap-3 rounded-4 border border-outline-gray-2 px-4 py-3">
+            <span id="theme-label" class="min-w-0 flex-1 text-base text-ink-gray-9">Theme</span>
+            <Select
+              class="w-32"
+              aria-labelledby="theme-label"
+              :options="schemeOptions"
+              :model-value="colorScheme"
+              @update:model-value="(scheme) => setColorScheme(scheme as ColorScheme)"
+            />
+          </div>
         </section>
       </div>
     </main>

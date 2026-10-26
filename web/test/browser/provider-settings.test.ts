@@ -150,7 +150,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByRole("dialog").waitFor({ state: "detached" });
   const getTheme = () => page.evaluate(() => document.documentElement.getAttribute("data-theme"));
   assert.equal(await getTheme(), "light");
-  await page.getByRole("combobox", { name: "Appearance" }).click();
+  await page.getByRole("combobox", { name: "Theme" }).click();
   await page.getByRole("option", { name: "Dark" }).click();
   assert.equal(await getTheme(), "dark");
   assert.equal(await page.evaluate(() => localStorage.getItem("theme")), "dark");
