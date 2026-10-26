@@ -80,6 +80,7 @@ for (const width of [375, 1280]) {
         if (command.type === "prompt") { isRunning = true; event({ type: "agent_start" }); }
         if (command.type === "follow_up") event({ type: "queue_update", steering: [], followUp: [command.text] });
         if (command.type === "steer") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
+        if (command.type === "new_group" && command.name === "taken") route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
         if (command.type === "abort") { isRunning = false; event({ type: "agent_settled", aborted: true }); }
       });
     });
@@ -151,6 +152,9 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
     await page.getByRole("button", { name: "New project" }).click();
+    await page.getByRole("textbox", { name: "Folder name" }).fill("taken");
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await page.getByText("Folder exists.", { exact: true }).waitFor();
     await page.getByRole("textbox", { name: "Folder name" }).fill("notes");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));

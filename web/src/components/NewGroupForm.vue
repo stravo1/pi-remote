@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { Button, TextInput } from "frappe-ui";
+import { ref, watch } from "vue";
+import { Button, TextInput, toast } from "frappe-ui";
 
-defineProps<{ error: string }>();
+const props = defineProps<{ error: string }>();
 const emit = defineEmits<{ submit: [name: string]; cancel: [] }>();
 const name = ref("");
 const isSubmitted = ref(false);
+
+watch(() => props.error, (message) => { if (isSubmitted.value && message) toast.error(message); });
 
 function submit(): void {
   if (!name.value.trim()) return;
@@ -15,12 +17,9 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="space-y-1.5" aria-label="New project" @submit.prevent="submit" @keydown.esc="emit('cancel')">
-    <div class="flex items-center gap-2">
-      <TextInput v-model="name" class="min-w-0 flex-1" placeholder="Folder name" aria-label="Folder name" autofocus />
-      <Button label="Cancel" @click="emit('cancel')" />
-      <Button type="submit" variant="solid" label="Create" :disabled="!name.trim()" />
-    </div>
-    <p v-if="isSubmitted && error" role="alert" class="text-p-sm text-ink-red-3">{{ error }}</p>
+  <form class="flex items-center gap-2" aria-label="New project" @submit.prevent="submit" @keydown.esc="emit('cancel')">
+    <TextInput v-model="name" class="min-w-0 flex-1" placeholder="Folder name" aria-label="Folder name" autofocus />
+    <Button label="Cancel" @click="emit('cancel')" />
+    <Button type="submit" variant="solid" label="Create" :disabled="!name.trim()" />
   </form>
 </template>
