@@ -41,13 +41,13 @@ function chooseEffort(level: string): void {
 </script>
 
 <template>
-  <div data-session-settings :class="['flex flex-col gap-3 px-4 pb-4', view === 'models' ? 'h-[min(60dvh,26rem)]' : '']">
+  <div data-session-settings :class="['flex flex-col gap-3 px-4 pb-4 sm:px-2 sm:pb-2', view === 'models' ? 'h-[min(60dvh,26rem)]' : '']">
     <Button v-if="view !== 'main'" class="shrink-0 self-start" variant="ghost" icon-left="lucide-chevron-left" label="Back" @click="view = 'main'" />
     <p v-if="isRunning" class="px-1 text-p-sm text-ink-gray-5">You can change settings after this run.</p>
     <template v-if="view === 'main'">
       <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1" role="listbox" aria-label="Recent models">
         <button v-for="model in recentModels" :key="getModelKey(model)" type="button" role="option" :disabled="isLocked"
-          :aria-selected="isSelected(model)" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-60" @click="chooseModel(model)">
+          :aria-selected="isSelected(model)" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-60" @click="chooseModel(model)">
           <span class="min-w-0 flex-1">
             <span class="block truncate text-base text-ink-gray-9">{{ model.name }}</span>
             <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
@@ -56,12 +56,12 @@ function chooseEffort(level: string): void {
         </button>
       </div>
       <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
-        <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked || settings.thinkingLevels.length < 2" @click="view = 'effort'">
+        <button type="button" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked || settings.thinkingLevels.length < 2" @click="view = 'effort'">
           <span class="flex-1 text-base text-ink-gray-9">Effort</span>
           <span class="text-base capitalize text-ink-gray-5">{{ settings.thinkingLevel }}</span>
           <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
         </button>
-        <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked" @click="view = 'models'">
+        <button type="button" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked" @click="view = 'models'">
           <span class="flex-1 text-base text-ink-gray-9">More models</span>
           <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
         </button>
@@ -73,7 +73,7 @@ function chooseEffort(level: string): void {
       <p v-if="!filteredModels.length" class="px-1 text-p-base text-ink-gray-5">No matching models</p>
       <div v-else class="min-h-0 flex-1 divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1" role="listbox" aria-label="Models">
         <button v-for="model in filteredModels" :key="getModelKey(model)" type="button" role="option"
-          :aria-selected="isSelected(model)" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left" @click="chooseModel(model)">
+          :aria-selected="isSelected(model)" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 py-2 text-left" @click="chooseModel(model)">
           <span class="min-w-0 flex-1">
             <span class="block truncate text-base text-ink-gray-9">{{ model.name }}</span>
             <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
@@ -84,7 +84,7 @@ function chooseEffort(level: string): void {
     </template>
     <div v-else class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1" role="listbox" aria-label="Effort">
       <button v-for="level in settings.thinkingLevels" :key="level" type="button" role="option"
-        :aria-selected="level === settings.thinkingLevel" class="flex min-h-14 w-full items-center gap-3 px-4 text-left" @click="chooseEffort(level)">
+        :aria-selected="level === settings.thinkingLevel" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 text-left" @click="chooseEffort(level)">
         <span class="flex-1 text-base capitalize text-ink-gray-9">{{ level }}</span>
         <span v-if="level === settings.thinkingLevel" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
       </button>

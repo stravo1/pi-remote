@@ -15,7 +15,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <header class="shrink-0 border-b border-outline-gray-1">
-      <div class="flex h-14 w-full items-center gap-3 px-4">
+      <div class="flex h-14 w-full items-center gap-3 px-4 sm:h-11">
       <span class="size-8 shrink-0"><PiLogo /></span>
       <div class="min-w-0 flex-1">
         <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
@@ -25,15 +25,15 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
       </div>
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto" aria-label="Sessions">
-      <div class="mx-auto min-h-full w-full max-w-2xl space-y-6 px-4 py-4 max-sm:flex max-sm:flex-col max-sm:justify-end">
+      <div class="mx-auto min-h-full w-full max-w-2xl space-y-6 px-4 py-4 sm:space-y-3 sm:py-3 max-sm:flex max-sm:flex-col max-sm:justify-end">
         <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
-          <div class="mb-2 flex items-center gap-2">
+          <div class="mb-2 flex items-center gap-2 sm:mb-1">
             <h2 class="min-w-0 flex-1 truncate text-p-sm font-medium text-ink-gray-5">{{ getProjectName(project.path) }}</h2>
             <Button variant="ghost" icon-left="lucide-plus" label="New session" @click="$emit('create', project.path)" />
           </div>
           <ul class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
             <li v-for="session in project.sessions" :key="session.id">
-              <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left hover:bg-surface-gray-2 active:bg-surface-gray-3"
+              <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left sm:min-h-10 sm:py-1 hover:bg-surface-gray-2 active:bg-surface-gray-3"
                 @click="$emit('select', session.id)">
                 <span class="min-w-0 flex-1">
                   <span class="block truncate text-base text-ink-gray-9">{{ getSessionTitle(session) }}</span>

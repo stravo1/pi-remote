@@ -40,7 +40,7 @@ function openGroupDialog(): void {
       @create="(project) => workspace.createSession(project)" @create-group="openGroupDialog" />
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
-        <div class="flex h-14 w-full items-center gap-1 px-2">
+        <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">
         <Button variant="ghost" size="lg" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
         <h1 :class="['min-w-0 flex-1 truncate text-base font-medium', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-amber-3']">
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
@@ -51,7 +51,7 @@ function openGroupDialog(): void {
         </div>
       </header>
       <section ref="transcriptElement" class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Conversation" aria-live="polite">
-        <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6">
+        <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-3">
           <MessageItem v-for="(message, index) in workspace.transcript.messages" :key="index" :message="message"
             :is-group-start="workspace.transcript.isGroupStart(index)" :tools="workspace.transcript.tools" />
         </div>

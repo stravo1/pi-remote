@@ -9,7 +9,7 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
 
 <template>
   <div class="min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-p-sm" :aria-label="`${tool.name}: ${statusLabels[tool.status]}`">
-    <div class="flex items-start gap-2 bg-surface-gray-1 px-3 py-2">
+    <div class="flex items-start gap-2 bg-surface-gray-1 px-3 py-2 sm:py-1.5">
       <span class="lucide-terminal mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
       <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -20,12 +20,12 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
       </div>
     </div>
     <details v-if="diff" class="group border-t border-outline-gray-1" open>
-      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6">{{ tool.diff ? 'File diff' : 'Requested changes' }}</summary>
+      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6 sm:py-1">{{ tool.diff ? 'File diff' : 'Requested changes' }}</summary>
       <pre class="max-h-96 overflow-y-auto border-t border-outline-gray-1 font-mono text-p-sm"><code v-for="(line, index) in diff.split('\n')" :key="index"
         :class="['block whitespace-pre-wrap break-all px-3', { 'bg-surface-green-1 text-ink-green-4': getDiffKind(line) === 'added', 'bg-surface-red-1 text-ink-red-4': getDiffKind(line) === 'removed' }]">{{ line || ' ' }}</code></pre>
     </details>
     <details v-if="tool.output" class="group border-t border-outline-gray-1">
-      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6">Output</summary>
+      <summary class="cursor-pointer px-3 py-2 text-ink-gray-6 sm:py-1">Output</summary>
       <pre class="max-h-96 overflow-y-auto whitespace-pre-wrap break-all border-t border-outline-gray-1 p-3 font-mono text-p-sm text-ink-gray-7">{{ tool.output }}</pre>
     </details>
   </div>
