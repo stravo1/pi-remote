@@ -52,6 +52,7 @@ export type ProviderLoginEvent = AuthEvent | { type: "prompt"; prompt: AuthPromp
 interface PendingLogin {
   controller: AbortController;
   answer?: (value: string) => void;
+  settled?: Promise<void>;
 }
 
 export class PiSession {
@@ -214,12 +215,14 @@ export class PiAdapter {
     }
     const loginId = randomUUID();
     const pending: PendingLogin = { controller: new AbortController() };
+    const previous = [...this.logins.values()];
+    for (const login of previous) login.controller.abort();
     this.logins.set(loginId, pending);
-    void runtime.login(provider, type, {
+    pending.settled = Promise.allSettled(previous.map((login) => login.settled)).then(() => runtime.login(provider, type, {
       signal: pending.controller.signal,
       notify,
       prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
-    }, { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() }).then(async () => {
+    }, { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() })).then(async () => {
       await runtime.refresh({ providers: [provider], allowNetwork: false });
       notify({ type: "complete" });
     }).catch((error: unknown) => {

@@ -183,3 +183,26 @@ test("summary skips busy sessions and retries after a failed response", async (c
   await job.update();
   assert.equal(session.session.sessionName, "New summary");
 });
+
+test("starting a provider login cancels the login that is still waiting", async () => {
+  const started: string[] = [];
+  const aborted: string[] = [];
+  const modelRuntime = {
+    getProvider: () => ({ auth: { oauth: {} } }),
+    refresh: async () => undefined,
+    login: (provider: string, _type: string, interaction: { signal: AbortSignal }) => new Promise<void>((resolve, reject) => {
+      const name = `${provider}-${started.length}`;
+      started.push(name);
+      interaction.signal.addEventListener("abort", () => { aborted.push(name); reject(new Error("Login cancelled")); });
+    }),
+  };
+  const adapter = new PiAdapter({ modelRuntime: modelRuntime as never });
+  const events: unknown[] = [];
+  adapter.startProviderLogin("openai", "oauth", (event) => events.push(event));
+  await new Promise((resolve) => setImmediate(resolve));
+  adapter.startProviderLogin("openai", "oauth", (event) => events.push(event));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(aborted, ["openai-0"]);
+  assert.deepEqual(started, ["openai-0", "openai-1"]);
+  assert.deepEqual(events, []);
+});
