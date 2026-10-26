@@ -43,6 +43,18 @@ export class SessionHub {
     return this.store.create(name);
   }
 
+  async removeGroup(project: string): Promise<void> {
+    const open = [...this.sessions.values()].filter((entry) => entry.project === project);
+    if (open.some((entry) => entry.session.is_running)) throw new Error("A session in this project is still running.");
+    await this.store.remove(project);
+    for (const entry of open) {
+      clearTimeout(this.timers.get(entry.id));
+      this.timers.delete(entry.id);
+      this.sessions.delete(entry.id);
+      await entry.close();
+    }
+  }
+
   async createSession(project: string): Promise<string> {
     if (!(await this.getProjects()).includes(project)) throw new Error("Unknown project.");
     return this.register(project, await this.source.create(project)).id;

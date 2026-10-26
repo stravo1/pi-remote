@@ -28,6 +28,7 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
       projects.push(project);
       return project;
     },
+    remove: async (project: string) => { projects.splice(projects.indexOf(project), 1); },
   } as unknown as ProjectStore;
   const hub = new SessionHub(source, configuration, () => {}, store);
   const transport = new Transport(hub, configuration, directory, pingInterval, providers);
@@ -136,7 +137,11 @@ test("new_group needs a name and creates a project", { timeout: 5000 }, async (c
   const { url } = await setup(context);
   const socket = await connect(url);
   assert.match((await request(socket, { type: "new_group" })).message, /must be a string/);
-  assert.equal((await request(socket, { type: "new_group", name: "notes" })).type, "group_created");
+  const { project } = await request(socket, { type: "new_group", name: "notes" });
+  assert.ok(project);
+  const list = await request(socket, { type: "remove_group", project });
+  assert.equal(list.type, "sessions");
+  assert.ok(!list.projects.some((item: any) => item.path === project));
 });
 
 test("shares queues and settings with two clients and a reconnect", { timeout: 5000 }, async (context) => {

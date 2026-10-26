@@ -103,6 +103,7 @@ export class Transport {
       list_sessions: async () => client.send(JSON.stringify(await this.hub.getSessionList())),
       new_session: () => this.createSession(client, command),
       new_group: () => this.createGroup(client, command),
+      remove_group: () => this.removeGroup(client, command),
       subscribe: () => this.hub.subscribe(client, requireSessionId(command)),
       unsubscribe: () => this.hub.unsubscribe(client, requireSessionId(command)),
       prompt: () => this.hub.prompt(requireSessionId(command), requireText(command)),
@@ -170,6 +171,11 @@ export class Transport {
     if (typeof command.name !== "string") throw new Error("The group name must be a string.");
     const project = await this.hub.createGroup(command.name);
     client.send(JSON.stringify({ type: "group_created", project }));
+  }
+
+  async removeGroup(client: HubClient, command: Command): Promise<void> {
+    await this.hub.removeGroup(requireString(command.project));
+    client.send(JSON.stringify(await this.hub.getSessionList()));
   }
 
   async createSession(client: HubClient, command: Command): Promise<void> {

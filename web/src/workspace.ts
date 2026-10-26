@@ -63,6 +63,11 @@ export class Workspace {
     this.run({ type: "new_session", project });
   }
 
+  removeGroup(project: string): void {
+    this.error = "";
+    this.run({ type: "remove_group", project });
+  }
+
   createGroup(name: string): void {
     this.error = "";
     this.run({ type: "new_group", name });

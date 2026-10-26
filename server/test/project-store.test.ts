@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -17,6 +17,16 @@ test("creates a folder in the root, lists it, and keeps it after a restart", asy
   assert.equal(path, join(root, "notes"));
   assert.deepEqual(await new ProjectStore(root).list(), [path]);
   assert.deepEqual(JSON.parse(await readFile(join(root, ".pi-remote", "projects.json"), "utf8")), [path]);
+});
+
+test("removes a project from the list and keeps its folder", async (context) => {
+  const root = await setup(context);
+  const store = new ProjectStore(root);
+  const path = await store.create("notes");
+  await store.remove(path);
+  assert.deepEqual(await new ProjectStore(root).list(), []);
+  assert.ok((await lstat(path)).isDirectory());
+  await assert.rejects(store.remove(path), /Unknown project/);
 });
 
 test("adopts an existing folder once and lists it once", async (context) => {

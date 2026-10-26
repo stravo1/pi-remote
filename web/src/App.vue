@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { Button, ToastProvider } from "frappe-ui";
+import { Button, Dialogs, ToastProvider } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
@@ -47,12 +47,13 @@ function closeProviderSettings(): void {
 <template>
   <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
     <ToastProvider />
+    <Dialogs />
     <ProviderSettings v-if="isProviderSettingsOpen" :providers="workspace.providers" :login="workspace.providerLogin" :error="workspace.error" :provider-key="workspace.providerKey"
       @back="closeProviderSettings" @save-key="(provider, key) => workspace.setProviderKey(provider, key)" @load-key="(provider) => workspace.getProviderKey(provider)" @logout="(provider) => workspace.logoutProvider(provider)"
       @login="(provider, type) => workspace.startProviderLogin(provider, type)" @answer="(value) => workspace.submitProviderLogin(value)" @cancel="() => workspace.cancelProviderLogin()" />
     <SessionList v-else-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot" :error="workspace.error" @select="(id) => workspace.select(id)"
-      @create="(project) => workspace.createSession(project)" @create-group="(name) => workspace.createGroup(name)" @settings="openProviderSettings" />
+      @create="(project) => workspace.createSession(project)" @create-group="(name) => workspace.createGroup(name)" @remove-group="(project) => workspace.removeGroup(project)" @settings="openProviderSettings" />
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">

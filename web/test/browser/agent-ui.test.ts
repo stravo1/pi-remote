@@ -81,6 +81,7 @@ for (const width of [375, 1280]) {
         if (command.type === "follow_up") event({ type: "queue_update", steering: [], followUp: [command.text] });
         if (command.type === "steer") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
         if (command.type === "new_group" && command.name === "taken") route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
+        if (command.type === "remove_group") route.send(JSON.stringify({ type: "sessions", groupsRoot: "/code", projects: [] }));
         if (command.type === "abort") { isRunning = false; event({ type: "agent_settled", aborted: true }); }
       });
     });
@@ -152,6 +153,10 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
+    await page.getByRole("button", { name: "example", exact: true }).click();
+    await page.getByRole("button", { name: /Example/ }).waitFor({ state: "detached" });
+    await page.getByRole("button", { name: "example", exact: true }).click();
+    await page.getByRole("button", { name: /Example/ }).waitFor();
     await page.getByRole("button", { name: "New project" }).click();
     await waitFor(async () => page.getByRole("textbox", { name: "Folder name" }).evaluate((input) => input === document.activeElement));
     await page.getByRole("textbox", { name: "Folder name" }).fill("taken");
@@ -161,6 +166,10 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
+    await page.getByRole("button", { name: "Delete example" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await page.getByText("No projects found.", { exact: true }).waitFor();
+    assert.ok(commands.some((command) => command.type === "remove_group" && command.project === "/code/example"));
     assert.deepEqual(errors, []);
   });
 }

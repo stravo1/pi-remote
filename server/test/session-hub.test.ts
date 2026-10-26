@@ -14,13 +14,14 @@ function setup(idleMinutes = 30) {
     { id: "newer", path: "/s/newer", project: "/p/one", firstMessage: "Newer task", modified: 2000 },
   );
   const metrics: RunMetrics[] = [];
-  const store = { root: "/p", list: async () => ["/p/one", "/p/two"] } as unknown as ProjectStore;
+  const removed: string[] = [];
+  const store = { root: "/p", list: async () => ["/p/one", "/p/two"], remove: async (project: string) => { removed.push(project); } } as unknown as ProjectStore;
   const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store);
   const client = () => {
     const messages: any[] = [];
     return { messages, send: (message: string) => messages.push(JSON.parse(message)) };
   };
-  return { source, hub, metrics, client };
+  return { source, hub, metrics, client, removed };
 }
 
 test("lists sessions by project, newest first, and merges open unsaved sessions", async (context) => {
@@ -74,6 +75,20 @@ test("keeps the run alive when every client leaves", async (context) => {
   await run;
 });
 
+test("refuses to remove a project with a running session and closes idle ones", async (context) => {
+  const { hub, source, client, removed } = setup();
+  context.after(() => hub.close());
+  await hub.subscribe(client(), "old");
+  const run = hub.prompt("old", "Go");
+  await new Promise((resolve) => setImmediate(resolve));
+  await assert.rejects(hub.removeGroup("/p/one"), /still running/);
+  source.sessions.get("old")!.finish();
+  await run;
+  await hub.removeGroup("/p/one");
+  assert.deepEqual(removed, ["/p/one"]);
+  assert.equal(source.sessions.get("old")!.closed, true);
+});
+
 test("disposes an idle session after idleMinutes and keeps a running one", async (context) => {
   const { hub, source, client } = setup(0.0005);
   context.after(() => hub.close());
@@ -104,4 +119,7 @@ test("a new group becomes a project that can hold sessions", async (context) => 
   assert.ok(await hub.createSession(project));
   await assert.rejects(hub.createGroup("../x"), /Use letters/);
   await assert.rejects(hub.createSession(join(root, "other")), /Unknown project/);
+  await hub.removeGroup(project);
+  assert.deepEqual((await hub.getSessionList()).projects, []);
+  await assert.rejects(hub.createSession(project), /Unknown project/);
 });

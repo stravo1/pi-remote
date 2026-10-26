@@ -28,6 +28,12 @@ export class ProjectStore {
     return created;
   }
 
+  remove(path: string): Promise<void> {
+    const removed = this.pending.then(() => this.delete(path));
+    this.pending = removed.catch(() => {});
+    return removed;
+  }
+
   private get file(): string {
     return join(this.root!, ".pi-remote", "projects.json");
   }
@@ -41,6 +47,12 @@ export class ProjectStore {
     const groups = await this.list();
     if (!groups.includes(path)) await this.save([...groups, path]);
     return path;
+  }
+
+  private async delete(path: string): Promise<void> {
+    const groups = await this.list();
+    if (!groups.includes(path)) throw new Error("Unknown project.");
+    await this.save(groups.filter((group) => group !== path));
   }
 
   private async load(): Promise<string[]> {
