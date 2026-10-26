@@ -46,15 +46,9 @@ body {
 .markdown li + li {
   @apply mt-1;
 }
-/* Notes list their rows like a settings list: no bullets, a divider between rows. */
+/* Notes list their rows without bullets. */
 .notice ul {
-  @apply list-none divide-y divide-outline-gray-2 pl-0;
-}
-.notice li {
-  @apply py-2;
-}
-.notice li + li {
-  @apply mt-0;
+  @apply list-none pl-0;
 }
 .markdown a {
   @apply underline underline-offset-2 hover:text-ink-gray-9;
