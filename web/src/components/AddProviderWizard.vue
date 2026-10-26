@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Button, Dialog, TextInput } from "frappe-ui";
+import { Button, Dialog, FormControl, Radio, RadioGroup } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import ProviderLoginPanel from "./ProviderLoginPanel.vue";
 
@@ -19,40 +19,35 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 const step = ref<Step>("provider");
-const query = ref("");
+const providerId = ref<string | null>(null);
+const method = ref<AuthType>();
 const key = ref("");
-const selected = ref<Provider>();
-const matches = computed(() => {
-  const text = query.value.trim().toLowerCase();
-  return props.providers.filter((provider) => provider.authTypes.length && `${provider.name} ${provider.id}`.toLowerCase().includes(text));
-});
+const options = computed(() => props.providers.filter((provider) => provider.authTypes.length).map((provider) => ({ label: provider.name, value: provider.id })));
+const selected = computed(() => props.providers.find((provider) => provider.id === providerId.value));
+const progress = computed(() => ({ provider: 0, method: 1, key: 2, login: 2 })[step.value]);
 const titles: Record<Step, string> = { provider: "Add provider", method: "Choose a sign-in method", key: "Enter API key", login: "Sign in" };
 const title = computed(() => selected.value && step.value !== "provider" ? `${titles[step.value]}: ${selected.value.name}` : titles[step.value]);
+const canContinue = computed(() => step.value === "provider" ? Boolean(selected.value) : Boolean(method.value));
 
 watch(() => props.open, (isOpen) => {
   if (!isOpen) return;
   step.value = "provider";
-  query.value = "";
+  providerId.value = null;
   key.value = "";
-  selected.value = undefined;
 });
 
 watch(() => props.login, (login) => {
   if (login || step.value !== "login") return;
-  if (props.error) step.value = "method";
+  if (props.error) step.value = selected.value!.authTypes.length > 1 ? "method" : "provider";
   else emit("update:open", false);
 });
 
-function choose(provider: Provider): void {
-  selected.value = provider;
-  key.value = "";
-  if (provider.authTypes.length > 1) step.value = "method";
-  else start(provider.authTypes[0]);
-}
-
-function start(type: AuthType): void {
-  if (!selected.value) return;
-  if (type === "oauth") startLogin("oauth");
+function next(): void {
+  if (step.value === "provider") {
+    method.value = selected.value!.authTypes[0];
+    if (selected.value!.authTypes.length > 1) return void (step.value = "method");
+  }
+  if (method.value === "oauth") startLogin("oauth");
   else step.value = "key";
 }
 
@@ -61,56 +56,42 @@ function startLogin(type: AuthType): void {
   emit("login", selected.value!.id, type);
 }
 
-function cancelLogin(): void {
-  step.value = "method";
-  emit("cancel");
-}
-
 function saveKey(): void {
-  if (!selected.value || !key.value.trim()) return;
-  emit("saveKey", selected.value.id, key.value.trim());
+  if (!key.value.trim()) return;
+  emit("saveKey", selected.value!.id, key.value.trim());
   emit("update:open", false);
 }
 
 function goBack(): void {
-  step.value = step.value === "key" && selected.value!.authTypes.length > 1 ? "method" : "provider";
+  if (step.value === "login") emit("cancel");
+  step.value = step.value !== "method" && selected.value!.authTypes.length > 1 ? "method" : "provider";
 }
 </script>
 
 <template>
-  <Dialog :open="open" :title="title" size="md" :dismissible="step !== 'login'" :show-close="step !== 'login'" @update:open="emit('update:open', $event)">
-    <div v-if="step === 'provider'" class="space-y-3">
-      <TextInput v-model="query" size="lg" placeholder="Search providers" aria-label="Search providers" autofocus />
-      <ul class="max-h-72 overflow-y-auto" aria-label="Providers">
-        <li v-for="provider in matches" :key="provider.id">
-          <button type="button" class="flex w-full items-center gap-3 rounded-3 px-2 py-2 text-left hover:bg-surface-gray-2" @click="choose(provider)">
-            <span class="min-w-0 flex-1 truncate text-base text-ink-gray-9">{{ provider.name }}</span>
-            <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
-          </button>
-        </li>
-      </ul>
-      <p v-if="!matches.length" class="py-4 text-center text-p-sm text-ink-gray-5">No provider matches "{{ query }}".</p>
+  <Dialog :open="open" :title="title" size="md" :dismissible="step === 'provider'" :show-close-button="step !== 'login'" @update:open="emit('update:open', $event)">
+    <div class="mb-5 flex items-center gap-1.5" aria-hidden="true">
+      <span v-for="index in 3" :key="index" class="h-1 flex-1 rounded-full transition-colors" :class="index - 1 <= progress ? 'bg-surface-gray-10' : 'bg-surface-gray-3'" />
     </div>
-    <div v-else-if="step === 'method' && selected" class="space-y-2">
-      <button v-if="selected.authTypes.includes('oauth')" type="button" class="flex w-full items-center gap-3 rounded-3 border border-outline-gray-2 px-3 py-3 text-left hover:bg-surface-gray-2" @click="start('oauth')">
-        <span class="min-w-0 flex-1 text-base text-ink-gray-9">{{ selected.accountLabel ?? "Sign in with an account" }}</span>
-        <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
-      </button>
-      <button v-if="selected.authTypes.includes('api_key')" type="button" class="flex w-full items-center gap-3 rounded-3 border border-outline-gray-2 px-3 py-3 text-left hover:bg-surface-gray-2" @click="start('api_key')">
-        <span class="min-w-0 flex-1 text-base text-ink-gray-9">API key</span>
-        <span class="lucide-chevron-right size-4 shrink-0 text-ink-gray-4" aria-hidden="true" />
-      </button>
-    </div>
+    <FormControl v-if="step === 'provider'" v-model="providerId" type="combobox" label="Provider" placeholder="Search providers" :options="options" />
+    <RadioGroup v-else-if="step === 'method' && selected" v-model="method" label="Sign-in method" padded>
+      <Radio v-if="selected.authTypes.includes('oauth')" value="oauth" :label="selected.accountLabel ?? 'Sign in with an account'" />
+      <Radio v-if="selected.authTypes.includes('api_key')" value="api_key" label="API key" />
+    </RadioGroup>
     <form v-else-if="step === 'key' && selected" @submit.prevent="saveKey">
-      <TextInput v-model="key" size="lg" type="password" autocomplete="off" :placeholder="`${selected.name} API key`" :aria-label="`${selected.name} API key`" autofocus />
+      <FormControl v-model="key" type="password" autocomplete="off" :label="`${selected.name} API key`" autofocus />
     </form>
-    <ProviderLoginPanel v-else-if="step === 'login'" :event="login?.event" :notice="login?.notice" @answer="emit('answer', $event)" @cancel="cancelLogin" />
-    <template #actions>
-      <div v-if="step !== 'provider' && step !== 'login'" class="flex w-full gap-2">
-        <Button variant="ghost" icon-left="lucide-arrow-left" label="Back" @click="goBack" />
-        <div class="flex-1" />
-        <Button v-if="step === 'key'" variant="subtle" label="Guided setup" @click="startLogin('api_key')" />
-        <Button v-if="step === 'key'" variant="solid" label="Save key" :disabled="!key.trim()" @click="saveKey" />
+    <ProviderLoginPanel v-else-if="step === 'login'" :event="login?.event" :notice="login?.notice" @answer="emit('answer', $event)" />
+    <template #actions="{ close }">
+      <div class="flex w-full justify-between gap-2">
+        <Button v-if="step !== 'provider'" label="Back" @click="goBack" />
+        <span v-else />
+        <div class="flex gap-2">
+          <Button v-if="step === 'key'" label="Guided setup" @click="startLogin('api_key')" />
+          <Button v-else-if="step !== 'login'" label="Cancel" @click="close" />
+          <Button v-if="step === 'key'" variant="solid" label="Save key" :disabled="!key.trim()" @click="saveKey" />
+          <Button v-else-if="step !== 'login'" variant="solid" label="Continue" :disabled="!canContinue" @click="next" />
+        </div>
       </div>
     </template>
   </Dialog>

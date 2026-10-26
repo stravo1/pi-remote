@@ -4,7 +4,7 @@ import { Button, TextInput } from "frappe-ui";
 import type { ProviderLoginEvent } from "../../../server/src/pi-adapter.ts";
 
 const props = defineProps<{ event?: ProviderLoginEvent; notice?: ProviderLoginEvent }>();
-const emit = defineEmits<{ answer: [value: string]; cancel: [] }>();
+const emit = defineEmits<{ answer: [value: string] }>();
 const answer = ref("");
 const prompt = computed(() => props.event?.type === "prompt" ? props.event.prompt : undefined);
 const placeholder = computed(() => prompt.value && "placeholder" in prompt.value ? prompt.value.placeholder : undefined);
@@ -39,6 +39,5 @@ function submit(): void {
       <Button type="submit" label="Continue" :disabled="!answer.trim()" />
       </div>
     </form>
-    <div class="flex justify-end"><Button variant="subtle" label="Cancel" @click="emit('cancel')" /></div>
   </section>
 </template>

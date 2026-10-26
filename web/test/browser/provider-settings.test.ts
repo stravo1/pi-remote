@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { preview } from "vite";
-import { chromium } from "playwright";
+import { chromium, type Page } from "playwright";
+
+async function choose(page: Page, method: string): Promise<void> {
+  await page.getByRole("button", { name: "Add provider" }).click();
+  await page.getByRole("combobox", { name: "Provider" }).click();
+  await page.getByRole("option", { name: "OpenAI" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("radio", { name: method }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+}
 
 test("settings save keys and show OAuth device codes", { timeout: 30_000 }, async (context) => {
   const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
@@ -42,23 +51,20 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   assert.ok(address && typeof address === "object");
   await page.goto(`http://127.0.0.1:${address.port}/#settings`);
   await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
-  await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("button", { name: "OpenAI" }).click();
-  await page.getByRole("button", { name: "API key" }).click();
-  await page.getByRole("textbox", { name: "OpenAI API key" }).fill("not-a-real-key");
+  await choose(page, "API key");
+  await page.getByLabel("OpenAI API key").fill("not-a-real-key");
   await page.getByRole("button", { name: "Save key" }).click();
   for (let attempt = 0; attempt < 100 && !commands.some((command) => command.type === "set_provider_key"); attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("button", { name: "OpenAI" }).click();
-  await page.getByRole("button", { name: "Sign in with ChatGPT" }).click();
+  await choose(page, "Sign in with ChatGPT");
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
   await page.getByRole("textbox", { name: "Paste the redirect URL" }).waitFor();
-  await page.getByRole("button", { name: "Cancel" }).click();
-  await page.getByRole("button", { name: "API key" }).click();
+  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("radio", { name: "API key" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Guided setup" }).click();
   await page.getByText("Setup failed.", { exact: true }).waitFor();
   assert.ok(commands.some((command) => command.type === "set_provider_key" && command.apiKey === "not-a-real-key"));
