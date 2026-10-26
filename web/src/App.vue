@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { Button, Dialogs, LoadingText, ToastProvider } from "frappe-ui";
+import { Button, Dialogs, Spinner, ToastProvider } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
@@ -154,10 +154,10 @@ function closeProviderSettings(): void {
         aria-live="polite"
       >
         <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-3">
-          <LoadingText
+          <Spinner
             v-if="workspace.isSyncing && !workspace.transcript.messages.length"
-            class="m-auto"
-            text="Loading session..."
+            class="m-auto size-5 text-ink-gray-5"
+            aria-label="Loading session"
           />
           <MessageItem
             v-for="(message, index) in workspace.transcript.messages"
