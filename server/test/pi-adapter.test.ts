@@ -117,6 +117,17 @@ test("steers a queued follow-up once and keeps the other follow-ups", async (con
   assert.match(users[2], /Keep this/);
 });
 
+test("deletes a saved session file", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage("Saved.")]);
+  const session = await adapter.create(directory);
+  await session.prompt("Save this");
+  await session.close();
+  const [summary] = await adapter.list(directory);
+  await adapter.delete(directory, summary.id);
+  assert.deepEqual(await adapter.list(directory), []);
+  await assert.rejects(adapter.delete(directory, summary.id), /Unknown session/);
+});
+
 test("offers available models and thinking levels and saves session choices", async (context) => {
   const { directory, adapter } = await setup(context, [fauxAssistantMessage("Saved.")]);
   const session = await adapter.create(directory);

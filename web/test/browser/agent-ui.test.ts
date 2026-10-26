@@ -142,6 +142,14 @@ for (const width of [375, 1280]) {
           event({ type: "queue_update", steering: ["Change direction"], followUp: ["Next task", "Third", "Fourth"] });
         if (command.type === "new_group" && command.name === "taken")
           route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
+        if (command.type === "delete_sessions")
+          route.send(
+            JSON.stringify({
+              type: "sessions",
+              groupsRoot: "/code",
+              projects: [{ path: "/code/example", sessions: [] }],
+            }),
+          );
         if (command.type === "remove_group")
           route.send(JSON.stringify({ type: "sessions", groupsRoot: "/code", projects: [] }));
         if (command.type === "abort") {
@@ -285,6 +293,18 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
+    const row = page.getByRole("button", { name: /Example/ });
+    await row.click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Select" }).click();
+    await page.getByText("1 selected", { exact: true }).waitFor();
+    await row.click();
+    await page.getByText("0 selected", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Delete selected sessions" }).isDisabled(), true);
+    await row.click();
+    await page.getByRole("button", { name: "Delete selected sessions" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Delete" }).click();
+    await page.getByText("No sessions yet.", { exact: true }).waitFor();
+    assert.ok(commands.some((command) => command.type === "delete_sessions" && command.sessionIds.join() === "one"));
     await page.getByRole("button", { name: "Delete example" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Delete folder" }).waitFor();
     await page.getByRole("dialog").getByRole("button", { name: "Remove from list" }).click();

@@ -69,6 +69,11 @@ export class Workspace {
     this.run({ type: "new_session", project });
   }
 
+  deleteSessions(sessionIds: string[]): void {
+    this.error = "";
+    this.run({ type: "delete_sessions", sessionIds });
+  }
+
   removeGroup(project: string, deleteFolder: boolean): void {
     this.error = "";
     this.run({ type: "remove_group", project, deleteFolder });

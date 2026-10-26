@@ -20,6 +20,7 @@ interface Command {
   loginId?: unknown;
   value?: unknown;
   deleteFolder?: unknown;
+  sessionIds?: unknown;
 }
 
 export interface ProviderManager {
@@ -121,6 +122,7 @@ export class Transport {
       new_session: () => this.createSession(client, command),
       new_group: () => this.createGroup(client, command),
       remove_group: () => this.removeGroup(client, command),
+      delete_sessions: () => this.deleteSessions(client, command),
       subscribe: () => this.hub.subscribe(client, requireSessionId(command)),
       unsubscribe: () => this.hub.unsubscribe(client, requireSessionId(command)),
       prompt: () => this.hub.prompt(requireSessionId(command), requireText(command)),
@@ -204,6 +206,15 @@ export class Transport {
 
   async removeGroup(client: HubClient, command: Command): Promise<void> {
     await this.hub.removeGroup(requireString(command.project), command.deleteFolder === true);
+    client.send(JSON.stringify(await this.hub.getSessionList()));
+  }
+
+  async deleteSessions(client: HubClient, command: Command): Promise<void> {
+    const { sessionIds } = command;
+    if (!Array.isArray(sessionIds) || !sessionIds.length || !sessionIds.every((id) => typeof id === "string")) {
+      throw new Error("The session IDs must be a nonempty list of strings.");
+    }
+    await this.hub.deleteSessions(sessionIds);
     client.send(JSON.stringify(await this.hub.getSessionList()));
   }
 

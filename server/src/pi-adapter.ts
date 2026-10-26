@@ -8,6 +8,7 @@ import {
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
 import type { AuthEvent, AuthPrompt, AuthType } from "@earendil-works/pi-ai";
 import type { Configuration } from "./config.ts";
 import { SessionSummaryJob } from "./session-summary-job.ts";
@@ -206,6 +207,12 @@ export class PiAdapter {
       firstMessage: info.firstMessage,
       modified: info.modified.getTime(),
     }));
+  }
+
+  async delete(project: string, sessionId: string): Promise<void> {
+    const session = (await SessionManager.list(project, this.sessionDirectory)).find((info) => info.id === sessionId);
+    if (!session) throw new Error("Unknown session.");
+    await rm(session.path);
   }
 
   async getProviderSettings(): Promise<ProviderSettings[]> {

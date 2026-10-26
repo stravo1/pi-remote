@@ -101,6 +101,26 @@ test("refuses to remove a project with a running session and closes idle ones", 
   assert.equal(source.sessions.get("old")!.closed, true);
 });
 
+test("deletes sessions, closes open ones, and refuses a running one", async (context) => {
+  const { hub, source, client } = setup();
+  context.after(() => hub.close());
+  await hub.subscribe(client(), "old");
+  const run = hub.prompt("old", "Go");
+  await new Promise((resolve) => setImmediate(resolve));
+  await assert.rejects(hub.deleteSessions(["old", "newer"]), /still running/);
+  assert.equal(source.stored.length, 2);
+  source.sessions.get("old")!.finish();
+  await run;
+  const unsaved = await hub.createSession("/p/two");
+  await hub.deleteSessions(["old", "newer", unsaved]);
+  assert.deepEqual(source.stored, []);
+  assert.equal(source.sessions.get("old")!.closed, true);
+  assert.deepEqual(
+    (await hub.getSessionList()).projects.map((project) => project.sessions),
+    [[], []],
+  );
+});
+
 test("disposes an idle session after idleMinutes and keeps a running one", async (context) => {
   const { hub, source, client } = setup(0.0005);
   context.after(() => hub.close());

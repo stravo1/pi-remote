@@ -96,6 +96,13 @@ export class FakeSource implements SessionSource {
     return this.stored.filter((item) => item.project === project);
   }
 
+  async delete(_project: string, sessionId: string): Promise<void> {
+    this.stored.splice(
+      this.stored.findIndex((item) => item.id === sessionId),
+      1,
+    );
+  }
+
   async create(): Promise<FakeSession> {
     return this.track(new FakeSession(`new-${++this.count}`));
   }

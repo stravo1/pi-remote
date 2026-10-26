@@ -168,6 +168,16 @@ test("new_group needs a name and creates a project", { timeout: 5000 }, async (c
   assert.deepEqual(removals, [false, true]);
 });
 
+test("delete_sessions checks its IDs and returns the new session list", { timeout: 5000 }, async (context) => {
+  const { url } = await setup(context);
+  const socket = await connect(url);
+  assert.match((await request(socket, { type: "delete_sessions", sessionIds: [] })).message, /nonempty list/);
+  assert.match((await request(socket, { type: "delete_sessions", sessionIds: [1] })).message, /nonempty list/);
+  const list = await request(socket, { type: "delete_sessions", sessionIds: ["stored"] });
+  assert.equal(list.type, "sessions");
+  assert.deepEqual(list.projects[0].sessions, []);
+});
+
 test("shares queues and settings with two clients and a reconnect", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const first = await connect(url);

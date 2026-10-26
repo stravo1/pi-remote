@@ -7,6 +7,7 @@ export type { HubClient, HubSession, RunMetrics } from "./open-session.ts";
 
 export interface SessionSource {
   list: PiAdapter["list"];
+  delete: PiAdapter["delete"];
   create(project: string): Promise<HubSession>;
   open(project: string, path: string): Promise<HubSession>;
 }
@@ -50,11 +51,18 @@ export class SessionHub {
     const open = [...this.sessions.values()].filter((entry) => entry.project === project);
     if (open.some((entry) => entry.session.is_running)) throw new Error("A session in this project is still running.");
     await this.store.remove(project, isDeletingFolder);
-    for (const entry of open) {
-      clearTimeout(this.timers.get(entry.id));
-      this.timers.delete(entry.id);
-      this.sessions.delete(entry.id);
-      await entry.close();
+    for (const entry of open) await this.forget(entry);
+  }
+
+  async deleteSessions(sessionIds: string[]): Promise<void> {
+    const open = sessionIds.map((id) => this.sessions.get(id)).filter((entry) => entry !== undefined);
+    if (open.some((entry) => entry.session.is_running)) throw new Error("A selected session is still running.");
+    for (const entry of open) await this.forget(entry);
+    for (const project of await this.getProjects()) {
+      const stored = await this.source.list(project);
+      for (const summary of stored.filter((item) => sessionIds.includes(item.id))) {
+        await this.source.delete(project, summary.id);
+      }
     }
   }
 
@@ -165,10 +173,15 @@ export class SessionHub {
     this.timers.set(entry.id, timer);
   }
 
+  private async forget(entry: OpenSession): Promise<void> {
+    clearTimeout(this.timers.get(entry.id));
+    this.timers.delete(entry.id);
+    this.sessions.delete(entry.id);
+    await entry.close();
+  }
+
   private async disposeIfIdle(entry: OpenSession): Promise<void> {
     if (!entry.is_idle || this.sessions.get(entry.id) !== entry) return;
-    this.sessions.delete(entry.id);
-    this.timers.delete(entry.id);
-    await entry.close();
+    await this.forget(entry);
   }
 }

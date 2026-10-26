@@ -78,6 +78,7 @@ function closeProviderSettings(): void {
       @create="(project) => workspace.createSession(project)"
       @create-group="(name) => workspace.createGroup(name)"
       @remove-group="(project, isDeletingFolder) => workspace.removeGroup(project, isDeletingFolder)"
+      @delete-sessions="(sessionIds) => workspace.deleteSessions(sessionIds)"
       @settings="openProviderSettings"
     />
     <template v-else>
