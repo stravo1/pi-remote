@@ -322,9 +322,17 @@ for (const width of [375, 1280]) {
     await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
     const row = page.getByRole("button", { name: /Example/ });
-    await row.click({ button: "right" });
+    if (width === 375) {
+      // The open menu hides the page from the accessibility tree, so release through a handle.
+      const pressed = await row.elementHandle();
+      await pressed!.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true, button: 0 });
+      await page.getByRole("menuitem", { name: "Select" }).waitFor({ timeout: 650 });
+      await pressed!.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true, button: 0 });
+    } else await row.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Select" }).click();
     await page.getByText("1 selected", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "New session" }).isDisabled(), true);
+    assert.equal(await page.getByRole("button", { name: "Delete example" }).isDisabled(), true);
     await row.click();
     await page.getByText("0 selected", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "Delete selected sessions" }).isDisabled(), true);

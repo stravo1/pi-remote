@@ -31,6 +31,17 @@ function trackMenu(open: boolean): void {
   isMenuOpen = open;
 }
 
+// The menu's own long press waits 700ms and frappe-ui cannot change it, so touch opens it sooner here.
+let pressTimer: ReturnType<typeof setTimeout> | undefined;
+
+function startPress(event: PointerEvent, setOpen: (open: boolean) => void): void {
+  if (event.pointerType === "touch") pressTimer = setTimeout(() => setOpen(true), 400);
+}
+
+function cancelPress(): void {
+  clearTimeout(pressTimer);
+}
+
 watch(
   () => props.projects,
   () => {
@@ -199,12 +210,14 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
               variant="ghost"
               icon="lucide-plus"
               aria-label="New session"
+              :disabled="!!selected"
               @click="$emit('create', project.path)"
             />
             <Button
               variant="ghost"
               icon="lucide-trash-2"
               :aria-label="`Delete ${getProjectName(project.path)}`"
+              :disabled="!!selected"
               @click="confirmRemove(project.path)"
             />
           </div>
@@ -213,12 +226,16 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
             class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
           >
             <li v-for="session in project.sessions" :key="session.id">
-              <ContextMenu :options="getMenuOptions(session.id)" @update:open="trackMenu">
+              <ContextMenu v-slot="{ setOpen }" :options="getMenuOptions(session.id)" @update:open="trackMenu">
                 <button
                   type="button"
                   class="flex min-h-14 w-full select-none items-center gap-3 px-4 py-2 text-left [-webkit-touch-callout:none] sm:min-h-12 sm:py-2 hover:bg-surface-gray-2 active:bg-surface-gray-3"
                   :aria-pressed="selected ? selected.has(session.id) : undefined"
                   @click="openSession(session.id)"
+                  @pointerdown="startPress($event, setOpen)"
+                  @pointerup="cancelPress"
+                  @pointercancel="cancelPress"
+                  @pointerleave="cancelPress"
                 >
                   <span
                     v-if="selected"
