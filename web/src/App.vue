@@ -46,9 +46,6 @@ function openGroupDialog(): void {
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
         <span v-if="workspace.transcript.is_running" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-green-7" role="status" aria-label="Working" />
-        <SessionSettingsMenu v-if="workspace.settings" class="sm:hidden" :settings="workspace.settings" :is-running="workspace.transcript.is_running"
-          :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
-          @model="(value) => workspace.setModel(value)" @thinking="(level) => workspace.setThinkingLevel(level)" />
         <Button variant="ghost" size="lg" icon="lucide-plus" aria-label="New session"
           :disabled="!workspace.activeProjectPath" @click="workspace.createSession(workspace.activeProjectPath!)" />
         </div>

@@ -90,7 +90,7 @@ for (const width of [375, 1280]) {
     await page.getByText("File diff", { exact: true }).waitFor();
     assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
     await checkWidth(page);
-    await page.getByRole("button", { name: width === 375 ? "Session settings" : /First model/ }).click();
+    await page.getByRole("button", { name: "Session settings", exact: true }).click();
     const dialog = page.locator("[data-session-settings]");
     await dialog.waitFor();
     await checkWidth(page);

@@ -49,9 +49,9 @@ function onEnter(event: KeyboardEvent): void {
       <Textarea v-model="text" class="min-w-0 flex-1 resize-none !bg-transparent !px-0 !py-2 !text-lg sm:!text-p-base" variant="ghost" :rows="1"
         :disabled="disabled" aria-label="Message" :placeholder="isRunning ? 'Add a message while pi works' : 'Message pi'"
         @keydown.enter="onEnter" />
-      <Button v-if="isRunning" type="button" variant="solid" size="lg" class="shrink-0 !rounded-full" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
-      <Button type="submit" variant="solid" size="lg" class="shrink-0 !rounded-full" icon="lucide-arrow-up" :aria-label="isRunning ? (mode === 'steer' ? 'Send steer' : 'Send follow-up') : 'Send prompt'" :disabled="!canSend" :loading="isSending" />
+      <slot name="settings" />
+      <Button v-if="isRunning" type="button" variant="solid" size="lg" class="shrink-0" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
+      <Button type="submit" variant="solid" size="lg" class="shrink-0" icon="lucide-arrow-up" :aria-label="isRunning ? (mode === 'steer' ? 'Send steer' : 'Send follow-up') : 'Send prompt'" :disabled="!canSend" :loading="isSending" />
     </div>
-    <div class="hidden justify-end sm:flex"><slot name="settings" /></div>
   </form>
 </template>

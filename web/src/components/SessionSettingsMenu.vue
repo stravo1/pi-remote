@@ -1,17 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { BottomSheet, Button, Popover } from "frappe-ui";
 import type { SessionSettings } from "../../../server/src/pi-adapter.ts";
 import SessionSettingsPanel, { type SettingsView } from "./SessionSettingsPanel.vue";
 
-const props = defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean }>();
+defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean }>();
 const emit = defineEmits<{ model: [value: string]; thinking: [level: string] }>();
 const titles: Record<SettingsView, string> = { main: "Select model", models: "More models", effort: "Effort" };
 const desktopQuery = window.matchMedia("(min-width: 640px)");
 const isDesktop = ref(desktopQuery.matches);
 const isOpen = ref(false);
 const view = ref<SettingsView>("main");
-const triggerLabel = computed(() => `${props.settings.model?.name ?? "Model"} · ${props.settings.thinkingLevel}`);
 
 desktopQuery.addEventListener("change", (event) => { isDesktop.value = event.matches; });
 watch(isOpen, (value) => { if (!value) view.value = "main"; });
@@ -21,7 +20,7 @@ watch(isOpen, (value) => { if (!value) view.value = "main"; });
   <span class="contents">
     <Popover v-if="isDesktop" v-model:open="isOpen" side="top" align="end">
       <template #trigger>
-        <Button variant="ghost" class="max-w-72" :label="triggerLabel" />
+        <Button variant="ghost" size="lg" icon="lucide-sliders-horizontal" aria-label="Session settings" />
       </template>
       <div class="w-[min(24rem,calc(100vw-2rem))] pt-3">
         <SessionSettingsPanel v-model:view="view" :settings="settings" :disabled="disabled" :is-running="isRunning"
