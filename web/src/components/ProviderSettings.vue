@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { Button, toast } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
-import AddProviderMenu from "./AddProviderMenu.vue";
-import ApiKeyForm from "./ApiKeyForm.vue";
-import ProviderLoginPanel from "./ProviderLoginPanel.vue";
+import AddProviderWizard from "./AddProviderWizard.vue";
 
 const props = defineProps<{ providers: Provider[]; login?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent }; error: string }>();
 const emit = defineEmits<{
@@ -15,29 +13,11 @@ const emit = defineEmits<{
   answer: [value: string];
   cancel: [];
 }>();
-const keyProvider = ref<Provider>();
+const isAdding = ref(false);
 const connected = computed(() => props.providers.filter((provider) => provider.isConfigured));
 
-watch(connected, (current, previous) => { if (current.length > previous.length) keyProvider.value = undefined; });
-const loginToastId = "provider-login";
-
-watch(() => props.login, (login) => {
-  if (!login) return void toast.dismiss(loginToastId);
-  toast(h(ProviderLoginPanel, { event: login.event, notice: login.notice, onAnswer: (value: string) => emit("answer", value), onCancel: () => emit("cancel") }),
-    { id: loginToastId, duration: Infinity, onDismiss: () => emit("cancel") });
-}, { deep: true });
-onBeforeUnmount(() => toast.dismiss(loginToastId));
+onBeforeUnmount(() => { if (props.login) emit("cancel"); });
 watch(() => props.error, (message) => { if (message) toast.error(message); });
-
-function addProvider(provider: Provider, type: "api_key" | "oauth"): void {
-  if (type === "api_key") keyProvider.value = provider;
-  else emit("login", provider.id, type);
-}
-
-function startGuidedSetup(provider: string): void {
-  keyProvider.value = undefined;
-  emit("login", provider, "api_key");
-}
 </script>
 
 <template>
@@ -54,10 +34,8 @@ function startGuidedSetup(provider: string): void {
       <section class="space-y-3" aria-labelledby="providers-heading">
         <div class="flex items-center gap-2">
           <h2 id="providers-heading" class="min-w-0 flex-1 text-base font-medium text-ink-gray-9">Providers</h2>
-          <AddProviderMenu :providers="providers" @select="addProvider" />
+          <Button variant="subtle" icon="lucide-plus" aria-label="Add provider" @click="isAdding = true" />
         </div>
-        <ApiKeyForm v-if="keyProvider" :key="keyProvider.id" :provider="keyProvider" @save="(key) => emit('saveKey', keyProvider!.id, key)"
-          @guided="startGuidedSetup(keyProvider!.id)" @cancel="keyProvider = undefined" />
         <div v-if="!connected.length" class="flex flex-col items-center gap-2 rounded-4 border border-dashed border-outline-gray-2 px-4 py-10 text-center">
           <span class="lucide-key-round size-6 text-ink-gray-4" aria-hidden="true" />
           <p class="text-base font-medium text-ink-gray-9">No providers connected</p>
@@ -75,5 +53,8 @@ function startGuidedSetup(provider: string): void {
       </section>
     </div>
     </main>
+    <AddProviderWizard v-model:open="isAdding" :providers="providers" :login="login" :error="error"
+      @save-key="(provider, key) => emit('saveKey', provider, key)" @login="(provider, type) => emit('login', provider, type)"
+      @answer="emit('answer', $event)" @cancel="emit('cancel')" />
   </div>
 </template>
