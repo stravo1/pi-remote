@@ -35,7 +35,7 @@ function onEnter(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <form ref="root" class="w-full shrink-0 space-y-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
+  <form ref="root" class="mx-auto w-full max-w-2xl shrink-0 space-y-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
     <Alert v-if="error" role="alert" theme="red" :title="error" />
     <div v-if="queue.steering.length || queue.followUp.length" class="max-h-28 space-y-1 overflow-y-auto rounded-4 bg-surface-gray-1 px-3 py-2 text-p-sm" aria-label="Queued messages">
       <p v-for="(message, index) in queue.steering" :key="`steer-${index}`" class="whitespace-pre-wrap break-words"><span class="font-medium">Steer:</span> {{ message }}</p>

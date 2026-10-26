@@ -6,8 +6,9 @@ import Composer from "./components/Composer.vue";
 import NewGroupDialog from "./components/NewGroupDialog.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
+import SessionSidebar from "./components/SessionSidebar.vue";
 import SessionList from "./components/SessionList.vue";
-import { getSessionTitle } from "./protocol.ts";
+import { getProjectName, getSessionTitle } from "./protocol.ts";
 import { Workspace } from "./workspace.ts";
 
 const workspace = reactive(new Workspace());
@@ -32,15 +33,30 @@ function openGroupDialog(): void {
 </script>
 
 <template>
-  <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
+  <div class="flex h-dvh min-h-0 bg-surface-base text-ink-gray-8">
     <NewGroupDialog v-model:open="isGroupDialogOpen" :root="workspace.groupsRoot" :error="workspace.error"
       @submit="(name) => workspace.createGroup(name)" />
-    <SessionList v-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
+    <SessionSidebar class="max-sm:!hidden" :projects="workspace.projects" :active-id="workspace.sessionId" :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot" @select="(id) => workspace.select(id)"
       @create="(project) => workspace.createSession(project)" @create-group="openGroupDialog" />
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+    <SessionList v-if="!workspace.sessionId" class="sm:hidden" :projects="workspace.projects" :status="workspace.status"
+      :can-create-groups="!!workspace.groupsRoot" @select="(id) => workspace.select(id)"
+      @create="(project) => workspace.createSession(project)" @create-group="openGroupDialog" />
+    <div v-if="!workspace.sessionId" class="flex flex-1 flex-col items-center justify-center gap-4 text-center max-sm:hidden">
+      <span class="lucide-messages-square size-8 text-ink-gray-4" aria-hidden="true" />
+      <div class="space-y-1">
+        <h2 class="text-xl font-semibold text-ink-gray-9">What are we working on?</h2>
+        <p class="text-p-base text-ink-gray-5">Pick a session, or start one in a project.</p>
+      </div>
+      <div class="flex flex-wrap justify-center gap-2">
+        <Button v-for="project in workspace.projects" :key="project.path" variant="subtle" icon-left="lucide-plus"
+          :label="getProjectName(project.path)" @click="workspace.createSession(project.path)" />
+      </div>
+    </div>
     <template v-else>
       <header class="flex h-14 shrink-0 items-center gap-1 border-b border-outline-gray-1 px-2 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
-        <Button variant="ghost" size="lg" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
+        <Button variant="ghost" size="lg" class="sm:hidden" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
         <h1 :class="['min-w-0 flex-1 truncate text-lg font-medium sm:text-base', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-amber-3']">
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
@@ -52,7 +68,7 @@ function openGroupDialog(): void {
           :disabled="!workspace.activeProjectPath" @click="workspace.createSession(workspace.activeProjectPath!)" />
       </header>
       <section ref="transcriptElement" class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Conversation" aria-live="polite">
-        <div class="flex min-h-full w-full flex-col px-4 py-6">
+        <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6">
           <MessageItem v-for="(message, index) in workspace.transcript.messages" :key="index" :message="message"
             :is-group-start="workspace.transcript.isGroupStart(index)" :tools="workspace.transcript.tools" />
         </div>
@@ -61,5 +77,6 @@ function openGroupDialog(): void {
         :is-running="workspace.transcript.is_running" :error="workspace.error" :queue="workspace.transcript.queue"
         @send="(text, mode) => workspace.sendPrompt(text, mode)" @abort="workspace.abort()" />
     </template>
+    </div>
   </div>
 </template>

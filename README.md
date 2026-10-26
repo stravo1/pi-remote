@@ -83,7 +83,7 @@ It listens on loopback and has no login. Use it for local development only.
 The server checks the WebSocket origin and user header.
 Direct browser connections to port 7710 fail because browsers cannot set that header.
 
-The first page lists sessions by project. Pick one to open it in a full-width chat page. A new session runs in the project you pick, and the client reconnects after a network drop.
+On desktop, a sidebar lists sessions by project. On a phone, the first page lists them and a session opens in its own page. A new session runs in the project you pick, and the client reconnects after a network drop.
 The server logs each run's event count and JSON payload bytes sent across all connected clients.
 The byte count excludes WebSocket framing and proxy overhead.
 
