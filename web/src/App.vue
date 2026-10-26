@@ -4,7 +4,6 @@ import { reactive } from "vue";
 import { Button, Dialogs, Spinner, ToastProvider, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
-import SessionActions from "./components/SessionActions.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
 import SessionList from "./components/SessionList.vue";
 import NotificationSettings from "./components/NotificationSettings.vue";
@@ -163,14 +162,6 @@ function closeProviderSettings(): void {
             :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
             @model="(value) => workspace.setModel(value)"
             @thinking="(level) => workspace.setThinkingLevel(level)"
-          />
-          <SessionActions
-            :title="workspace.activeSession ? getSessionTitle(workspace.activeSession) : ''"
-            :disabled="workspace.is_disabled"
-            :is-running="workspace.transcript.is_running"
-            @rename="(name) => workspace.renameSession(name)"
-            @compact="(instructions) => workspace.compact(instructions)"
-            @show-info="workspace.showSessionInfo()"
           />
           <Button
             variant="ghost"

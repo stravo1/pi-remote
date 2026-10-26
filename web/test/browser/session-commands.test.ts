@@ -16,7 +16,7 @@ const info = {
   contextUsage: { tokens: 1500, contextWindow: 100000, percent: 1.5 },
 };
 
-async function open(context: TestContext, hash: string, pushKey: string | null) {
+async function open(context: TestContext, hash: string, pushKey: string | null, isPushSupported = true) {
   const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
   context.after(() => {
     if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
@@ -29,6 +29,8 @@ async function open(context: TestContext, hash: string, pushKey: string | null) 
   context.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 375, height: 812 }, hasTouch: true });
   page.setDefaultTimeout(5000);
+  // iOS Safari outside the Home Screen app has no PushManager.
+  if (!isPushSupported) await page.addInitScript(() => delete (window as { PushManager?: unknown }).PushManager);
   const commands: any[] = [];
   await page.routeWebSocket("**/ws", (socket) => {
     socket.onMessage((raw) => {
@@ -57,19 +59,13 @@ async function open(context: TestContext, hash: string, pushKey: string | null) 
   return { page, commands };
 }
 
-test("the session menu renames, compacts, and shows usage", { timeout: 30_000 }, async (context) => {
+test("slash commands rename, compact, and show usage as a note", { timeout: 30_000 }, async (context) => {
   const { page, commands } = await open(context, "one", null);
-  await page.getByRole("button", { name: "Session actions" }).click();
-  await page.getByRole("menuitem", { name: "Rename" }).click();
-  await page.getByRole("textbox", { name: "Session name" }).fill("New name");
-  await page.getByRole("button", { name: "Save" }).click();
-  await page.getByRole("button", { name: "Session actions" }).click();
-  await page.getByRole("menuitem", { name: "Compact" }).click();
-  await page.getByRole("textbox", { name: "Compaction instructions" }).fill("Keep the plan");
-  await page.getByRole("button", { name: "Compact", exact: true }).click();
-  await page.getByRole("dialog").waitFor({ state: "detached" });
-  await page.getByRole("textbox", { name: "Message" }).fill("/session");
-  await page.getByRole("button", { name: "Send prompt" }).click();
+  const message = page.getByRole("textbox", { name: "Message" });
+  for (const text of ["/name New name", "/compact Keep the plan", "/session"]) {
+    await message.fill(text);
+    await page.getByRole("button", { name: "Send prompt" }).click();
+  }
   await page.getByText("$0.0123").waitFor();
   await page.getByText("1,500 of 100,000 (2%)").waitFor();
   assert.deepEqual(
@@ -87,6 +83,17 @@ test("settings explain why push is off on a server without push", { timeout: 30_
   await page.getByText("Push notifications").waitFor();
   await page.getByText("Push is not set up on this server").waitFor();
   assert.equal(await page.getByRole("switch", { name: "Push notifications" }).isDisabled(), true);
+});
+
+test("turning on push outside the Home Screen app explains how in a toast", { timeout: 30_000 }, async (context) => {
+  const { page, commands } = await open(context, "settings", "key", false);
+  await page.getByRole("switch", { name: "Push notifications" }).click();
+  await page.getByText("add pi remote to the Home Screen").waitFor();
+  assert.equal(await page.getByRole("switch", { name: "Push notifications" }).isChecked(), false);
+  assert.equal(
+    commands.some((command) => command.type === "push_subscribe"),
+    false,
+  );
 });
 
 test("the composer suggests slash commands and fills the chosen one", { timeout: 30_000 }, async (context) => {

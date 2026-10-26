@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { Button, Switch } from "frappe-ui";
+import { Button, Switch, toast } from "frappe-ui";
 
 const props = defineProps<{
   publicKey?: string | null;
@@ -13,13 +13,14 @@ const emit = defineEmits<{ enable: []; disable: []; test: [] }>();
 
 const notice = computed(() => {
   if (props.publicKey === null) return "Push is not set up on this server. Add push settings to its configuration.";
-  if (!props.isSupported) return "On iPhone and iPad, add pi remote to the Home Screen and open it from there.";
   if (props.permission === "denied") return "This browser blocks notifications. Allow them in its site settings.";
   return "";
 });
 
 function toggle(value: boolean): void {
-  if (value) emit("enable");
+  if (value && !props.isSupported)
+    toast("On iPhone and iPad, add pi remote to the Home Screen and open it from there.");
+  else if (value) emit("enable");
   else emit("disable");
 }
 </script>

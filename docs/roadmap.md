@@ -95,7 +95,7 @@ The pi terminal app has these features, and pi remote does not have them yet. Th
 | Image input                                                 | See the image attachments item above.                    |
 | Extension prompts that ask the user a question              | A UI for extension prompts (`docs/rpc-extension-ui.md`). |
 
-pi remote runs `/name <title>`, `/compact [instructions]`, and `/session` itself. The session menu has the same actions.
+pi remote runs `/name <title>`, `/compact [instructions]`, and `/session` itself.
 
 These already work, because the SDK loads them: model and thinking choice, provider login, new and saved sessions, skills, prompt templates, context files, and extensions in `~/.pi/agent/extensions`. A prompt that starts with a template or extension command, such as `/foo`, goes to pi. Other built-in pi commands belong to its terminal app and do nothing in pi remote.
 
