@@ -10,13 +10,30 @@ for service in authelia pi-remote caddy; do
   echo "$service: active"
 done
 
-curl -fsS -o /dev/null http://127.0.0.1:7710/api/ping
-echo "app: 204"
-curl -fsS -o /dev/null http://127.0.0.1:9091/api/health
-echo "authelia: healthy"
-status="$(curl -sS -o /dev/null -w '%{http_code}' \
-  --resolve "$app_domain:443:127.0.0.1" "https://$app_domain/")"
-case "$status" in
-  2??|3??) echo "caddy: $status" ;;
-  *) echo "Caddy returned HTTP $status" >&2; exit 1 ;;
-esac
+wait_for_url() {
+  local label="$1"
+  local url="$2"
+  for attempt in {1..10}; do
+    if curl -fsS -o /dev/null "$url"; then
+      echo "$label"
+      return
+    fi
+    sleep 2
+  done
+  echo "$label did not become ready" >&2
+  return 1
+}
+
+wait_for_url "app: 204" http://127.0.0.1:7710/api/ping
+wait_for_url "authelia: healthy" http://127.0.0.1:9091/api/health
+
+for attempt in {1..10}; do
+  status="$(curl -sS -o /dev/null -w '%{http_code}' \
+    --resolve "$app_domain:443:127.0.0.1" "https://$app_domain/" || true)"
+  case "$status" in
+    2??|3??) echo "caddy: $status"; exit 0 ;;
+  esac
+  sleep 2
+done
+echo "Caddy did not become ready" >&2
+exit 1

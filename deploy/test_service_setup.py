@@ -1,4 +1,7 @@
+import os
 import pathlib
+import subprocess
+import tempfile
 import unittest
 
 
@@ -20,6 +23,36 @@ class ServiceSetupTests(unittest.TestCase):
 
         self.assertIn("systemctl --user enable", installer)
         self.assertIn("systemctl --user start", installer)
+
+    def test_checker_waits_for_services_to_be_ready(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            binary_directory = pathlib.Path(temporary_directory)
+            self.write_executable(binary_directory / "systemctl", "exit 0")
+            self.write_executable(binary_directory / "sleep", "exit 0")
+            self.write_executable(binary_directory / "curl", """
+case "$*" in
+  *7710*) name=app ;;
+  *9091*) name=authelia ;;
+  *) printf 302; exit 0 ;;
+esac
+count_file="$TMPDIR/$name-count"
+count=$(($(cat "$count_file" 2>/dev/null || true) + 1))
+printf '%s' "$count" > "$count_file"
+[ "$count" -ge 3 ]
+""")
+            environment = {**os.environ, "PATH": f"{binary_directory}:{os.environ['PATH']}", "TMPDIR": temporary_directory}
+            result = subprocess.run(
+                ["bash", ROOT / "check-services.sh", "pi.example.com"],
+                text=True, capture_output=True, env=environment,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("authelia: healthy", result.stdout)
+            self.assertIn("caddy: 302", result.stdout)
+
+    def write_executable(self, path: pathlib.Path, body: str):
+        path.write_text(f"#!/usr/bin/env bash\n{body}\n")
+        path.chmod(0o755)
 
 
 if __name__ == "__main__":
