@@ -87,6 +87,7 @@ for (const width of [375, 1280]) {
     const address = server.httpServer.address();
     assert.ok(address && typeof address === "object");
     await page.goto(`http://127.0.0.1:${address.port}/`);
+    assert.match(await page.locator("meta[name=viewport]").getAttribute("content") ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByText("File diff", { exact: true }).waitFor();
     assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
