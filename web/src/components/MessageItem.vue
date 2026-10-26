@@ -12,7 +12,7 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
     <div class="min-w-0 space-y-3 sm:space-y-1.5">
       <details v-if="message.role === 'toolResult'" class="group overflow-hidden rounded-4 border border-outline-gray-1 text-p-sm">
         <summary class="flex cursor-pointer select-none list-none items-center gap-2 px-3 py-2 text-ink-gray-5 sm:py-1 hover:text-ink-gray-7">
-          <span class="lucide-eye size-4 shrink-0 group-open:hidden" aria-hidden="true" /><span class="lucide-eye-off hidden size-4 shrink-0 group-open:block" aria-hidden="true" />Output
+          <span class="lucide-chevrons-up-down size-4 shrink-0 group-open:hidden" aria-hidden="true" /><span class="lucide-chevrons-down-up hidden size-4 shrink-0 group-open:block" aria-hidden="true" />Output
         </summary>
         <pre v-for="(block, index) in message.content" :key="index"
           class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7">{{ block.text }}</pre>
