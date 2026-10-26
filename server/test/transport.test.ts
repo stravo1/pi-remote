@@ -170,9 +170,11 @@ test("shares queues and settings with two clients and a reconnect", { timeout: 5
     assert.equal(reply.event.type, "queue_update");
     assert.deepEqual(reply, JSON.parse((await other)[0].toString()));
   }
+  const steered = await request(first, { type: "steer_follow_up", sessionId: "stored", text: "follow_up" });
+  assert.deepEqual(steered.event, { type: "queue_update", steering: ["steer", "follow_up"], followUp: [] });
   const third = await connect(url);
   const restored = await request(third, { type: "subscribe", sessionId: "stored" });
-  assert.deepEqual(restored.queue, { steering: ["steer"], followUp: ["follow_up"] });
+  assert.deepEqual(restored.queue, { steering: ["steer", "follow_up"], followUp: [] });
   assert.match((await request(first, { type: "set_model", sessionId: "stored", provider: "faux", modelId: "first" })).message, /idle/);
   await request(first, { type: "abort", sessionId: "stored" });
 });

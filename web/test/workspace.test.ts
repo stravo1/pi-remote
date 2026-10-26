@@ -75,7 +75,7 @@ test("keeps the groups root from the session list", () => {
   assert.equal(workspace.groupsRoot, "/home/me");
 });
 
-test("allows input during a run and sends follow-up by default or steer explicitly", () => {
+test("queues input during a run as a follow-up and steers a queued follow-up", () => {
   const { workspace, sent } = setup();
   workspace.status = "connected";
   workspace.transcript.is_running = true;
@@ -83,8 +83,8 @@ test("allows input during a run and sends follow-up by default or steer explicit
   workspace.sendPrompt("Next");
   workspace.handle({ type: "event", sessionId: "one", seq: 1, event: { type: "queue_update", steering: [], followUp: ["Next"] } });
   assert.equal(workspace.isSending, false);
-  workspace.sendPrompt("Change", "steer");
-  assert.deepEqual(sent, [{ type: "follow_up", sessionId: "one", text: "Next" }, { type: "steer", sessionId: "one", text: "Change" }]);
+  workspace.steerFollowUp("Next");
+  assert.deepEqual(sent, [{ type: "follow_up", sessionId: "one", text: "Next" }, { type: "steer_follow_up", sessionId: "one", text: "Next" }]);
 });
 
 test("uses server settings and ignores errors from another session", () => {

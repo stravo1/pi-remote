@@ -43,6 +43,14 @@ export class FakeSession implements HubSession {
     this.listener({ type: "queue_update", ...this.pending });
   }
 
+  steerFollowUp(text: string): void {
+    const index = this.pending.followUp.indexOf(text);
+    if (index === -1) throw new Error("This message is no longer queued.");
+    this.pending.followUp.splice(index, 1);
+    this.pending.steering.push(text);
+    this.listener({ type: "queue_update", ...this.pending });
+  }
+
   async setModel(provider: string, id: string): Promise<void> {
     if (this.is_running) throw new Error("Change settings when the session is idle.");
     const model = this.settings.models.find((choice) => choice.provider === provider && choice.id === id);

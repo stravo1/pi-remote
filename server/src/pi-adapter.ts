@@ -50,6 +50,12 @@ export interface ProviderSettings {
 export type ProviderLoginEvent = AuthEvent | { type: "prompt"; prompt: AuthPrompt }
   | { type: "complete" } | { type: "failed"; message: string };
 
+// pi queues already-expanded text. These add it back without running input handlers again.
+interface QueueInternals {
+  _queueSteer(text: string): Promise<void>;
+  _queueFollowUp(text: string): Promise<void>;
+}
+
 interface PendingLogin {
   controller: AbortController;
   answer?: (value: string) => void;
@@ -110,6 +116,16 @@ export class PiSession {
     if (!this.is_running) return this.prompt(text);
     if (mode === "steer") await this.session.steer(text);
     else await this.session.followUp(text);
+  }
+
+  steerFollowUp(text: string): void {
+    const index = this.session.getFollowUpMessages().indexOf(text);
+    if (!this.is_running || index === -1) throw new Error("This message is no longer queued.");
+    const { steering, followUp } = this.session.clearQueue();
+    followUp.splice(index, 1);
+    const queue = this.session as unknown as QueueInternals;
+    for (const message of [...steering, text]) void queue._queueSteer(message);
+    for (const message of followUp) void queue._queueFollowUp(message);
   }
 
   async setModel(provider: string, id: string): Promise<void> {

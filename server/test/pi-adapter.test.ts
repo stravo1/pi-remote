@@ -81,6 +81,33 @@ for (const mode of ["steer", "follow_up"] as const) {
   });
 }
 
+test("steers a queued follow-up once and keeps the other follow-ups", async (context) => {
+  const { directory, adapter } = await setup(context, [
+    fauxAssistantMessage([fauxToolCall("bash", { command: "sleep 0.05" })], { stopReason: "toolUse" }),
+    fauxAssistantMessage("Steered result."),
+    fauxAssistantMessage("Follow-up result."),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  let queued: Promise<void> | undefined;
+  session.subscribe((event) => {
+    if (event.type !== "tool_execution_start") return;
+    queued = (async () => {
+      await session.queue("Steer this", "follow_up");
+      await session.queue("Keep this", "follow_up");
+      session.steerFollowUp("Steer this");
+      assert.deepEqual(session.snapshot.queue, { steering: ["Steer this"], followUp: ["Keep this"] });
+      assert.throws(() => session.steerFollowUp("Missing"), /no longer queued/);
+    })();
+  });
+  await session.prompt("Work");
+  await queued;
+  const users = session.snapshot.messages.filter((message) => message.role === "user").map((message) => JSON.stringify(message.content));
+  assert.equal(users.length, 3);
+  assert.match(users[1], /Steer this/);
+  assert.match(users[2], /Keep this/);
+});
+
 test("offers available models and thinking levels and saves session choices", async (context) => {
   const { directory, adapter } = await setup(context, [fauxAssistantMessage("Saved.")]);
   const session = await adapter.create(directory);

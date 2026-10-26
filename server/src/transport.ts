@@ -109,6 +109,7 @@ export class Transport {
       prompt: () => this.hub.prompt(requireSessionId(command), requireText(command)),
       steer: () => this.hub.queue(requireSessionId(command), requireText(command), "steer"),
       follow_up: () => this.hub.queue(requireSessionId(command), requireText(command), "follow_up"),
+      steer_follow_up: () => this.hub.steerFollowUp(requireSessionId(command), requireText(command)),
       set_model: () => this.hub.setModel(requireSessionId(command), requireString(command.provider), requireString(command.modelId)),
       set_thinking_level: () => this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level)),
       abort: () => this.hub.abort(requireSessionId(command)),

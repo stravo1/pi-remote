@@ -109,10 +109,15 @@ export class Workspace {
     this.run({ type: "logout_provider", provider });
   }
 
-  sendPrompt(text: string, mode: "follow_up" | "steer" = "follow_up"): void {
+  sendPrompt(text: string): void {
     this.isSending = true;
     this.error = "";
-    this.run({ type: this.transcript.is_running ? mode : "prompt", sessionId: this.sessionId, text });
+    this.run({ type: this.transcript.is_running ? "follow_up" : "prompt", sessionId: this.sessionId, text });
+  }
+
+  steerFollowUp(text: string): void {
+    this.error = "";
+    this.run({ type: "steer_follow_up", sessionId: this.sessionId, text });
   }
 
   setModel(value: string): void {

@@ -78,8 +78,9 @@ for (const width of [375, 1280]) {
         if (command.type === "set_model") { state.model = state.models.find((model) => model.id === command.modelId)!; snapshot(); }
         if (command.type === "set_thinking_level") { state.thinkingLevel = command.level; snapshot(); }
         if (command.type === "prompt") { isRunning = true; event({ type: "agent_start" }); }
-        if (command.type === "follow_up") event({ type: "queue_update", steering: [], followUp: [command.text] });
-        if (command.type === "steer") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
+        if (command.type === "follow_up" && command.text !== "Change direction") event({ type: "queue_update", steering: [], followUp: [command.text] });
+        if (command.type === "follow_up" && command.text === "Change direction") event({ type: "queue_update", steering: [], followUp: ["Next task", command.text] });
+        if (command.type === "steer_follow_up") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
         if (command.type === "new_group" && command.name === "taken") route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
         if (command.type === "remove_group") route.send(JSON.stringify({ type: "sessions", groupsRoot: "/code", projects: [] }));
         if (command.type === "abort") { isRunning = false; event({ type: "agent_settled", aborted: true }); }
@@ -142,11 +143,11 @@ for (const width of [375, 1280]) {
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Next task");
     await page.getByRole("button", { name: "Send follow-up" }).click();
     await page.getByLabel("Queued messages").waitFor();
-    await page.getByRole("combobox", { name: "Message mode" }).click();
-    await page.getByRole("option", { name: "Steer", exact: true }).click();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Change direction");
-    await page.getByRole("button", { name: "Send steer" }).click();
-    await waitFor(async () => commands.some((command) => command.type === "steer"));
+    await page.getByRole("button", { name: "Send follow-up" }).click();
+    await page.getByRole("listitem").filter({ hasText: "Change direction" }).getByRole("button", { name: "Send now" }).click();
+    await waitFor(async () => commands.some((command) => command.type === "steer_follow_up" && command.text === "Change direction"));
+    await page.getByRole("img", { name: "After the current turn" }).waitFor();
     await checkWidth(page);
     await screenshot(page, `agent-${width}`);
     await page.getByRole("button", { name: "Stop run" }).click();

@@ -88,6 +88,10 @@ export class SessionHub {
     await (await this.getSession(sessionId)).session.queue(text, mode);
   }
 
+  async steerFollowUp(sessionId: string, text: string): Promise<void> {
+    (await this.getSession(sessionId)).session.steerFollowUp(text);
+  }
+
   async setModel(sessionId: string, provider: string, id: string): Promise<void> {
     const entry = await this.getSession(sessionId);
     await entry.session.setModel(provider, id);

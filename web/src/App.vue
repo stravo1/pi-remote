@@ -77,7 +77,7 @@ function closeProviderSettings(): void {
       </section>
       <Composer :key="workspace.sessionId" class="max-sm:order-3" :disabled="workspace.is_disabled" :is-sending="workspace.isSending"
         :is-running="workspace.transcript.is_running" :error="workspace.error" :queue="workspace.transcript.queue"
-        @send="(text, mode) => workspace.sendPrompt(text, mode)" @abort="workspace.abort()" />
+        @send="(text) => workspace.sendPrompt(text)" @steer="(text) => workspace.steerFollowUp(text)" @abort="workspace.abort()" />
     </template>
   </div>
 </template>

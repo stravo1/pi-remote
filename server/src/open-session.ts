@@ -4,7 +4,7 @@ export interface HubClient {
   send(message: string): void;
 }
 
-export type HubSession = Pick<PiSession, "id" | "is_running" | "snapshot" | "prompt" | "queue" | "setModel" | "setThinkingLevel" | "abort" | "subscribe" | "close">;
+export type HubSession = Pick<PiSession, "id" | "is_running" | "snapshot" | "prompt" | "queue" | "steerFollowUp" | "setModel" | "setThinkingLevel" | "abort" | "subscribe" | "close">;
 
 export interface RunMetrics {
   type: "run";
