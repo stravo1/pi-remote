@@ -202,7 +202,7 @@ export class PiAdapter {
     await runtime.login(provider, "api_key", {
       notify: () => undefined,
       prompt: async (prompt) => {
-        if (isAnswered || prompt.type !== "secret") throw new Error("This provider needs guided setup.");
+        if (isAnswered || prompt.type !== "secret") throw new Error("This provider needs more than a key. Add it again from Add provider.");
         isAnswered = true;
         return apiKey;
       },

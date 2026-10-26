@@ -85,7 +85,7 @@ function saveKey(): void {
     </div>
     </main>
     <AddProviderWizard v-model:open="isAdding" :providers="providers" :login="login" :error="error"
-      @save-key="(provider, key) => emit('saveKey', provider, key)" @login="(provider, type) => emit('login', provider, type)"
+      @login="(provider, type) => emit('login', provider, type)"
       @answer="emit('answer', $event)" @cancel="emit('cancel')" />
   </div>
 </template>

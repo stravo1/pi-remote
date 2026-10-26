@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Button, TextInput } from "frappe-ui";
+import { Button, Password, TextInput } from "frappe-ui";
 import type { ProviderLoginEvent } from "../../../server/src/pi-adapter.ts";
 
 const props = defineProps<{ event?: ProviderLoginEvent; notice?: ProviderLoginEvent }>();
@@ -34,7 +34,7 @@ function submit(): void {
     <form v-else-if="prompt" class="space-y-2" @submit.prevent="submit">
       <p class="text-p-sm text-ink-gray-7">{{ prompt.message }}</p>
       <div class="flex gap-2">
-      <TextInput v-model="answer" class="min-w-0 flex-1" :type="prompt.type === 'secret' ? 'password' : 'text'"
+      <component :is="prompt.type === 'secret' ? Password : TextInput" v-model="answer" class="min-w-0 flex-1" autocomplete="off"
         :placeholder="placeholder" :aria-label="prompt.message" autofocus />
       <Button type="submit" label="Continue" :disabled="!answer.trim()" />
       </div>
