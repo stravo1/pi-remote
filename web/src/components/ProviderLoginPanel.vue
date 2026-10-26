@@ -25,7 +25,6 @@ function submit(): void {
       <p class="font-mono text-lg font-semibold tracking-wider text-ink-gray-9">{{ event.userCode }}</p>
     </template>
     <p v-if="event?.type === 'info' || event?.type === 'progress'" class="text-p-sm text-ink-gray-7">{{ event.message }}</p>
-    <p v-if="event?.type === 'failed'" role="alert" class="text-p-sm text-ink-red-4">{{ event.message }}</p>
     <p v-if="!event" class="text-p-sm text-ink-gray-5">Starting sign-in...</p>
     <div v-if="prompt?.type === 'select'" class="flex flex-wrap gap-2" role="listbox" :aria-label="prompt.message">
       <Button v-for="option in prompt.options" :key="option.id" variant="subtle" :label="option.label" @click="emit('answer', option.id)" />

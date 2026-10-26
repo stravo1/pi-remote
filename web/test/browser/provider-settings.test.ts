@@ -24,7 +24,10 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
           id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key",
         }] }));
       }
-      if (command.type === "start_provider_login") {
+      if (command.type === "start_provider_login" && command.authType === "api_key") {
+        socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-two" }));
+        socket.send(JSON.stringify({ type: "provider_login_event", loginId: "login-two", event: { type: "failed", message: "Setup failed." } }));
+      } else if (command.type === "start_provider_login") {
         socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-one" }));
         socket.send(JSON.stringify({ type: "provider_login_event", loginId: "login-one", event: {
           type: "device_code", verificationUri: "https://example.com/device", userCode: "ABCD-1234",
@@ -37,7 +40,6 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.goto(`http://127.0.0.1:${address.port}/#settings`);
   await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
   await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("button", { name: "Search providers" }).click();
   await page.getByRole("option", { name: /OpenAI.*API key/ }).click();
   await page.getByRole("textbox", { name: "OpenAI API key" }).fill("not-a-real-key");
   await page.getByRole("button", { name: "Save key" }).click();
@@ -47,9 +49,13 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("button", { name: "Search providers" }).click();
   await page.getByRole("option", { name: /OpenAI.*Sign in with ChatGPT/ }).click();
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await page.getByRole("button", { name: "Add provider" }).click();
+  await page.getByRole("option", { name: /OpenAI.*API key/ }).click();
+  await page.getByRole("button", { name: "Guided key setup" }).click();
+  await page.getByText("Setup failed.", { exact: true }).waitFor();
   assert.ok(commands.some((command) => command.type === "set_provider_key" && command.apiKey === "not-a-real-key"));
   assert.ok(commands.some((command) => command.type === "start_provider_login" && command.authType === "oauth"));
 });

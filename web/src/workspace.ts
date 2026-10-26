@@ -175,6 +175,10 @@ export class Workspace {
   private handleProviderLoginEvent(message: { loginId: string; event: ProviderLoginEvent }): void {
     if (this.providerLogin?.id && message.loginId !== this.providerLogin.id) return;
     this.providerLogin = { id: message.loginId, event: message.event };
+    if (message.event.type === "failed") {
+      this.error = message.event.message;
+      this.providerLogin = undefined;
+    }
     if (message.event.type === "complete") {
       this.providerLogin = undefined;
       this.listProviders();

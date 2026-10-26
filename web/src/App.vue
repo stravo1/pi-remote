@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { Button } from "frappe-ui";
+import { Button, ToastProvider } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import NewGroupDialog from "./components/NewGroupDialog.vue";
 import MessageItem from "./components/MessageItem.vue";
@@ -54,6 +54,7 @@ function closeProviderSettings(): void {
 
 <template>
   <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
+    <ToastProvider />
     <NewGroupDialog v-model:open="isGroupDialogOpen" :root="workspace.groupsRoot" :error="workspace.error"
       @submit="(name) => workspace.createGroup(name)" />
     <ProviderSettings v-if="isProviderSettingsOpen" :providers="workspace.providers" :login="workspace.providerLogin" :error="workspace.error"
