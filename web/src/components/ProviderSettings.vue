@@ -160,6 +160,7 @@ function saveKey(): void {
             </li>
           </ul>
         </section>
+        <slot />
         <section aria-labelledby="appearance-heading">
           <div class="mb-2 flex min-h-7 items-center gap-1">
             <h2 id="appearance-heading" class="min-w-0 flex-1 py-1 text-p-sm font-medium text-ink-gray-5">

@@ -2,6 +2,7 @@ import type { Configuration } from "./config.ts";
 import { OpenSession, type HubClient, type HubSession, type RunMetrics } from "./open-session.ts";
 import type { PiAdapter } from "./pi-adapter.ts";
 import { ProjectStore } from "./project-store.ts";
+import type { PushNotifier } from "./push-notifier.ts";
 
 export type { HubClient, HubSession, RunMetrics } from "./open-session.ts";
 
@@ -17,6 +18,7 @@ export class SessionHub {
   private readonly configuration: Pick<Configuration, "projectsRoot" | "idleMinutes">;
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly store: ProjectStore;
+  private readonly notifier?: Pick<PushNotifier, "notify">;
   private readonly sessions = new Map<string, OpenSession>();
   private readonly opening = new Map<string, Promise<OpenSession>>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -26,8 +28,10 @@ export class SessionHub {
     configuration: Pick<Configuration, "projectsRoot" | "idleMinutes">,
     logRun: (metrics: RunMetrics) => void = (metrics) => console.log(JSON.stringify(metrics)),
     store = new ProjectStore(configuration.projectsRoot),
+    notifier?: Pick<PushNotifier, "notify">,
   ) {
     this.store = store;
+    this.notifier = notifier;
     this.source = source;
     this.configuration = configuration;
     this.logRun = logRun;
@@ -115,6 +119,20 @@ export class SessionHub {
     entry.sendSnapshot();
   }
 
+  async rename(sessionId: string, name: string): Promise<void> {
+    (await this.getSession(sessionId)).session.rename(name);
+  }
+
+  async getSessionInfo(sessionId: string) {
+    return (await this.getSession(sessionId)).session.info;
+  }
+
+  async compact(sessionId: string, instructions?: string): Promise<void> {
+    const entry = await this.getSession(sessionId);
+    await entry.session.compact(instructions);
+    entry.sendSnapshot();
+  }
+
   async close(): Promise<void> {
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
@@ -160,7 +178,10 @@ export class SessionHub {
   }
 
   private register(project: string, session: HubSession): OpenSession {
-    const entry = new OpenSession(project, session, this.logRun, () => this.scheduleDisposal(entry));
+    const entry = new OpenSession(project, session, this.logRun, (notice) => {
+      this.scheduleDisposal(entry);
+      this.notifier?.notify(notice).catch((error: unknown) => console.error("Push notification failed", error));
+    });
     this.sessions.set(entry.id, entry);
     this.scheduleDisposal(entry);
     return entry;

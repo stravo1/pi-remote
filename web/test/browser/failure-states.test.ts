@@ -8,6 +8,7 @@ const settings = {
   models: [{ provider: "faux", id: "first", name: "First model" }],
   thinkingLevel: "off",
   thinkingLevels: ["off"],
+  commands: [],
 };
 
 async function waitFor(check: () => Promise<boolean>): Promise<void> {

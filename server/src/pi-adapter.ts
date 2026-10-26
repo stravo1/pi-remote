@@ -6,6 +6,7 @@ import {
   type AgentSession,
   type AgentSessionEvent,
   type CreateAgentSessionOptions,
+  type SessionStats,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
@@ -26,9 +27,12 @@ export interface SessionSummary {
 export interface Snapshot {
   messages: AgentSession["messages"];
   isStreaming: boolean;
+  isCompacting: boolean;
   queue: { steering: string[]; followUp: string[] };
   settings?: SessionSettings;
 }
+
+export type SessionInfo = Omit<SessionStats, "sessionFile">;
 
 export interface ModelChoice {
   provider: string;
@@ -36,11 +40,18 @@ export interface ModelChoice {
   name: string;
 }
 
+export interface CommandChoice {
+  name: string;
+  description?: string;
+  argumentHint?: string;
+}
+
 export interface SessionSettings {
   model?: ModelChoice;
   models: ModelChoice[];
   thinkingLevel: string;
   thinkingLevels: string[];
+  commands: CommandChoice[];
 }
 
 export interface ProviderSettings {
@@ -73,12 +84,12 @@ interface PendingLogin {
 export class PiSession {
   readonly session: AgentSession;
   private _isRunning = false;
-  private isChangingModel = false;
+  private isChanging = false;
   private readonly summaryJob: SessionSummaryJob;
 
   constructor(session: AgentSession, summaryDelay?: number) {
     this.session = session;
-    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChangingModel, summaryDelay);
+    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChanging, summaryDelay);
   }
 
   get id(): string {
@@ -93,13 +104,14 @@ export class PiSession {
     return {
       messages: [...this.session.messages],
       isStreaming: this.is_running || this.session.isStreaming,
+      isCompacting: this.session.isCompacting,
       queue: { steering: [...this.session.getSteeringMessages()], followUp: [...this.session.getFollowUpMessages()] },
       settings: this.settings,
     };
   }
 
   async prompt(text: string): Promise<void> {
-    if (this.isChangingModel) throw new Error("The model is changing. Try again when it finishes.");
+    if (this.isChanging) throw new Error("The session is changing. Try again when it finishes.");
     if (this.is_running) throw new Error("A run is already active.");
     this._isRunning = true;
     try {
@@ -117,7 +129,24 @@ export class PiSession {
       models: this.session.modelRuntime.getAvailableSnapshot().map(describe),
       thinkingLevel: this.session.thinkingLevel,
       thinkingLevels: this.session.getAvailableThinkingLevels(),
+      commands: this.commands,
     };
+  }
+
+  // The same commands pi's terminal app offers: extension commands, prompt templates, and skills.
+  get commands(): CommandChoice[] {
+    const extensions = this.session.extensionRunner
+      .getRegisteredCommands()
+      .map(({ invocationName, description }) => ({ name: invocationName, description }));
+    const templates = this.session.promptTemplates.map(({ name, description, argumentHint }) => ({
+      name,
+      description,
+      argumentHint,
+    }));
+    const skills = this.session.resourceLoader
+      .getSkills()
+      .skills.map(({ name, description }) => ({ name: `skill:${name}`, description }));
+    return [...extensions, ...templates, ...skills];
   }
 
   async queue(text: string, mode: "steer" | "follow_up"): Promise<void> {
@@ -142,11 +171,33 @@ export class PiSession {
       .getAvailableSnapshot()
       .find((choice) => choice.provider === provider && choice.id === id);
     if (!model) throw new Error("Unknown or unavailable model.");
-    this.isChangingModel = true;
+    await this.change(() => this.session.setModel(model));
+  }
+
+  get name(): string | undefined {
+    return this.session.sessionName;
+  }
+
+  rename(name: string): void {
+    this.summaryJob.rename(name);
+  }
+
+  get info(): SessionInfo {
+    const { sessionFile: _, ...info } = this.session.getSessionStats();
+    return info;
+  }
+
+  async compact(instructions?: string): Promise<void> {
+    this.requireIdle();
+    await this.change(() => this.session.compact(instructions?.trim() || undefined));
+  }
+
+  private async change(task: () => Promise<unknown>): Promise<void> {
+    this.isChanging = true;
     try {
-      await this.session.setModel(model);
+      await task();
     } finally {
-      this.isChangingModel = false;
+      this.isChanging = false;
     }
   }
 
@@ -158,10 +209,11 @@ export class PiSession {
   }
 
   private requireIdle(): void {
-    if (this.is_running || this.isChangingModel) throw new Error("Change settings when the session is idle.");
+    if (this.is_running || this.isChanging) throw new Error("Change settings when the session is idle.");
   }
 
   async abort(): Promise<void> {
+    this.session.abortCompaction();
     await this.session.abort();
   }
 

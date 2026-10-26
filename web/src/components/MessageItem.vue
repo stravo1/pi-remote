@@ -31,6 +31,28 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
           class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7"
           >{{ block.text }}</pre>
       </details>
+      <div
+        v-else-if="message.role === 'notice'"
+        class="markdown border-y border-outline-gray-2 py-3 text-p-sm sm:py-2"
+        role="note"
+        v-html="renderMarkdown(message.content[0]?.text ?? '')"
+      />
+      <details v-else-if="message.role === 'compactionSummary'" class="group text-p-sm text-ink-gray-5">
+        <summary
+          class="flex cursor-pointer select-none list-none items-center gap-1.5 py-1 sm:py-0 hover:text-ink-gray-7"
+        >
+          <span
+            class="lucide-chevron-right size-4 shrink-0 transition-transform group-open:rotate-90"
+            aria-hidden="true"
+          />Context compacted
+        </summary>
+        <div
+          v-for="(block, index) in message.content"
+          :key="index"
+          class="markdown mt-2 border-l-2 border-outline-gray-2 pl-3"
+          v-html="renderMarkdown(block.text)"
+        />
+      </details>
       <template v-else v-for="(block, index) in message.content" :key="index">
         <details v-if="block.type === 'thinking'" class="group text-p-sm text-ink-gray-5">
           <summary

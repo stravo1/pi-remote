@@ -28,6 +28,7 @@ const snapshot = {
   sessionId: "one",
   seq: 4,
   isStreaming: true,
+  isCompacting: false,
   queue: { steering: [], followUp: [] },
   messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
   runEvents: [
@@ -122,6 +123,7 @@ test("uses server settings and ignores errors from another session", () => {
     models: [{ provider: "faux", id: "one", name: "One" }],
     thinkingLevel: "off",
     thinkingLevels: ["off", "high"],
+    commands: [],
   };
   workspace.handle({ ...snapshot, settings });
   workspace.setModel(JSON.stringify(["faux", "one"]));
@@ -185,4 +187,130 @@ test("knows when the first session list has arrived", () => {
   assert.equal(workspace.hasSessionList, false);
   workspace.handle({ type: "sessions", projects: [] });
   assert.equal(workspace.hasSessionList, true);
+});
+
+const info = {
+  sessionId: "one",
+  userMessages: 2,
+  assistantMessages: 3,
+  toolCalls: 4,
+  toolResults: 4,
+  totalMessages: 9,
+  tokens: { input: 1200, output: 300, cacheRead: 0, cacheWrite: 0, total: 1500 },
+  cost: 0.0123,
+};
+
+test("sends rename, info, and compact commands and shows info as a note for the open session only", () => {
+  const { workspace, sent } = setup();
+  workspace.renameSession("Chosen");
+  workspace.showSessionInfo();
+  workspace.compact("Keep decisions");
+  assert.deepEqual(sent, [
+    { type: "rename_session", sessionId: "one", name: "Chosen" },
+    { type: "get_session_info", sessionId: "one" },
+    { type: "compact", sessionId: "one", instructions: "Keep decisions" },
+  ]);
+  workspace.handle({ type: "session_info", sessionId: "other", info });
+  assert.equal(workspace.transcript.messages.length, 0);
+  workspace.handle({ type: "session_info", sessionId: "one", info });
+  const [note] = workspace.transcript.messages;
+  assert.equal(note.role, "notice");
+  assert.match(note.content[0].text, /^- Cost: \$0\.0123$/m);
+  assert.match(note.content[0].text, /1,200 in, 300 out, 1,500 total/);
+});
+
+test("notes a rename once the server saves that name, and keeps notes across a snapshot", () => {
+  const { workspace } = setup();
+  workspace.handle(snapshot);
+  workspace.renameSession("  Fix   login ");
+  const named = (seq: number, name: string) => ({
+    type: "event",
+    sessionId: "one",
+    seq,
+    event: { type: "session_info_changed", name },
+  });
+  workspace.handle(named(5, "Automatic"));
+  assert.equal(workspace.transcript.notices.length, 0);
+  workspace.handle(named(6, "Fix login"));
+  assert.equal(workspace.transcript.notices[0].content[0].text, "Renamed this session to “Fix login”.");
+  workspace.handle({ ...snapshot, seq: 6 });
+  assert.equal(workspace.transcript.messages.filter((message) => message.role === "notice").length, 1);
+});
+
+test("disables the composer while the context compacts", () => {
+  const { workspace } = setup();
+  workspace.status = "connected";
+  workspace.handle({ ...snapshot, isCompacting: true });
+  assert.equal(workspace.is_disabled, true);
+});
+
+function setupPush(existing?: object) {
+  const { workspace, sent } = setup();
+  const subscription = {
+    endpoint: "https://push.example.com/a",
+    toJSON: () => ({ endpoint: "https://push.example.com/a" }),
+  };
+  workspace.devicePush = {
+    is_supported: true,
+    permission: "granted",
+    getSubscription: async () => existing ?? null,
+    subscribe: async () => subscription,
+    unsubscribe: async () => subscription.endpoint,
+  } as unknown as Workspace["devicePush"];
+  return { workspace, sent };
+}
+
+test("turns push on and off for this device", async () => {
+  const { workspace, sent } = setupPush();
+  workspace.handle({ type: "push_key", publicKey: "key" });
+  await workspace.enablePush();
+  assert.equal(workspace.isUpdatingPush, true);
+  workspace.handle({ type: "push_subscribed" });
+  assert.equal(workspace.isPushOn, true);
+  await workspace.disablePush();
+  workspace.handle({ type: "push_unsubscribed" });
+  assert.equal(workspace.isPushOn, false);
+  assert.deepEqual(sent, [
+    { type: "push_subscribe", subscription: { endpoint: "https://push.example.com/a" } },
+    { type: "push_unsubscribe", endpoint: "https://push.example.com/a" },
+  ]);
+});
+
+test("sends an existing device subscription again when the server key arrives", async () => {
+  const { workspace, sent } = setupPush({ toJSON: () => ({ endpoint: "https://push.example.com/b" }) });
+  workspace.handle({ type: "push_key", publicKey: "key" });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(workspace.isPushOn, true);
+  assert.deepEqual(sent, [{ type: "push_subscribe", subscription: { endpoint: "https://push.example.com/b" } }]);
+});
+
+test("shows a blocked permission as an error and keeps push off", async () => {
+  const { workspace } = setupPush();
+  workspace.devicePush.subscribe = async () => {
+    throw new Error("Notifications are blocked.");
+  };
+  workspace.handle({ type: "push_key", publicKey: "key" });
+  await workspace.enablePush();
+  assert.equal(workspace.error, "Notifications are blocked.");
+  assert.equal(workspace.isUpdatingPush, false);
+  assert.equal(workspace.isPushOn, false);
+});
+
+test("runs /name, /compact, and /session here and sends other commands to pi", () => {
+  const { workspace, sent } = setup();
+  workspace.sendPrompt("/name  Fix login ");
+  workspace.sendPrompt("/compact");
+  workspace.sendPrompt("/compact keep the plan\nand the decisions");
+  workspace.sendPrompt("/session");
+  workspace.sendPrompt("/review the diff");
+  assert.deepEqual(sent, [
+    { type: "rename_session", sessionId: "one", name: "Fix login" },
+    { type: "compact", sessionId: "one", instructions: "" },
+    { type: "compact", sessionId: "one", instructions: "keep the plan\nand the decisions" },
+    { type: "get_session_info", sessionId: "one" },
+    { type: "prompt", sessionId: "one", text: "/review the diff" },
+  ]);
+  workspace.sendPrompt("/name");
+  assert.equal(workspace.error, "Add a name after /name.");
+  assert.equal(sent.length, 5);
 });

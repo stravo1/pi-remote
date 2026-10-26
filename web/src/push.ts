@@ -1,0 +1,46 @@
+// Web Push needs a service worker. iOS offers it only in an app added to the Home Screen.
+export class DevicePush {
+  get is_supported(): boolean {
+    return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  }
+
+  get permission(): NotificationPermission {
+    return this.is_supported ? Notification.permission : "default";
+  }
+
+  // A subscription made with an older server key cannot receive pushes, so it is dropped.
+  async getSubscription(publicKey: string): Promise<PushSubscription | null> {
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    const subscription = await registration.pushManager.getSubscription();
+    if (!subscription || hasKey(subscription, publicKey)) return subscription;
+    await subscription.unsubscribe();
+    return null;
+  }
+
+  async subscribe(publicKey: string): Promise<PushSubscription> {
+    if ((await Notification.requestPermission()) !== "granted") throw new Error("Notifications are blocked.");
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(publicKey) });
+  }
+
+  async unsubscribe(publicKey: string): Promise<string | undefined> {
+    const subscription = await this.getSubscription(publicKey);
+    await subscription?.unsubscribe();
+    return subscription?.endpoint;
+  }
+}
+
+function hasKey(subscription: PushSubscription, publicKey: string): boolean {
+  const key = subscription.options.applicationServerKey;
+  return !key || new Uint8Array(key).join() === decodeKey(publicKey).join();
+}
+
+export function decodeKey(value: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(
+    value
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(value.length / 4) * 4, "="),
+  );
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+}

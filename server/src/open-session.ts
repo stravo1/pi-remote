@@ -1,4 +1,5 @@
 import type { AgentSessionEvent, PiSession, Snapshot } from "./pi-adapter.ts";
+import type { RunNotice } from "./push-notifier.ts";
 
 export interface HubClient {
   send(message: string): void;
@@ -14,6 +15,10 @@ export type HubSession = Pick<
   | "steerFollowUp"
   | "setModel"
   | "setThinkingLevel"
+  | "name"
+  | "rename"
+  | "info"
+  | "compact"
   | "abort"
   | "subscribe"
   | "close"
@@ -33,13 +38,18 @@ export class OpenSession {
   readonly openedAt = Date.now();
   private readonly unsubscribe: () => void;
   private readonly logRun: (metrics: RunMetrics) => void;
-  private readonly onSettled: () => void;
+  private readonly onSettled: (notice: RunNotice) => void;
   private runEvents: AgentSessionEvent[] = [];
   private sequence = 0;
   private eventCount = 0;
   private bytes = 0;
 
-  constructor(project: string, session: HubSession, logRun: (metrics: RunMetrics) => void, onSettled: () => void) {
+  constructor(
+    project: string,
+    session: HubSession,
+    logRun: (metrics: RunMetrics) => void,
+    onSettled: (notice: RunNotice) => void,
+  ) {
     this.project = project;
     this.session = session;
     this.logRun = logRun;
@@ -89,10 +99,31 @@ export class OpenSession {
 
   private record(event: AgentSessionEvent): void {
     this.runEvents.push(event);
-    if (event.type === "message_end") this.runEvents = [];
+    if (event.type === "message_end" || event.type === "compaction_end") this.runEvents = [];
     if (event.type !== "agent_settled") return;
     this.runEvents = [];
     this.logRun({ type: "run", sessionId: this.id, eventCount: this.eventCount, bytes: this.bytes });
-    this.onSettled();
+    this.onSettled(this.getNotice(event.aborted));
   }
+
+  private getNotice(isAborted: boolean): RunNotice {
+    const reply = this.session.snapshot.messages.filter((message) => message.role === "assistant").at(-1);
+    return {
+      sessionId: this.id,
+      title: this.session.name || "pi remote",
+      body: isAborted ? "Stopped." : getReplyText(reply),
+    };
+  }
+}
+
+function getReplyText(reply: Snapshot["messages"][number] | undefined): string {
+  if (reply?.role !== "assistant") return "Finished.";
+  if (reply.stopReason === "error") return reply.errorMessage || "The run failed.";
+  const text = reply.content
+    .filter((block) => block.type === "text")
+    .map((block) => block.text)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text || "Finished.";
 }

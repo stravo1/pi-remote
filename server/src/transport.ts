@@ -5,6 +5,7 @@ import type { Configuration } from "./config.ts";
 import { serveHttp } from "./http.ts";
 import type { HubClient, SessionHub } from "./session-hub.ts";
 import type { PiAdapter } from "./pi-adapter.ts";
+import type { PushNotifier } from "./push-notifier.ts";
 
 interface Command {
   type?: unknown;
@@ -21,6 +22,9 @@ interface Command {
   value?: unknown;
   deleteFolder?: unknown;
   sessionIds?: unknown;
+  instructions?: unknown;
+  subscription?: unknown;
+  endpoint?: unknown;
 }
 
 export interface ProviderManager {
@@ -42,6 +46,7 @@ export class Transport {
   readonly alive = new Map<WebSocket, boolean>();
 
   readonly providers?: ProviderManager;
+  readonly push?: PushNotifier;
 
   constructor(
     hub: SessionHub,
@@ -49,10 +54,12 @@ export class Transport {
     webDirectory: string,
     pingInterval = 30_000,
     providers?: ProviderManager,
+    push?: PushNotifier,
   ) {
     this.hub = hub;
     this.configuration = configuration;
     this.providers = providers;
+    this.push = push;
     this.server = createServer((request, response) => {
       void serveHttp(request, response, webDirectory).catch((error: unknown) => {
         const status = error instanceof URIError ? 400 : 500;
@@ -132,6 +139,9 @@ export class Transport {
       set_model: () =>
         this.hub.setModel(requireSessionId(command), requireString(command.provider), requireString(command.modelId)),
       set_thinking_level: () => this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level)),
+      rename_session: () => this.hub.rename(requireSessionId(command), requireString(command.name)),
+      get_session_info: () => this.sendSessionInfo(client, requireSessionId(command)),
+      compact: () => this.hub.compact(requireSessionId(command), optionalString(command.instructions)),
       abort: () => this.hub.abort(requireSessionId(command)),
       list_providers: () => this.listProviders(client),
       set_provider_key: () => this.setProviderKey(client, command),
@@ -140,7 +150,17 @@ export class Transport {
       start_provider_login: () => this.startProviderLogin(client, command),
       submit_provider_login: () => this.submitProviderLogin(command),
       cancel_provider_login: () => this.cancelProviderLogin(command),
+      get_push_key: () => client.send(JSON.stringify({ type: "push_key", publicKey: this.push?.publicKey ?? null })),
+      push_subscribe: () => this.subscribePush(client, command),
+      push_unsubscribe: () => this.unsubscribePush(client, command),
+      push_test: () =>
+        this.requirePush().notify({ sessionId: "", title: "pi remote", body: "Notifications work on this device." }),
     };
+  }
+
+  private async sendSessionInfo(client: HubClient, sessionId: string): Promise<void> {
+    const info = await this.hub.getSessionInfo(sessionId);
+    client.send(JSON.stringify({ type: "session_info", sessionId, info }));
   }
 
   private async listProviders(client: HubClient): Promise<void> {
@@ -191,6 +211,21 @@ export class Transport {
 
   private cancelProviderLogin(command: Command): void {
     this.requireProviders().cancelProviderLogin(requireString(command.loginId));
+  }
+
+  private async subscribePush(client: HubClient, command: Command): Promise<void> {
+    await this.requirePush().subscribe(command.subscription);
+    client.send(JSON.stringify({ type: "push_subscribed" }));
+  }
+
+  private async unsubscribePush(client: HubClient, command: Command): Promise<void> {
+    await this.requirePush().unsubscribe(requireString(command.endpoint));
+    client.send(JSON.stringify({ type: "push_unsubscribed" }));
+  }
+
+  private requirePush(): PushNotifier {
+    if (!this.push) throw new Error("Push notifications are not set up on this server.");
+    return this.push;
   }
 
   private requireProviders(): ProviderManager {
@@ -249,6 +284,11 @@ export class Transport {
 function requireString(value: unknown): string {
   if (typeof value !== "string" || !value.trim()) throw new Error("The setting must be a nonempty string.");
   return value;
+}
+
+function optionalString(value: unknown): string | undefined {
+  if (value === undefined || typeof value === "string") return value;
+  throw new Error("The setting must be a string.");
 }
 
 function requireSessionId(command: Command): string {

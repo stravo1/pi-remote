@@ -10,8 +10,9 @@ import { SessionHub } from "../src/session-hub.ts";
 import { Transport, type ProviderManager } from "../src/transport.ts";
 import { FakeSource } from "./fake-source.ts";
 import { ProjectStore } from "../src/project-store.ts";
+import type { PushNotifier } from "../src/push-notifier.ts";
 
-async function setup(context: TestContext, pingInterval = 10_000, providers?: ProviderManager) {
+async function setup(context: TestContext, pingInterval = 10_000, providers?: ProviderManager, push?: PushNotifier) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-transport-"));
   const source = new FakeSource();
   source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1000 });
@@ -39,7 +40,7 @@ async function setup(context: TestContext, pingInterval = 10_000, providers?: Pr
     },
   } as unknown as ProjectStore;
   const hub = new SessionHub(source, configuration, () => {}, store);
-  const transport = new Transport(hub, configuration, directory, pingInterval, providers);
+  const transport = new Transport(hub, configuration, directory, pingInterval, providers, push);
   context.after(async () => {
     await hub.close();
     await transport.close();
@@ -304,4 +305,48 @@ test("lists provider status and keeps login prompts separate from credentials", 
   for (let attempt = 0; attempt < 20 && received.length < 2; attempt++)
     await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(received, ["faux:secret", "login-one:secret"]);
+});
+
+test("renames, reports info, and compacts a session", { timeout: 5000 }, async (context) => {
+  const { url, source } = await setup(context);
+  const socket = await connect(url);
+  await request(socket, { type: "subscribe", sessionId: "stored" });
+  const renamed = await request(socket, { type: "rename_session", sessionId: "stored", name: "Chosen" });
+  assert.deepEqual(renamed.event, { type: "session_info_changed", name: "Chosen" });
+  const info = await request(socket, { type: "get_session_info", sessionId: "stored" });
+  assert.equal(info.type, "session_info");
+  assert.equal(info.info.tokens.total, 15);
+  const snapshot = await request(socket, { type: "compact", sessionId: "stored", instructions: "Keep decisions" });
+  assert.equal(snapshot.type, "snapshot");
+  assert.deepEqual(source.sessions.get("stored")!.compactions, ["Keep decisions"]);
+  assert.equal((await request(socket, { type: "rename_session", sessionId: "stored", name: " " })).type, "error");
+  assert.equal((await request(socket, { type: "compact", sessionId: "stored", instructions: 1 })).type, "error");
+});
+
+test("hands out the push key and stores device subscriptions", { timeout: 5000 }, async (context) => {
+  const calls: unknown[][] = [];
+  const push = {
+    publicKey: "public",
+    subscribe: async (value: unknown) => void calls.push(["subscribe", value]),
+    unsubscribe: async (endpoint: string) => void calls.push(["unsubscribe", endpoint]),
+    notify: async (notice: unknown) => void calls.push(["notify", notice]),
+  } as unknown as PushNotifier;
+  const { url } = await setup(context, 10_000, undefined, push);
+  const socket = await connect(url);
+  assert.deepEqual(await request(socket, { type: "get_push_key" }), { type: "push_key", publicKey: "public" });
+  const subscription = { endpoint: "https://push.example.com/a", keys: { p256dh: "p", auth: "a" } };
+  assert.equal((await request(socket, { type: "push_subscribe", subscription })).type, "push_subscribed");
+  const endpoint = subscription.endpoint;
+  assert.equal((await request(socket, { type: "push_unsubscribe", endpoint })).type, "push_unsubscribed");
+  assert.deepEqual(calls, [
+    ["subscribe", subscription],
+    ["unsubscribe", endpoint],
+  ]);
+});
+
+test("reports push as off when the server has no push settings", { timeout: 5000 }, async (context) => {
+  const { url } = await setup(context);
+  const socket = await connect(url);
+  assert.deepEqual(await request(socket, { type: "get_push_key" }), { type: "push_key", publicKey: null });
+  assert.match((await request(socket, { type: "push_test" })).message, /not set up/);
 });

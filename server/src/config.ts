@@ -9,6 +9,7 @@ export interface Configuration {
   idleMinutes: number;
   projectsRoot: string;
   model?: { provider: string; id: string };
+  push?: { contact: string; file: string };
 }
 
 function requireField(condition: unknown, field: string, description: string): asserts condition {
@@ -37,6 +38,7 @@ export function getConfiguration(value: unknown): Configuration {
   );
   requireField(value.projects === undefined, "projects", "use projectsRoot instead");
   if (value.model !== undefined) validateModel(value.model);
+  if (value.push !== undefined) validatePush(value.push);
   return value as unknown as Configuration;
 }
 
@@ -66,6 +68,16 @@ function validateModel(value: unknown): void {
   for (const field of ["provider", "id"]) {
     requireField(isNonemptyString(value[field]), `model.${field}`, "use a nonempty string");
   }
+}
+
+function validatePush(value: unknown): void {
+  requireField(isRecord(value), "push", "use an object with contact and file");
+  requireField(
+    typeof value.contact === "string" && /^(mailto:|https:\/\/)\S+$/.test(value.contact),
+    "push.contact",
+    "use a mailto: or https:// address",
+  );
+  requireField(isNonemptyString(value.file) && isAbsolute(value.file), "push.file", "use an absolute path");
 }
 
 export async function getConfigurationFile(path: string | undefined): Promise<Configuration> {

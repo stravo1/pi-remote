@@ -54,3 +54,10 @@ test("requires a projects root", () => {
   delete configuration.projectsRoot;
   assert.throws(() => getConfiguration(configuration), /"projectsRoot"/);
 });
+
+test("validates optional push settings", () => {
+  const push = { contact: "mailto:me@example.com", file: "/home/me/.config/pi-remote/push.json" };
+  assert.deepEqual(getConfiguration({ ...valid, push }).push, push);
+  assert.throws(() => getConfiguration({ ...valid, push: { ...push, contact: "me" } }), /push.contact/);
+  assert.throws(() => getConfiguration({ ...valid, push: { ...push, file: "push.json" } }), /push.file/);
+});

@@ -1,5 +1,8 @@
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 
+// Marks a session the user named, so automatic summaries stop renaming it.
+const manualNameType = "pi-remote.manual-name";
+
 export class SessionSummaryJob {
   private readonly session: AgentSession;
   private readonly isBusy: () => boolean;
@@ -40,6 +43,13 @@ export class SessionSummaryJob {
     this.timer = undefined;
     this.hasChanges = true;
     return this.start();
+  }
+
+  rename(name: string): void {
+    const title = name.replace(/\s+/g, " ").trim().slice(0, 120);
+    if (!title) throw new Error("The session name must be a nonempty string.");
+    this.session.sessionManager.appendCustomEntry(manualNameType);
+    this.session.setSessionName(title);
   }
 
   private start(): Promise<void> {
@@ -98,7 +108,13 @@ export class SessionSummaryJob {
   }
 
   private get is_available(): boolean {
-    return !this.controller.signal.aborted && !this.isBusy() && !this.session.isStreaming;
+    return !this.controller.signal.aborted && !this.isBusy() && !this.session.isStreaming && !this.has_manual_name;
+  }
+
+  private get has_manual_name(): boolean {
+    return this.session.sessionManager
+      .getEntries()
+      .some((entry) => entry.type === "custom" && entry.customType === manualNameType);
   }
 
   private async getSummary(model: NonNullable<AgentSession["model"]>, messages: string): Promise<string> {

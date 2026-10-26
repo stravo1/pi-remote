@@ -1,6 +1,8 @@
 import type { ProviderLoginEvent, ProviderSettings, SessionSettings } from "../../server/src/pi-adapter.ts";
 import { Connection } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
+import { DevicePush } from "./push.ts";
+import { formatSessionInfo } from "./session-info.ts";
 import { Transcript } from "./transcript.ts";
 
 export class Workspace {
@@ -15,10 +17,16 @@ export class Workspace {
   isSending = false;
   isUpdatingSettings = false;
   settings?: SessionSettings;
+  private pendingName?: string;
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
   providerKey?: { provider: string; apiKey: string };
   isSyncing = false;
+  devicePush = new DevicePush();
+  // null means the server has no push settings. undefined means it has not answered yet.
+  pushKey?: string | null;
+  isPushOn = false;
+  isUpdatingPush = false;
   private lastSequence = 0;
   private connection?: Connection;
 
@@ -33,7 +41,12 @@ export class Workspace {
 
   get is_disabled(): boolean {
     return (
-      this.status !== "connected" || !this.sessionId || this.isSyncing || this.isSending || this.isUpdatingSettings
+      this.status !== "connected" ||
+      !this.sessionId ||
+      this.isSyncing ||
+      this.isSending ||
+      this.isUpdatingSettings ||
+      this.transcript.is_compacting
     );
   }
 
@@ -61,6 +74,7 @@ export class Workspace {
     if (location.hash.slice(1) !== sessionId) location.hash = sessionId;
     this.transcript = new Transcript();
     this.settings = undefined;
+    this.pendingName = undefined;
     this.isSending = false;
     this.isUpdatingSettings = false;
     this.subscribe();
@@ -121,7 +135,32 @@ export class Workspace {
     this.run({ type: "logout_provider", provider });
   }
 
+  loadPush(): void {
+    this.run({ type: "get_push_key" });
+  }
+
+  async enablePush(): Promise<void> {
+    await this.updatePush(async () => {
+      const subscription = await this.devicePush.subscribe(this.pushKey!);
+      this.run({ type: "push_subscribe", subscription: subscription.toJSON() });
+    });
+  }
+
+  async disablePush(): Promise<void> {
+    await this.updatePush(async () => {
+      const endpoint = await this.devicePush.unsubscribe(this.pushKey!);
+      if (endpoint) this.run({ type: "push_unsubscribe", endpoint });
+      else this.isUpdatingPush = this.isPushOn = false;
+    });
+  }
+
+  testPush(): void {
+    this.error = "";
+    this.run({ type: "push_test" });
+  }
+
   sendPrompt(text: string): void {
+    if (this.runSlashCommand(text)) return;
     this.isSending = true;
     this.error = "";
     this.run({ type: this.transcript.is_running ? "follow_up" : "prompt", sessionId: this.sessionId, text });
@@ -144,6 +183,23 @@ export class Workspace {
     this.isUpdatingSettings = true;
     this.error = "";
     this.run({ type: "set_thinking_level", sessionId: this.sessionId, level });
+  }
+
+  renameSession(name: string): void {
+    this.error = "";
+    // The server saves the name with spaces collapsed, so the note waits for that same name.
+    this.pendingName = name.replace(/\s+/g, " ").trim().slice(0, 120);
+    this.run({ type: "rename_session", sessionId: this.sessionId, name });
+  }
+
+  showSessionInfo(): void {
+    this.error = "";
+    this.run({ type: "get_session_info", sessionId: this.sessionId });
+  }
+
+  compact(instructions: string): void {
+    this.error = "";
+    this.run({ type: "compact", sessionId: this.sessionId, instructions });
   }
 
   abort(): void {
@@ -177,6 +233,17 @@ export class Workspace {
         this.refreshList();
         this.select(message.sessionId);
         break;
+      case "push_key":
+        void this.applyPushKey(message.publicKey);
+        break;
+      case "push_subscribed":
+      case "push_unsubscribed":
+        this.isPushOn = message.type === "push_subscribed";
+        this.isUpdatingPush = false;
+        break;
+      case "session_info":
+        if (message.sessionId === this.sessionId) this.transcript.addNotice(formatSessionInfo(message.info));
+        break;
       case "snapshot":
         this.applySnapshot(message);
         break;
@@ -187,8 +254,41 @@ export class Workspace {
         if (message.sessionId && message.sessionId !== this.sessionId) break;
         this.isSending = false;
         this.isUpdatingSettings = false;
+        this.isUpdatingPush = false;
         this.error = message.message;
         break;
+    }
+  }
+
+  // pi's own commands belong to its terminal app, so pi remote runs these. Other commands go to pi.
+  private runSlashCommand(text: string): boolean {
+    const match = /^\/(name|compact|session)(?:\s+([\s\S]*))?$/.exec(text.trim());
+    if (!match) return false;
+    const [, command, argument = ""] = match;
+    if (command === "session") this.showSessionInfo();
+    else if (command === "compact") this.compact(argument);
+    else if (argument.trim()) this.renameSession(argument);
+    else this.error = "Add a name after /name.";
+    return true;
+  }
+
+  // The server may have lost this device, so a device that has a subscription sends it again.
+  private async applyPushKey(publicKey: string | null): Promise<void> {
+    this.pushKey = publicKey;
+    if (!publicKey || !this.devicePush.is_supported || this.devicePush.permission !== "granted") return;
+    const subscription = await this.devicePush.getSubscription(publicKey);
+    this.isPushOn = !!subscription;
+    if (subscription) this.run({ type: "push_subscribe", subscription: subscription.toJSON() });
+  }
+
+  private async updatePush(change: () => Promise<void>): Promise<void> {
+    this.error = "";
+    this.isUpdatingPush = true;
+    try {
+      await change();
+    } catch (error) {
+      this.isUpdatingPush = false;
+      this.error = error instanceof Error ? error.message : "Notifications could not change.";
     }
   }
 
@@ -208,6 +308,10 @@ export class Workspace {
     this.lastSequence = message.seq;
     this.isSending = false;
     this.transcript.apply(message.event);
+    if (message.event.type === "session_info_changed" && message.event.name === this.pendingName) {
+      this.transcript.addNotice(`Renamed this session to “${this.pendingName}”.`);
+      this.pendingName = undefined;
+    }
     if (["agent_settled", "agent_start", "session_info_changed"].includes(message.event.type)) this.refreshList();
   }
 

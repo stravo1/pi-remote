@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <title>pi remote</title>
     <script>
       // Paint the saved color scheme before the app loads, so a dark page does not flash light.
@@ -13,6 +13,9 @@
       } catch {}
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- The login proxy guards every file, so the manifest request must carry the login cookie. -->
+    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   </head>
   <body>
     <div id="app"></div>

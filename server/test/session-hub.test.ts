@@ -5,6 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProjectStore } from "../src/project-store.ts";
+import type { RunNotice } from "../src/push-notifier.ts";
 import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 
 function setup(idleMinutes = 30) {
@@ -22,12 +23,14 @@ function setup(idleMinutes = 30) {
       removed.push(project);
     },
   } as unknown as ProjectStore;
-  const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store);
+  const notices: RunNotice[] = [];
+  const notifier = { notify: async (notice: RunNotice) => void notices.push(notice) };
+  const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store, notifier);
   const client = () => {
     const messages: any[] = [];
     return { messages, send: (message: string) => messages.push(JSON.parse(message)) };
   };
-  return { source, hub, metrics, client, removed };
+  return { source, hub, metrics, client, removed, notices };
 }
 
 test("lists sessions by project, newest first, and merges open unsaved sessions", async (context) => {
@@ -162,4 +165,24 @@ test("a new group becomes a project that can hold sessions", async (context) => 
   await hub.removeGroup(project);
   assert.deepEqual((await hub.getSessionList()).projects, []);
   await assert.rejects(hub.createSession(project), /Unknown project/);
+});
+
+test("sends a run notice with the session name and the start of the reply", async (context) => {
+  const { hub, source, notices, client } = setup();
+  context.after(() => hub.close());
+  await hub.subscribe(client(), "newer");
+  const run = hub.prompt("newer", "Go");
+  await new Promise((resolve) => setImmediate(resolve));
+  const session = source.sessions.get("newer")!;
+  session.name = "Fix the login";
+  session.messages = [
+    { role: "assistant", content: [{ type: "text", text: `Done.  ${"x".repeat(200)}` }] },
+  ] as typeof session.messages;
+  session.finish();
+  await run;
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].sessionId, "newer");
+  assert.equal(notices[0].title, "Fix the login");
+  assert.equal(notices[0].body.length, 160);
+  assert.match(notices[0].body, /^Done\. x+…$/);
 });

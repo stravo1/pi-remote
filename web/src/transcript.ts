@@ -15,11 +15,24 @@ export interface TranscriptMessage {
   content: TranscriptBlock[];
 }
 
+interface SourceMessage {
+  role: string;
+  content?: unknown;
+  summary?: string;
+  timestamp?: number;
+  toolCallId?: string;
+  isError?: boolean;
+  details?: unknown;
+}
+
 export class Transcript {
   messages: TranscriptMessage[] = [];
   is_running = false;
+  is_compacting = false;
   tools: Record<string, ToolCall> = {};
   queue: Snapshot["queue"] = { steering: [], followUp: [] };
+  // Notes from pi remote's own commands. pi never sees them, so a snapshot does not hold them.
+  notices: TranscriptMessage[] = [];
   active: TranscriptMessage | undefined;
 
   apply(event: AgentSessionEvent): void {
@@ -30,6 +43,10 @@ export class Transcript {
         break;
       case "agent_settled":
         this.settle();
+        break;
+      case "compaction_start":
+      case "compaction_end":
+        this.is_compacting = event.type === "compaction_start";
         break;
       case "queue_update":
         this.queue = { steering: [...event.steering], followUp: [...event.followUp] };
@@ -44,6 +61,12 @@ export class Transcript {
         this.end(event.message);
         break;
     }
+  }
+
+  addNotice(text: string): void {
+    const notice = { role: "notice", timestamp: Date.now(), content: [{ type: "text" as const, text }] };
+    this.notices.push(notice);
+    this.messages.push(notice);
   }
 
   isGroupStart(index: number): boolean {
@@ -61,25 +84,23 @@ export class Transcript {
       this.start(message);
       this.end(message);
     }
+    for (const notice of this.notices) {
+      const index = this.messages.findLastIndex((message) => (message.timestamp ?? 0) <= notice.timestamp!);
+      this.messages.splice(index + 1, 0, notice);
+    }
     for (const event of snapshot.runEvents) this.apply(event);
     this.is_running = snapshot.isStreaming;
+    this.is_compacting = snapshot.isCompacting;
     if (!snapshot.isStreaming) this.settle();
   }
 
-  start(message: {
-    role: string;
-    content?: unknown;
-    timestamp?: number;
-    toolCallId?: string;
-    isError?: boolean;
-    details?: unknown;
-  }): void {
+  start(message: SourceMessage): void {
     if (message.role === "system") return;
     this.active = {
       role: message.role,
       timestamp: message.timestamp,
       toolCallId: message.toolCallId,
-      content: getBlocks(message.content),
+      content: getMessageBlocks(message),
     };
     this.registerTools(this.active);
     this.messages.push(this.active);
@@ -100,17 +121,10 @@ export class Transcript {
     content[update.contentIndex].text += update.delta;
   }
 
-  end(message: {
-    role: string;
-    content?: unknown;
-    timestamp?: number;
-    toolCallId?: string;
-    isError?: boolean;
-    details?: unknown;
-  }): void {
+  end(message: SourceMessage): void {
     if (message.role === "system") return;
     if (!this.active) this.start(message);
-    this.active!.content = getBlocks(message.content);
+    this.active!.content = getMessageBlocks(message);
     this.active!.timestamp = message.timestamp ?? this.active!.timestamp;
     this.registerTools(this.active!);
     if (message.role === "toolResult" && message.toolCallId) {
@@ -170,6 +184,10 @@ export class Transcript {
 
 export function getSender(role: string): "You" | "pi" {
   return role === "user" ? "You" : "pi";
+}
+
+function getMessageBlocks(message: SourceMessage): TranscriptBlock[] {
+  return getBlocks(message.role === "compactionSummary" ? message.summary : message.content);
 }
 
 function getBlocks(content: unknown): TranscriptBlock[] {

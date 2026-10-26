@@ -131,7 +131,9 @@ write_app_config() {
   step "Writing config.local.json"
   mkdir -p "$HOME/projects"
   jq -n --arg origin "https://pi.$DOMAIN" --arg user "$PI_USER" --arg root "$HOME/projects" \
-    '{host: "127.0.0.1", port: 7710, origin: $origin, allowedUser: $user, projectsRoot: $root, idleMinutes: 30}' \
+    --arg push "$HOME/.config/pi-remote/push.json" \
+    '{host: "127.0.0.1", port: 7710, origin: $origin, allowedUser: $user, projectsRoot: $root, idleMinutes: 30,
+      push: {contact: $origin, file: $push}}' \
     > "$config"
 }
 

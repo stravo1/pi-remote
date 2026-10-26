@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
@@ -327,4 +327,75 @@ test("cancelling all provider logins releases every waiting login", async () => 
   await new Promise((resolve) => setImmediate(resolve));
   await adapter.cancelProviderLogins();
   assert.equal(isWaiting, false);
+});
+
+test("a manual name survives a reopen and stops automatic summaries", async (context) => {
+  const { directory, adapter, faux } = await setup(
+    context,
+    [fauxAssistantMessage("Done."), fauxAssistantMessage("Done again."), fauxAssistantMessage("Automatic name")],
+    10,
+  );
+  const session = await adapter.create(directory);
+  await session.prompt("Start work");
+  session.rename("  My   chosen name ");
+  assert.equal(session.name, "My chosen name");
+  await session.close();
+  const reopened = await adapter.open(directory, (await adapter.list(directory))[0].path);
+  context.after(() => reopened.close());
+  await reopened.prompt("More work");
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(faux.state.callCount, 2);
+  assert.equal((await adapter.list(directory))[0].name, "My chosen name");
+  assert.throws(() => reopened.rename(" "), /nonempty/);
+});
+
+test("reports token usage and compacts the context on request", async (context) => {
+  const { directory, adapter } = await setup(context, [
+    fauxAssistantMessage("First answer."),
+    fauxAssistantMessage("Second answer."),
+    fauxAssistantMessage("Summary of the work so far."),
+    fauxAssistantMessage("Summary of the turn prefix."),
+  ]);
+  await writeFile(join(directory, "settings.json"), JSON.stringify({ compaction: { keepRecentTokens: 1 } }));
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("First question");
+  await session.prompt("Second question");
+  assert.equal(session.info.userMessages, 2);
+  assert.equal(session.info.assistantMessages, 2);
+  assert.equal("sessionFile" in session.info, false);
+  const events: string[] = [];
+  session.subscribe((event) => events.push(event.type));
+  await session.compact("Keep the decisions");
+  assert.deepEqual(
+    events.filter((type) => type.startsWith("compaction_")),
+    ["compaction_start", "compaction_end"],
+  );
+  assert.equal(session.snapshot.isCompacting, false);
+  assert.ok(session.snapshot.messages.some((message) => message.role === "compactionSummary"));
+});
+
+test("lists prompt templates and skills as slash commands", async (context) => {
+  const { directory, adapter } = await setup(context, []);
+  await mkdir(join(directory, "prompts"));
+  await writeFile(
+    join(directory, "prompts", "review.md"),
+    "---\ndescription: Review the diff\nargument-hint: <path>\n---\nReview $1",
+  );
+  await mkdir(join(directory, "skills", "notes"), { recursive: true });
+  await writeFile(
+    join(directory, "skills", "notes", "SKILL.md"),
+    "---\nname: notes\ndescription: Keep notes\n---\nWrite notes.",
+  );
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  const commands = session.settings.commands;
+  assert.deepEqual(
+    commands.find((command) => command.name === "review"),
+    { name: "review", description: "Review the diff", argumentHint: "<path>" },
+  );
+  assert.deepEqual(
+    commands.find((command) => command.name === "skill:notes"),
+    { name: "skill:notes", description: "Keep notes" },
+  );
 });

@@ -14,6 +14,7 @@ const settings = {
   ],
   thinkingLevel: "off",
   thinkingLevels: ["off", "high"],
+  commands: [],
 };
 
 async function waitFor(check: () => Promise<boolean>): Promise<void> {

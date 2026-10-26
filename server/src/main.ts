@@ -1,18 +1,21 @@
 import { fileURLToPath } from "node:url";
 import { getConfigurationFile } from "./config.ts";
 import { PiAdapter } from "./pi-adapter.ts";
+import { PushNotifier } from "./push-notifier.ts";
 import { SessionHub } from "./session-hub.ts";
 import { Transport } from "./transport.ts";
 
 const configuration = await getConfigurationFile(process.argv[2]);
 const adapter = await PiAdapter.fromConfiguration(configuration);
-const hub = new SessionHub(adapter, configuration);
+const push = configuration.push ? await PushNotifier.load(configuration.push) : undefined;
+const hub = new SessionHub(adapter, configuration, undefined, undefined, push);
 const transport = new Transport(
   hub,
   configuration,
   fileURLToPath(new URL("../../web/dist/", import.meta.url)),
   undefined,
   adapter,
+  push,
 );
 
 try {

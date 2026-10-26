@@ -65,6 +65,7 @@ test("groups consecutive messages from the same sender and keeps timestamps", ()
     ],
     runEvents: [],
     isStreaming: false,
+    isCompacting: false,
     queue: { steering: [], followUp: [] },
   } as unknown as Parameters<Transcript["load"]>[0]);
   assert.deepEqual(
@@ -109,6 +110,7 @@ test("rebuilds tool output and diffs from history plus live events", () => {
     messages: [assistant],
     runEvents: events,
     isStreaming: true,
+    isCompacting: false,
     queue: { steering: [], followUp: ["Next"] },
   } as unknown as Parameters<Transcript["load"]>[0]);
   assert.deepEqual(resumed.tools, live.tools);
@@ -131,6 +133,7 @@ test("rebuilds tool output and diffs from history plus live events", () => {
     ],
     runEvents: [],
     isStreaming: false,
+    isCompacting: false,
     queue: { steering: [], followUp: [] },
   } as unknown as Parameters<Transcript["load"]>[0]);
   assert.equal(stored.tools["edit-1"].status, "success");
@@ -159,4 +162,19 @@ test("replaces cumulative tool output and keeps queue state from events", () => 
   assert.equal(transcript.tools.one.status, "interrupted");
   transcript.apply({ type: "queue_update", steering: [], followUp: [] });
   assert.deepEqual(transcript.queue, { steering: [], followUp: [] });
+});
+
+test("shows a compaction summary and tracks compaction from snapshots and events", () => {
+  const transcript = new Transcript();
+  transcript.load({
+    messages: [{ role: "compactionSummary", summary: "Earlier work", tokensBefore: 900, timestamp: 1000 }],
+    runEvents: [],
+    isStreaming: false,
+    isCompacting: true,
+    queue: { steering: [], followUp: [] },
+  } as unknown as Parameters<Transcript["load"]>[0]);
+  assert.equal(transcript.messages[0].content[0].text, "Earlier work");
+  assert.equal(transcript.is_compacting, true);
+  transcript.apply({ type: "compaction_end", reason: "manual" } as Parameters<Transcript["apply"]>[0]);
+  assert.equal(transcript.is_compacting, false);
 });
