@@ -248,6 +248,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
                 trigger="manual"
                 side="bottom"
                 align="start"
+                :auto-focus="false"
                 :open="openMenuId === session.id"
                 @update:open="(open) => open || closeMenu(session.id)"
               >
@@ -294,7 +295,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
                   <button
                     type="button"
                     role="menuitem"
-                    class="flex h-8 items-center gap-2 rounded-4 px-2 text-base text-ink-gray-7 hover:bg-surface-gray-3"
+                    class="flex h-8 items-center gap-2 rounded-4 px-2 text-base text-ink-gray-7 outline-none hover:bg-surface-gray-3 focus-visible:bg-surface-gray-3"
                     @click="runMenuAction(() => toggleSelected(session.id))"
                   >
                     <span class="lucide-circle-check size-4 text-ink-gray-6" aria-hidden="true" />Select
@@ -302,7 +303,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
                   <button
                     type="button"
                     role="menuitem"
-                    class="flex h-8 items-center gap-2 rounded-4 px-2 text-base text-ink-red-7 hover:bg-surface-red-3"
+                    class="flex h-8 items-center gap-2 rounded-4 px-2 text-base text-ink-red-7 outline-none hover:bg-surface-red-3 focus-visible:bg-surface-red-3"
                     @click="runMenuAction(() => confirmDelete([session.id]))"
                   >
                     <span class="lucide-trash-2 size-4" aria-hidden="true" />Delete
