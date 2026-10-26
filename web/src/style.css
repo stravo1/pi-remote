@@ -6,6 +6,8 @@
 html, body, #app { height: 100%; }
 body { @apply bg-surface-base text-ink-gray-9; }
 
+.bottom-sheet-content { border-radius: var(--radius-7) var(--radius-7) 0; corner-shape: round; }
+
 .markdown { @apply break-words leading-relaxed text-ink-gray-8 sm:leading-normal text-p-base; }
 .markdown > * + * { @apply mt-3 sm:mt-2; }
 .markdown h1, .markdown h2, .markdown h3, .markdown h4 { @apply mt-5 sm:mt-3 font-semibold text-ink-gray-9; }

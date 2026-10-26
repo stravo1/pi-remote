@@ -6,7 +6,6 @@ import SessionSettingsPanel, { type SettingsView } from "./SessionSettingsPanel.
 
 defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean }>();
 const emit = defineEmits<{ model: [value: string]; thinking: [level: string] }>();
-const titles: Record<SettingsView, string> = { main: "Select model", models: "More models", effort: "Effort" };
 const desktopQuery = window.matchMedia("(min-width: 640px)");
 const isDesktop = ref(desktopQuery.matches);
 const isOpen = ref(false);
@@ -29,9 +28,9 @@ watch(isOpen, (value) => { if (!value) view.value = "main"; });
     </Popover>
     <template v-else>
       <Button variant="ghost" size="lg" icon="lucide-sliders-horizontal" aria-label="Session settings" @click="isOpen = true" />
-      <BottomSheet v-model:open="isOpen" :title="titles[view]">
-        <SessionSettingsPanel v-model:view="view" :settings="settings" :disabled="disabled" :is-running="isRunning"
-          class="pb-[max(1rem,env(safe-area-inset-bottom))]" @model="(value) => emit('model', value)" @thinking="(level) => emit('thinking', level)" />
+      <BottomSheet v-model:open="isOpen">
+        <SessionSettingsPanel v-model:view="view" is-sheet :settings="settings" :disabled="disabled" :is-running="isRunning"
+          class="pb-[max(1rem,env(safe-area-inset-bottom))]" @close="isOpen = false" @model="(value) => emit('model', value)" @thinking="(level) => emit('thinking', level)" />
       </BottomSheet>
     </template>
   </span>

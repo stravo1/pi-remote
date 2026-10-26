@@ -6,8 +6,9 @@ import { getModelKey, loadRecentKeys, rememberModel } from "../recent-models.ts"
 
 export type SettingsView = "main" | "models" | "effort";
 
-const props = defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean }>();
-const emit = defineEmits<{ model: [value: string]; thinking: [level: string] }>();
+const props = defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean; isSheet?: boolean }>();
+const emit = defineEmits<{ model: [value: string]; thinking: [level: string]; close: [] }>();
+const titles: Record<SettingsView, string> = { main: "Select model", models: "More models", effort: "Effort" };
 const view = defineModel<SettingsView>("view", { required: true });
 const query = ref("");
 const recentKeys = ref(loadRecentKeys());
@@ -42,7 +43,12 @@ function chooseEffort(level: string): void {
 
 <template>
   <div data-session-settings :class="['flex flex-col gap-3 px-4 pb-4 sm:px-2 sm:pb-2', view === 'models' ? 'h-[min(60dvh,26rem)]' : '']">
-    <Button v-if="view !== 'main'" class="shrink-0 self-start" variant="ghost" icon-left="lucide-chevron-left" label="Back" @click="view = 'main'" />
+    <header v-if="isSheet" class="flex shrink-0 items-center gap-2">
+      <Button variant="ghost" :icon="view === 'main' ? 'lucide-x' : 'lucide-chevron-left'" :aria-label="view === 'main' ? 'Close' : 'Back'"
+        @click="view === 'main' ? emit('close') : view = 'main'" />
+      <h2 class="flex-1 pr-7 text-center text-lg font-semibold text-ink-gray-9">{{ titles[view] }}</h2>
+    </header>
+    <Button v-else-if="view !== 'main'" class="shrink-0 self-start" variant="ghost" icon-left="lucide-chevron-left" label="Back" @click="view = 'main'" />
     <p v-if="isRunning" class="px-1 text-p-sm text-ink-gray-5">You can change settings after this run.</p>
     <template v-if="view === 'main'">
       <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1" role="listbox" aria-label="Recent models">
@@ -52,7 +58,7 @@ function chooseEffort(level: string): void {
             <span class="block truncate text-base text-ink-gray-9">{{ model.name }}</span>
             <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
           </span>
-          <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
+          <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-gray-9" aria-hidden="true" />
         </button>
       </div>
       <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
@@ -78,7 +84,7 @@ function chooseEffort(level: string): void {
             <span class="block truncate text-base text-ink-gray-9">{{ model.name }}</span>
             <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
           </span>
-          <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
+          <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-gray-9" aria-hidden="true" />
         </button>
       </div>
     </template>
@@ -86,7 +92,7 @@ function chooseEffort(level: string): void {
       <button v-for="level in settings.thinkingLevels" :key="level" type="button" role="option"
         :aria-selected="level === settings.thinkingLevel" class="flex min-h-14 sm:min-h-10 w-full items-center gap-3 px-4 text-left" @click="chooseEffort(level)">
         <span class="flex-1 text-base capitalize text-ink-gray-9">{{ level }}</span>
-        <span v-if="level === settings.thinkingLevel" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
+        <span v-if="level === settings.thinkingLevel" class="lucide-check size-5 shrink-0 text-ink-gray-9" aria-hidden="true" />
       </button>
     </div>
   </div>
