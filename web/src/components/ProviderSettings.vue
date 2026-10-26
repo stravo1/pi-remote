@@ -22,13 +22,13 @@ watch(() => props.error, (message) => { if (message) toast.error(message); });
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <header class="shrink-0 border-b border-outline-gray-1">
+    <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
       <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">
         <Button variant="ghost" icon="lucide-arrow-left" aria-label="All sessions" @click="emit('back')" />
         <h1 class="text-base font-medium text-ink-gray-9">Settings</h1>
       </div>
     </header>
-    <main class="min-h-0 flex-1 overflow-y-auto">
+    <main class="min-h-0 flex-1 overflow-y-auto max-sm:order-1">
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4">
 
       <section class="space-y-3" aria-labelledby="providers-heading">
