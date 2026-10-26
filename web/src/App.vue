@@ -7,6 +7,7 @@ import NewGroupDialog from "./components/NewGroupDialog.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
 import SessionList from "./components/SessionList.vue";
+import { buttonSize } from "./button-size.ts";
 import { getSessionTitle } from "./protocol.ts";
 import { Workspace } from "./workspace.ts";
 
@@ -41,7 +42,7 @@ function openGroupDialog(): void {
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">
-        <Button variant="ghost" size="lg" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
+        <Button variant="ghost" :size="buttonSize" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
         <h1 :class="['min-w-0 flex-1 truncate text-base font-medium', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-gray-5']">
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
@@ -49,7 +50,7 @@ function openGroupDialog(): void {
         <SessionSettingsMenu v-if="workspace.settings" :settings="workspace.settings" :is-running="workspace.transcript.is_running"
           :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
           @model="(value) => workspace.setModel(value)" @thinking="(level) => workspace.setThinkingLevel(level)" />
-        <Button variant="ghost" size="lg" icon="lucide-plus" aria-label="New session"
+        <Button variant="ghost" :size="buttonSize" icon="lucide-plus" aria-label="New session"
           :disabled="!workspace.activeProjectPath" @click="workspace.createSession(workspace.activeProjectPath!)" />
         </div>
       </header>
