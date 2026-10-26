@@ -53,7 +53,7 @@ function chooseEffort(level: string): void {
           <button v-for="model in recentModels" :key="getModelKey(model)" type="button" role="option" :disabled="isLocked"
             :aria-selected="isSelected(model)" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-60" @click="chooseModel(model)">
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-lg text-ink-gray-9">{{ model.name }}</span>
+              <span class="block truncate text-lg text-ink-gray-9 sm:text-base">{{ model.name }}</span>
               <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
             </span>
             <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
@@ -61,12 +61,12 @@ function chooseEffort(level: string): void {
         </div>
         <div class="divide-y divide-outline-gray-1 rounded-4 bg-surface-gray-1">
           <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked || settings.thinkingLevels.length < 2" @click="view = 'effort'">
-            <span class="flex-1 text-lg text-ink-gray-9">Effort</span>
-            <span class="text-lg capitalize text-ink-gray-5">{{ settings.thinkingLevel }}</span>
+            <span class="flex-1 text-lg text-ink-gray-9 sm:text-base">Effort</span>
+            <span class="text-lg capitalize text-ink-gray-5 sm:text-base">{{ settings.thinkingLevel }}</span>
             <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
           </button>
           <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 text-left disabled:opacity-50" :disabled="isLocked" @click="view = 'models'">
-            <span class="flex-1 text-lg text-ink-gray-9">More models</span>
+            <span class="flex-1 text-lg text-ink-gray-9 sm:text-base">More models</span>
             <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
           </button>
         </div>
@@ -79,7 +79,7 @@ function chooseEffort(level: string): void {
           <button v-for="model in filteredModels" :key="getModelKey(model)" type="button" role="option"
             :aria-selected="isSelected(model)" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left" @click="chooseModel(model)">
             <span class="min-w-0 flex-1">
-              <span class="block truncate text-lg text-ink-gray-9">{{ model.name }}</span>
+              <span class="block truncate text-lg text-ink-gray-9 sm:text-base">{{ model.name }}</span>
               <span class="block truncate text-p-sm text-ink-gray-5">{{ getModelKey(model) }}</span>
             </span>
             <span v-if="isSelected(model)" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
@@ -89,7 +89,7 @@ function chooseEffort(level: string): void {
       <div v-else class="divide-y divide-outline-gray-1 rounded-4 bg-surface-gray-1" role="listbox" aria-label="Effort">
         <button v-for="level in settings.thinkingLevels" :key="level" type="button" role="option"
           :aria-selected="level === settings.thinkingLevel" class="flex min-h-14 w-full items-center gap-3 px-4 text-left" @click="chooseEffort(level)">
-          <span class="flex-1 text-lg capitalize text-ink-gray-9">{{ level }}</span>
+          <span class="flex-1 text-lg capitalize text-ink-gray-9 sm:text-base">{{ level }}</span>
           <span v-if="level === settings.thinkingLevel" class="lucide-check size-5 shrink-0 text-ink-blue-3" aria-hidden="true" />
         </button>
       </div>
