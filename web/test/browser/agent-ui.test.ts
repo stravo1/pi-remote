@@ -99,6 +99,25 @@ for (const width of [375, 1280]) {
               content: [{ type: "text", text: "Changed file" }],
               details: { diff: `-1 old\n+1 ${"long line ".repeat(20)}` },
             },
+            {
+              role: "assistant",
+              content: [
+                {
+                  type: "toolCall",
+                  id: "bash-1",
+                  name: "bash",
+                  arguments: {
+                    command: `grep -rn "formats" ${"/home/ubuntu/searxng/src/searx/settings.yml ".repeat(4)}| head`,
+                  },
+                },
+              ],
+            },
+            {
+              role: "toolResult",
+              toolCallId: "bash-1",
+              isError: false,
+              content: [{ type: "text", text: "formats: [html, json]" }],
+            },
           ],
         }),
       );
@@ -200,6 +219,12 @@ for (const width of [375, 1280]) {
     assert.equal(await page.getByRole("button", { name: "Send prompt" }).isDisabled(), true);
     await message.fill("");
     await page.getByText("File diff", { exact: true }).waitFor();
+    const bashCall = page.getByRole("button", { name: /^bash grep/ });
+    const bashHeight = (await bashCall.boundingBox())!.height;
+    assert.ok(bashHeight < 48, `A long command stays on one line, not ${bashHeight}px`);
+    await bashCall.click();
+    await page.getByText("formats: [html, json]", { exact: true }).waitFor();
+    await bashCall.click();
     const conversation = page.getByRole("region", { name: "Conversation" });
     const addMessage = async (text: string) => {
       const message = { role: "user", content: text };
