@@ -89,6 +89,9 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByText("File diff", { exact: true }).waitFor();
     assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
+    assert.equal(await page.getByText("Changed file").count(), 0);
+    await page.getByRole("button", { name: /edit/ }).click();
+    await page.getByText("Changed file").waitFor();
     await checkWidth(page);
     await page.getByRole("button", { name: "Session settings", exact: true }).click();
     const dialog = page.locator("[data-session-settings]");
