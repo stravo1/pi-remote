@@ -14,7 +14,7 @@
     "check": "npm run check --workspaces",
     "build": "npm run build -w web",
     "start": "npm start -w server --",
-    "prepare": "node .husky/install.mjs",
+    "prepare": "node --input-type=module -e \"try { console.log((await import('husky')).default()); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }\"",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
