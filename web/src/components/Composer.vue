@@ -37,12 +37,12 @@ function onEnter(event: KeyboardEvent): void {
 <template>
   <form ref="root" class="mx-auto w-full max-w-2xl shrink-0 space-y-2 px-3 pt-2 sm:space-y-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
     <Alert v-if="error" role="alert" theme="red" :title="error" />
-    <ul v-if="queue.steering.length || queue.followUp.length" class="max-h-36 divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1 text-p-sm" aria-label="Queued messages">
-      <li v-for="(message, index) in queue.steering" :key="`steer-${index}`" class="flex items-start gap-2 px-3 py-2">
+    <ul v-if="queue.steering.length || queue.followUp.length" class="max-h-[7.625rem] divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1 text-p-sm" aria-label="Queued messages">
+      <li v-for="(message, index) in queue.steering" :key="`steer-${index}`" class="flex min-h-10 items-start gap-2 px-3 py-2">
         <span class="lucide-corner-down-right mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After the current turn" />
         <p class="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
       </li>
-      <li v-for="(message, index) in queue.followUp" :key="`follow-${index}`" class="flex items-start gap-2 px-3 py-1.5">
+      <li v-for="(message, index) in queue.followUp" :key="`follow-${index}`" class="flex min-h-10 items-start gap-2 px-3 py-1.5">
         <span class="lucide-clock mt-1 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
         <p class="min-w-0 flex-1 self-center whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
         <Button variant="ghost" size="sm" icon="lucide-arrow-up" aria-label="Send now" @click="emit('steer', message)" />

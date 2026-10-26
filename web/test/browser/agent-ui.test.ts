@@ -80,7 +80,7 @@ for (const width of [375, 1280]) {
         if (command.type === "prompt") { isRunning = true; event({ type: "agent_start" }); }
         if (command.type === "follow_up" && command.text !== "Change direction") event({ type: "queue_update", steering: [], followUp: [command.text] });
         if (command.type === "follow_up" && command.text === "Change direction") event({ type: "queue_update", steering: [], followUp: ["Next task", command.text] });
-        if (command.type === "steer_follow_up") event({ type: "queue_update", steering: [command.text], followUp: ["Next task"] });
+        if (command.type === "steer_follow_up") event({ type: "queue_update", steering: [command.text], followUp: ["Next task", "Third", "Fourth"] });
         if (command.type === "new_group" && command.name === "taken") route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
         if (command.type === "remove_group") route.send(JSON.stringify({ type: "sessions", groupsRoot: "/code", projects: [] }));
         if (command.type === "abort") { isRunning = false; event({ type: "agent_settled", aborted: true }); }
@@ -148,6 +148,8 @@ for (const width of [375, 1280]) {
     await page.getByRole("listitem").filter({ hasText: "Change direction" }).getByRole("button", { name: "Send now" }).click();
     await waitFor(async () => commands.some((command) => command.type === "steer_follow_up" && command.text === "Change direction"));
     await page.getByRole("img", { name: "After the current turn" }).waitFor();
+    const queueSize = await page.getByLabel("Queued messages").evaluate((list) => ({ visible: list.clientHeight, rows: [...list.children].slice(0, 3).reduce((sum, row) => sum + row.getBoundingClientRect().height, 0) }));
+    assert.ok(Math.abs(queueSize.visible - queueSize.rows) <= 2, `The queue shows ${queueSize.visible}px for three rows of ${queueSize.rows}px.`);
     await checkWidth(page);
     await screenshot(page, `agent-${width}`);
     await page.getByRole("button", { name: "Stop run" }).click();
