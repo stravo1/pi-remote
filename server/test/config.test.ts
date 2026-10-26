@@ -4,7 +4,7 @@ import { getConfiguration, getConfigurationFile } from "../src/config.ts";
 
 const valid = {
   host: "127.0.0.1", port: 7710, origin: "https://pi.example.com", allowedUser: "me",
-  projects: ["/tmp/project"], idleMinutes: 30,
+  projectsRoot: "/tmp/projects", idleMinutes: 30,
 };
 
 test("accepts the spec configuration", () => {
@@ -22,7 +22,7 @@ for (const field of Object.keys(valid)) {
 for (const [field, value] of [
   ["host", "0.0.0.0"], ["port", 0], ["port", 1.5], ["port", 65536],
   ["origin", "https://pi.example.com/path"], ["origin", "file:///tmp"],
-  ["allowedUser", " "], ["projects", []], ["projects", ["relative"]], ["idleMinutes", -1],
+  ["allowedUser", " "], ["projects", ["/tmp/project"]], ["idleMinutes", -1],
   ["projectsRoot", "relative"], ["projectsRoot", " "],
 ] as const) {
   test(`rejects invalid ${field}: ${JSON.stringify(value)}`, () => {
@@ -38,6 +38,8 @@ test("validates explicit model selection", () => {
   assert.throws(() => getConfiguration({ ...valid, model: { provider: "openrouter" } }), /model.id/);
 });
 
-test("accepts an absolute projectsRoot", () => {
-  assert.equal(getConfiguration({ ...valid, projectsRoot: "/home/me" }).projectsRoot, "/home/me");
+test("requires a projects root", () => {
+  const configuration: Record<string, unknown> = { ...valid };
+  delete configuration.projectsRoot;
+  assert.throws(() => getConfiguration(configuration), /"projectsRoot"/);
 });

@@ -13,7 +13,7 @@ export interface SessionSource {
 
 export class SessionHub {
   private readonly source: SessionSource;
-  private readonly configuration: Pick<Configuration, "projects" | "idleMinutes">;
+  private readonly configuration: Pick<Configuration, "projectsRoot" | "idleMinutes">;
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly store: ProjectStore;
   private readonly sessions = new Map<string, OpenSession>();
@@ -22,9 +22,9 @@ export class SessionHub {
 
   constructor(
     source: SessionSource,
-    configuration: Pick<Configuration, "projects" | "idleMinutes">,
+    configuration: Pick<Configuration, "projectsRoot" | "idleMinutes">,
     logRun: (metrics: RunMetrics) => void = (metrics) => console.log(JSON.stringify(metrics)),
-    store = new ProjectStore(),
+    store = new ProjectStore(configuration.projectsRoot),
   ) {
     this.store = store;
     this.source = source;
@@ -96,7 +96,7 @@ export class SessionHub {
   }
 
   private async getProjects(): Promise<string[]> {
-    return [...new Set([...this.configuration.projects, ...await this.store.list()])];
+    return this.store.list();
   }
 
   private async getProjectSessions(project: string) {

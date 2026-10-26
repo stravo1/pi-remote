@@ -1,4 +1,4 @@
-import type { SessionSettings } from "../../server/src/pi-adapter.ts";
+import type { ProviderLoginEvent, ProviderSettings, SessionSettings } from "../../server/src/pi-adapter.ts";
 import { Connection } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
 import { Transcript } from "./transcript.ts";
@@ -14,6 +14,8 @@ export class Workspace {
   isSending = false;
   isUpdatingSettings = false;
   settings?: SessionSettings;
+  providers: ProviderSettings[] = [];
+  providerLogin?: { id?: string; event?: ProviderLoginEvent };
   private isSyncing = false;
   private lastSequence = 0;
   private connection?: Connection;
@@ -33,14 +35,14 @@ export class Workspace {
   }
 
   start(): void {
-    this.sessionId = location.hash.slice(1);
+    this.sessionId = this.getHashSessionId();
     this.connection = new Connection({
       onStatus: (status) => { this.status = status; },
       onOpen: () => { this.refreshList(); this.subscribe(); },
       onMessage: (message) => this.handle(message),
     });
     this.connection.connect();
-    window.addEventListener("hashchange", () => this.select(location.hash.slice(1)));
+    window.addEventListener("hashchange", () => this.select(this.getHashSessionId()));
     document.addEventListener("visibilitychange", () => this.wake());
   }
 
@@ -63,6 +65,36 @@ export class Workspace {
   createGroup(name: string): void {
     this.error = "";
     this.run({ type: "new_group", name });
+  }
+
+  listProviders(): void {
+    this.run({ type: "list_providers" });
+  }
+
+  setProviderKey(provider: string, apiKey: string): void {
+    this.error = "";
+    this.run({ type: "set_provider_key", provider, apiKey });
+  }
+
+  startProviderLogin(provider: string, authType: "api_key" | "oauth"): void {
+    this.error = "";
+    this.providerLogin = {};
+    this.run({ type: "start_provider_login", provider, authType });
+  }
+
+  submitProviderLogin(value: string): void {
+    if (!this.providerLogin?.id) return;
+    this.run({ type: "submit_provider_login", loginId: this.providerLogin.id, value });
+  }
+
+  cancelProviderLogin(): void {
+    if (this.providerLogin?.id) this.run({ type: "cancel_provider_login", loginId: this.providerLogin.id });
+    this.providerLogin = undefined;
+  }
+
+  logoutProvider(provider: string): void {
+    this.error = "";
+    this.run({ type: "logout_provider", provider });
   }
 
   sendPrompt(text: string, mode: "follow_up" | "steer" = "follow_up"): void {
@@ -92,6 +124,9 @@ export class Workspace {
   handle(message: any): void {
     switch (message.type) {
       case "sessions": this.projects = message.projects; this.groupsRoot = message.groupsRoot; break;
+      case "providers": this.providers = message.providers; break;
+      case "provider_login_started": this.providerLogin = { id: message.loginId }; break;
+      case "provider_login_event": this.handleProviderLoginEvent(message); break;
       case "group_created": this.lastGroup = message.project; this.createSession(message.project); break;
       case "session_created": this.refreshList(); this.select(message.sessionId); break;
       case "snapshot": this.applySnapshot(message); break;
@@ -135,6 +170,20 @@ export class Workspace {
     if (document.visibilityState !== "visible") return;
     if (this.status === "disconnected") this.connection?.reconnectNow();
     else this.refreshList();
+  }
+
+  private handleProviderLoginEvent(message: { loginId: string; event: ProviderLoginEvent }): void {
+    if (this.providerLogin?.id && message.loginId !== this.providerLogin.id) return;
+    this.providerLogin = { id: message.loginId, event: message.event };
+    if (message.event.type === "complete") {
+      this.providerLogin = undefined;
+      this.listProviders();
+    }
+  }
+
+  private getHashSessionId(): string {
+    const value = location.hash.slice(1);
+    return value === "settings" ? "" : value;
   }
 
   private run(command: object): void {

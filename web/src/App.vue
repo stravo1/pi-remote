@@ -7,6 +7,7 @@ import NewGroupDialog from "./components/NewGroupDialog.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
 import SessionList from "./components/SessionList.vue";
+import ProviderSettings from "./components/ProviderSettings.vue";
 import { buttonSize } from "./button-size.ts";
 import { getSessionTitle } from "./protocol.ts";
 import { Workspace } from "./workspace.ts";
@@ -14,8 +15,16 @@ import { Workspace } from "./workspace.ts";
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
 const isGroupDialogOpen = ref(false);
+const isProviderSettingsOpen = ref(location.hash === "#settings");
 
-onMounted(() => workspace.start());
+onMounted(() => {
+  workspace.start();
+  window.addEventListener("hashchange", () => {
+    isProviderSettingsOpen.value = location.hash === "#settings";
+    if (isProviderSettingsOpen.value) workspace.listProviders();
+  });
+  if (isProviderSettingsOpen.value) workspace.listProviders();
+});
 
 watch(() => workspace.transcript.messages, async () => {
   await nextTick();
@@ -24,10 +33,21 @@ watch(() => workspace.transcript.messages, async () => {
 }, { deep: true });
 
 watch(() => workspace.lastGroup, () => { isGroupDialogOpen.value = false; });
+watch(() => workspace.status, (status) => {
+  if (status === "connected" && isProviderSettingsOpen.value) workspace.listProviders();
+});
 
 function openGroupDialog(): void {
   workspace.error = "";
   isGroupDialogOpen.value = true;
+}
+
+function openProviderSettings(): void {
+  location.hash = "settings";
+}
+
+function closeProviderSettings(): void {
+  location.hash = "";
 }
 
 </script>
@@ -36,9 +56,12 @@ function openGroupDialog(): void {
   <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
     <NewGroupDialog v-model:open="isGroupDialogOpen" :root="workspace.groupsRoot" :error="workspace.error"
       @submit="(name) => workspace.createGroup(name)" />
-    <SessionList v-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
+    <ProviderSettings v-if="isProviderSettingsOpen" :providers="workspace.providers" :login="workspace.providerLogin" :error="workspace.error"
+      @back="closeProviderSettings" @save-key="(provider, key) => workspace.setProviderKey(provider, key)" @logout="(provider) => workspace.logoutProvider(provider)"
+      @login="(provider, type) => workspace.startProviderLogin(provider, type)" @answer="(value) => workspace.submitProviderLogin(value)" @cancel="() => workspace.cancelProviderLogin()" />
+    <SessionList v-else-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot" @select="(id) => workspace.select(id)"
-      @create="(project) => workspace.createSession(project)" @create-group="openGroupDialog" />
+      @create="(project) => workspace.createSession(project)" @create-group="openGroupDialog" @settings="openProviderSettings" />
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">

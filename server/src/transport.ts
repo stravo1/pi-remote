@@ -4,6 +4,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import type { Configuration } from "./config.ts";
 import { serveHttp } from "./http.ts";
 import type { HubClient, SessionHub } from "./session-hub.ts";
+import type { PiAdapter } from "./pi-adapter.ts";
 
 interface Command {
   type?: unknown;
@@ -14,6 +15,19 @@ interface Command {
   provider?: unknown;
   modelId?: unknown;
   level?: unknown;
+  apiKey?: unknown;
+  authType?: unknown;
+  loginId?: unknown;
+  value?: unknown;
+}
+
+export interface ProviderManager {
+  getProviderSettings: PiAdapter["getProviderSettings"];
+  setProviderApiKey: PiAdapter["setProviderApiKey"];
+  logoutProvider: PiAdapter["logoutProvider"];
+  startProviderLogin: PiAdapter["startProviderLogin"];
+  submitProviderLogin: PiAdapter["submitProviderLogin"];
+  cancelProviderLogin: PiAdapter["cancelProviderLogin"];
 }
 
 export class Transport {
@@ -24,9 +38,12 @@ export class Transport {
   readonly heartbeat: ReturnType<typeof setInterval>;
   readonly alive = new Map<WebSocket, boolean>();
 
-  constructor(hub: SessionHub, configuration: Configuration, webDirectory: string, pingInterval = 30_000) {
+  readonly providers?: ProviderManager;
+
+  constructor(hub: SessionHub, configuration: Configuration, webDirectory: string, pingInterval = 30_000, providers?: ProviderManager) {
     this.hub = hub;
     this.configuration = configuration;
+    this.providers = providers;
     this.server = createServer((request, response) => {
       void serveHttp(request, response, webDirectory).catch((error: unknown) => {
         const status = error instanceof URIError ? 400 : 500;
@@ -93,7 +110,53 @@ export class Transport {
       set_model: () => this.hub.setModel(requireSessionId(command), requireString(command.provider), requireString(command.modelId)),
       set_thinking_level: () => this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level)),
       abort: () => this.hub.abort(requireSessionId(command)),
+      list_providers: () => this.listProviders(client),
+      set_provider_key: () => this.setProviderKey(client, command),
+      logout_provider: () => this.logoutProvider(client, command),
+      start_provider_login: () => this.startProviderLogin(client, command),
+      submit_provider_login: () => this.submitProviderLogin(command),
+      cancel_provider_login: () => this.cancelProviderLogin(command),
     };
+  }
+
+  private async listProviders(client: HubClient): Promise<void> {
+    client.send(JSON.stringify({ type: "providers", providers: await this.requireProviders().getProviderSettings() }));
+  }
+
+  private async setProviderKey(client: HubClient, command: Command): Promise<void> {
+    await this.requireProviders().setProviderApiKey(requireString(command.provider), requireString(command.apiKey));
+    await this.listProviders(client);
+  }
+
+  private async logoutProvider(client: HubClient, command: Command): Promise<void> {
+    await this.requireProviders().logoutProvider(requireString(command.provider));
+    await this.listProviders(client);
+  }
+
+  private startProviderLogin(client: HubClient, command: Command): void {
+    let loginId = "";
+    const queuedEvents: unknown[] = [];
+    const sendEvent = (event: { type: string }) => {
+      if (!loginId) return queuedEvents.push(event);
+      client.send(JSON.stringify({ type: "provider_login_event", loginId, event }));
+      if (event.type === "complete") void this.listProviders(client);
+    };
+    loginId = this.requireProviders().startProviderLogin(requireString(command.provider), requireAuthType(command.authType), sendEvent);
+    client.send(JSON.stringify({ type: "provider_login_started", loginId }));
+    for (const event of queuedEvents as { type: string }[]) sendEvent(event);
+  }
+
+  private submitProviderLogin(command: Command): void {
+    this.requireProviders().submitProviderLogin(requireString(command.loginId), requireString(command.value));
+  }
+
+  private cancelProviderLogin(command: Command): void {
+    this.requireProviders().cancelProviderLogin(requireString(command.loginId));
+  }
+
+  private requireProviders(): ProviderManager {
+    if (!this.providers) throw new Error("Provider settings are unavailable.");
+    return this.providers;
   }
 
   async createGroup(client: HubClient, command: Command): Promise<void> {
@@ -142,6 +205,11 @@ function requireSessionId(command: Command): string {
 function requireText(command: Command): string {
   if (typeof command.text !== "string" || !command.text.trim()) throw new Error("The prompt text must be a nonempty string.");
   return command.text;
+}
+
+function requireAuthType(value: unknown): "api_key" | "oauth" {
+  if (value === "api_key" || value === "oauth") return value;
+  throw new Error("The login type must be api_key or oauth.");
 }
 
 function sessionIdOf(data: RawData): string | undefined {

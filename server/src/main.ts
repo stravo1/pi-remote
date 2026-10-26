@@ -1,14 +1,13 @@
 import { fileURLToPath } from "node:url";
 import { getConfigurationFile } from "./config.ts";
 import { PiAdapter } from "./pi-adapter.ts";
-import { ProjectStore } from "./project-store.ts";
 import { SessionHub } from "./session-hub.ts";
 import { Transport } from "./transport.ts";
 
 const configuration = await getConfigurationFile(process.argv[2]);
-const hub = new SessionHub(await PiAdapter.fromConfiguration(configuration), configuration, undefined,
-  new ProjectStore(configuration.projectsRoot));
-const transport = new Transport(hub, configuration, fileURLToPath(new URL("../../web/dist/", import.meta.url)));
+const adapter = await PiAdapter.fromConfiguration(configuration);
+const hub = new SessionHub(adapter, configuration);
+const transport = new Transport(hub, configuration, fileURLToPath(new URL("../../web/dist/", import.meta.url)), undefined, adapter);
 
 try {
   await new Promise<void>((resolve, reject) => {

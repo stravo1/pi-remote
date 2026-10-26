@@ -100,3 +100,22 @@ test("uses server settings and ignores errors from another session", () => {
   assert.equal(workspace.settings?.thinkingLevel, "high");
   assert.equal(workspace.isUpdatingSettings, false);
 });
+
+test("manages provider credentials without storing them in client state", () => {
+  const { workspace, sent } = setup();
+  workspace.listProviders();
+  workspace.handle({ type: "providers", providers: [{ id: "openrouter", name: "OpenRouter", authTypes: ["api_key"], isConfigured: false }] });
+  workspace.setProviderKey("openrouter", "secret");
+  workspace.startProviderLogin("openrouter", "api_key");
+  workspace.handle({ type: "provider_login_started", loginId: "login-one" });
+  workspace.handle({ type: "provider_login_event", loginId: "login-one", event: { type: "prompt", prompt: { type: "secret", message: "API key" } } });
+  workspace.submitProviderLogin("another-secret");
+  assert.deepEqual(workspace.providers, [{ id: "openrouter", name: "OpenRouter", authTypes: ["api_key"], isConfigured: false }]);
+  assert.equal(workspace.providerLogin?.event?.type, "prompt");
+  assert.deepEqual(sent, [
+    { type: "list_providers" },
+    { type: "set_provider_key", provider: "openrouter", apiKey: "secret" },
+    { type: "start_provider_login", provider: "openrouter", authType: "api_key" },
+    { type: "submit_provider_login", loginId: "login-one", value: "another-secret" },
+  ]);
+});

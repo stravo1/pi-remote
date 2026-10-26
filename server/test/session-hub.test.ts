@@ -14,7 +14,8 @@ function setup(idleMinutes = 30) {
     { id: "newer", path: "/s/newer", project: "/p/one", firstMessage: "Newer task", modified: 2000 },
   );
   const metrics: RunMetrics[] = [];
-  const hub = new SessionHub(source, { projects: ["/p/one", "/p/two"], idleMinutes }, (run) => metrics.push(run));
+  const store = { root: "/p", list: async () => ["/p/one", "/p/two"] } as unknown as ProjectStore;
+  const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store);
   const client = () => {
     const messages: any[] = [];
     return { messages, send: (message: string) => messages.push(JSON.parse(message)) };
@@ -94,11 +95,11 @@ test("disposes an idle session after idleMinutes and keeps a running one", async
 test("a new group becomes a project that can hold sessions", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "pi-remote-hub-groups-"));
   context.after(() => rm(root, { recursive: true, force: true }));
-  const hub = new SessionHub(new FakeSource(), { projects: ["/p/one"], idleMinutes: 30 }, () => {}, new ProjectStore(root));
+  const hub = new SessionHub(new FakeSource(), { projectsRoot: root, idleMinutes: 30 }, () => {}, new ProjectStore(root));
   context.after(() => hub.close());
   const project = await hub.createGroup("notes");
   const list = await hub.getSessionList();
-  assert.deepEqual(list.projects.map((item) => item.path), ["/p/one", project]);
+  assert.deepEqual(list.projects.map((item) => item.path), [project]);
   assert.equal(list.groupsRoot, root);
   assert.ok(await hub.createSession(project));
   await assert.rejects(hub.createGroup("../x"), /Use letters/);

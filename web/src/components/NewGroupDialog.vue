@@ -14,14 +14,14 @@ function submit(): void {
 </script>
 
 <template>
-  <Dialog :open="open" title="New group" size="sm" @update:open="emit('update:open', $event)">
+  <Dialog :open="open" title="New project" size="sm" @update:open="emit('update:open', $event)">
     <form class="space-y-2" @submit.prevent="submit">
       <TextInput v-model="name" size="lg" placeholder="Folder name" aria-label="Folder name" autofocus />
       <p class="text-p-sm text-ink-gray-5">Creates <code class="font-mono">{{ root }}/{{ name || "name" }}</code> if it does not exist.</p>
       <p v-if="error" role="alert" class="text-p-sm text-ink-red-3">{{ error }}</p>
     </form>
     <template #actions>
-      <Button variant="solid" label="Create group" :disabled="!name.trim()" @click="submit" />
+      <Button variant="solid" label="Create project" :disabled="!name.trim()" @click="submit" />
     </template>
   </Dialog>
 </template>

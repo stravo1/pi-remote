@@ -2,6 +2,8 @@ import {
   createAgentSession, ModelRuntime, SessionManager, type AgentSession, type AgentSessionEvent,
   type CreateAgentSessionOptions,
 } from "@earendil-works/pi-coding-agent";
+import { randomUUID } from "node:crypto";
+import type { AuthEvent, AuthPrompt, AuthType } from "@earendil-works/pi-ai";
 import type { Configuration } from "./config.ts";
 import { SessionSummaryJob } from "./session-summary-job.ts";
 
@@ -33,6 +35,22 @@ export interface SessionSettings {
   models: ModelChoice[];
   thinkingLevel: string;
   thinkingLevels: string[];
+}
+
+export interface ProviderSettings {
+  id: string;
+  name: string;
+  authTypes: AuthType[];
+  isConfigured: boolean;
+  source?: string;
+}
+
+export type ProviderLoginEvent = AuthEvent | { type: "prompt"; prompt: AuthPrompt }
+  | { type: "complete" } | { type: "failed"; message: string };
+
+interface PendingLogin {
+  controller: AbortController;
+  answer?: (value: string) => void;
 }
 
 export class PiSession {
@@ -134,16 +152,19 @@ export class PiAdapter {
   private readonly options: CreateAgentSessionOptions;
   private readonly sessionDirectory?: string;
   private readonly summaryDelay?: number;
+  private readonly modelRuntime?: ModelRuntime;
+  private readonly logins = new Map<string, PendingLogin>();
 
   constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string, summaryDelay?: number) {
     this.options = options;
+    this.modelRuntime = options.modelRuntime as ModelRuntime | undefined;
     this.sessionDirectory = sessionDirectory;
     this.summaryDelay = summaryDelay;
   }
 
   static async fromConfiguration(configuration: Configuration): Promise<PiAdapter> {
-    if (!configuration.model) return new PiAdapter();
     const modelRuntime = await ModelRuntime.create();
+    if (!configuration.model) return new PiAdapter({ modelRuntime });
     const { provider, id } = configuration.model;
     const model = modelRuntime.getModel(provider, id);
     if (!model) throw new Error(`Model not found: ${provider}/${id}`);
@@ -155,6 +176,68 @@ export class PiAdapter {
     return sessions.map((info) => ({
       id: info.id, path: info.path, name: info.name, firstMessage: info.firstMessage, modified: info.modified.getTime(),
     }));
+  }
+
+  async getProviderSettings(): Promise<ProviderSettings[]> {
+    const runtime = this.getModelRuntime();
+    return runtime.getProviders().map((provider) => {
+      const status = runtime.getProviderAuthStatus(provider.id);
+      const authTypes: AuthType[] = [];
+      if (provider.auth.apiKey?.login) authTypes.push("api_key");
+      if (provider.auth.oauth) authTypes.push("oauth");
+      return { id: provider.id, name: provider.name, authTypes, isConfigured: status.configured, source: status.label };
+    }).sort((first, second) => first.name.localeCompare(second.name));
+  }
+
+  async setProviderApiKey(provider: string, apiKey: string): Promise<void> {
+    const runtime = this.getModelRuntime();
+    const target = runtime.getProvider(provider);
+    if (!target?.auth.apiKey?.login) throw new Error("This provider does not accept an API key.");
+    await runtime.setRuntimeApiKey(provider, apiKey);
+    await runtime.refresh({ providers: [provider], allowNetwork: false });
+  }
+
+  async logoutProvider(provider: string): Promise<void> {
+    const runtime = this.getModelRuntime();
+    if (!runtime.getProvider(provider)) throw new Error("Unknown provider.");
+    await runtime.logout(provider);
+    await runtime.refresh({ providers: [provider], allowNetwork: false });
+  }
+
+  startProviderLogin(provider: string, type: AuthType, notify: (event: ProviderLoginEvent) => void): string {
+    const runtime = this.getModelRuntime();
+    const target = runtime.getProvider(provider);
+    if (!target || (type === "api_key" && !target.auth.apiKey?.login) || (type === "oauth" && !target.auth.oauth)) {
+      throw new Error("This login method is not available.");
+    }
+    const loginId = randomUUID();
+    const pending: PendingLogin = { controller: new AbortController() };
+    this.logins.set(loginId, pending);
+    void runtime.login(provider, type, {
+      signal: pending.controller.signal,
+      notify,
+      prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
+    }, { agentName: "pi remote" }).then(async () => {
+      await runtime.refresh({ providers: [provider], allowNetwork: false });
+      notify({ type: "complete" });
+    }).catch((error: unknown) => {
+      if (!pending.controller.signal.aborted) notify({ type: "failed", message: error instanceof Error ? error.message : "Login failed." });
+    }).finally(() => this.logins.delete(loginId));
+    return loginId;
+  }
+
+  submitProviderLogin(loginId: string, value: string): void {
+    const login = this.logins.get(loginId);
+    if (!login?.answer) throw new Error("This login is not waiting for input.");
+    const answer = login.answer;
+    login.answer = undefined;
+    answer(value);
+  }
+
+  cancelProviderLogin(loginId: string): void {
+    const login = this.logins.get(loginId);
+    if (!login) throw new Error("Unknown login.");
+    login.controller.abort();
   }
 
   create(project: string): Promise<PiSession> {
@@ -175,5 +258,20 @@ export class PiAdapter {
       session.dispose();
       throw error;
     }
+  }
+
+  private getModelRuntime(): ModelRuntime {
+    if (!this.modelRuntime) throw new Error("Provider settings are unavailable.");
+    return this.modelRuntime;
+  }
+
+  private requestLoginInput(loginId: string, pending: PendingLogin, prompt: AuthPrompt,
+    notify: (event: ProviderLoginEvent) => void): Promise<string> {
+    notify({ type: "prompt", prompt });
+    return new Promise((resolve, reject) => {
+      pending.answer = resolve;
+      const abort = () => reject(new Error("Login cancelled."));
+      pending.controller.signal.addEventListener("abort", abort, { once: true });
+    });
   }
 }

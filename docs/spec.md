@@ -83,8 +83,8 @@ One person runs pi on one machine and uses it from any device through a browser.
 | F7 | A run continues when all clients disconnect. |
 | F8 | A client that connects during a run sees the run state, then live events. |
 | F9 | Two clients on one session see the same events. Input from either one goes to the session. |
-| F10 | The server only starts sessions in listed directories. These are the configured `projects` and the groups the user creates in `projectsRoot`. |
-| F11 | The client creates a group: a new folder directly inside `projectsRoot`. |
+| F10 | The server only starts sessions in projects created under `projectsRoot`. |
+| F11 | The client creates a project: a new folder directly inside `projectsRoot`. |
 
 ## Non-functional requirements
 
@@ -202,6 +202,12 @@ Client to server:
 | `abort` | `sessionId` | Stops the active run. |
 | `set_model` | `sessionId`, `provider`, `modelId` | Selects an available model while idle. Sends a fresh snapshot to all subscribers. |
 | `set_thinking_level` | `sessionId`, `level` | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers. |
+| `list_providers` | | Lists AI-provider authentication status. It never includes credentials. |
+| `set_provider_key` | `provider`, `apiKey` | Stores an API key for a provider on the host. |
+| `start_provider_login` | `provider`, `authType` | Starts a provider API-key or OAuth login. |
+| `submit_provider_login` | `loginId`, `value` | Answers the current provider login prompt. |
+| `cancel_provider_login` | `loginId` | Cancels a pending provider login. |
+| `logout_provider` | `provider` | Removes the saved credential for a provider. |
 
 Server to client:
 
@@ -213,10 +219,15 @@ Server to client:
 | `snapshot` | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings` | Full state at subscribe time or after a settings change. |
 | `event` | `sessionId`, `seq`, `event` | One pi event, unchanged. |
 | `error` | `message`, optional `sessionId` | A command failed. |
+| `providers` | `providers: [{ id, name, authTypes, isConfigured, source? }]` | AI-provider status without credentials. |
+| `provider_login_started` | `loginId` | A provider login is ready for browser interaction. |
+| `provider_login_event` | `loginId`, `event` | A provider URL, device code, progress notice, or input prompt. |
 
 `settings` contains `model`, `models`, `thinkingLevel`, and `thinkingLevels`.
 Each model contains only `provider`, `id`, and `name`. The server never sends credentials.
 The thinking levels come from the selected model's SDK capabilities.
+
+Provider settings are global to the host's pi auth store. The browser can submit a key or answer a provider prompt over the authenticated WebSocket, but the server never returns either the submitted value or a saved credential.
 
 `seq` increases by one for each event in a session. A client that sees a gap sends `subscribe` again and gets a new snapshot.
 
@@ -238,7 +249,7 @@ The configuration path comes from the command line: `npm start -- /absolute/path
   "port": 7710,
   "origin": "https://pi.example.com",
   "allowedUser": "me",
-  "projects": ["/home/ubuntu/code/app-one", "/home/ubuntu/code/app-two"],
+  "projectsRoot": "/home/ubuntu/code",
   "idleMinutes": 30
 }
 ```
@@ -246,10 +257,9 @@ The configuration path comes from the command line: `npm start -- /absolute/path
 An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
 This selects the default for new sessions. Existing sessions restore their saved model.
 Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
-An optional `projectsRoot` (an absolute path) lets the client create groups.
-A group name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.
-The server keeps the group list in `<projectsRoot>/.pi-remote/projects.json`.
-Without `projectsRoot`, the client cannot create groups.
+`projectsRoot` is an absolute path that holds every project. The client creates projects directly inside it.
+A project name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.
+The server keeps the project list in `<projectsRoot>/.pi-remote/projects.json`.
 The server opens no session at start. Each session runs in the project the client picked.
 Every command that targets a session names it with `sessionId`.
 

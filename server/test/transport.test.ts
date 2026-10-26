@@ -7,19 +7,30 @@ import { test, type TestContext } from "node:test";
 import { WebSocket } from "ws";
 import type { Configuration } from "../src/config.ts";
 import { SessionHub } from "../src/session-hub.ts";
-import { Transport } from "../src/transport.ts";
+import { Transport, type ProviderManager } from "../src/transport.ts";
 import { FakeSource } from "./fake-source.ts";
+import { ProjectStore } from "../src/project-store.ts";
 
-async function setup(context: TestContext, pingInterval = 10_000) {
+async function setup(context: TestContext, pingInterval = 10_000, providers?: ProviderManager) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-transport-"));
   const source = new FakeSource();
   source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1000 });
+  const projects = [directory];
   const configuration: Configuration = {
     host: "127.0.0.1", port: 7710, origin: "https://pi.example.com",
-    allowedUser: "me", projects: [directory], idleMinutes: 30,
+    allowedUser: "me", projectsRoot: directory, idleMinutes: 30,
   };
-  const hub = new SessionHub(source, configuration, () => {});
-  const transport = new Transport(hub, configuration, directory, pingInterval);
+  const store = {
+    root: directory,
+    list: async () => projects,
+    create: async (name: string) => {
+      const project = join(directory, name);
+      projects.push(project);
+      return project;
+    },
+  } as unknown as ProjectStore;
+  const hub = new SessionHub(source, configuration, () => {}, store);
+  const transport = new Transport(hub, configuration, directory, pingInterval, providers);
   context.after(async () => {
     await hub.close();
     await transport.close();
@@ -121,11 +132,11 @@ test("bad commands return errors and leave the socket usable", { timeout: 5000 }
   }
 });
 
-test("new_group needs a name and reports when groups are off", { timeout: 5000 }, async (context) => {
+test("new_group needs a name and creates a project", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const socket = await connect(url);
   assert.match((await request(socket, { type: "new_group" })).message, /must be a string/);
-  assert.match((await request(socket, { type: "new_group", name: "notes" })).message, /not enabled/);
+  assert.equal((await request(socket, { type: "new_group", name: "notes" })).type, "group_created");
 });
 
 test("shares queues and settings with two clients and a reconnect", { timeout: 5000 }, async (context) => {
@@ -173,4 +184,38 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
   ]) {
     assert.equal((await request(socket, { ...command, sessionId: "stored" })).type, "error");
   }
+});
+
+test("lists provider status and keeps login prompts separate from credentials", async (context) => {
+  const received: string[] = [];
+  const providers = {
+    getProviderSettings: async () => [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false }],
+    setProviderApiKey: async (provider: string, key: string) => { received.push(`${provider}:${key}`); },
+    logoutProvider: async (provider: string) => { received.push(`logout:${provider}`); },
+    startProviderLogin: (_provider: string, _type: string, notify: (event: any) => void) => {
+      notify({ type: "prompt", prompt: { type: "secret", message: "API key" } });
+      return "login-one";
+    },
+    submitProviderLogin: (loginId: string, value: string) => { received.push(`${loginId}:${value}`); },
+    cancelProviderLogin: (loginId: string) => { received.push(`cancel:${loginId}`); },
+  } as unknown as ProviderManager;
+  const { url } = await setup(context, 10_000, providers);
+  const socket = await connect(url);
+  const list = await request(socket, { type: "list_providers" });
+  assert.deepEqual(list, { type: "providers", providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false }] });
+  await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
+  assert.deepEqual(received, ["faux:secret"]);
+  const loginMessages: any[] = [];
+  const recordMessage = (message: Buffer) => loginMessages.push(JSON.parse(message.toString()));
+  socket.on("message", recordMessage);
+  socket.send(JSON.stringify({ type: "start_provider_login", provider: "faux", authType: "api_key" }));
+  for (let attempt = 0; attempt < 20 && loginMessages.length < 2; attempt++) await new Promise((resolve) => setImmediate(resolve));
+  socket.off("message", recordMessage);
+  assert.deepEqual(loginMessages, [
+    { type: "provider_login_started", loginId: "login-one" },
+    { type: "provider_login_event", loginId: "login-one", event: { type: "prompt", prompt: { type: "secret", message: "API key" } } },
+  ]);
+  socket.send(JSON.stringify({ type: "submit_provider_login", loginId: "login-one", value: "secret" }));
+  for (let attempt = 0; attempt < 20 && received.length < 2; attempt++) await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(received, ["faux:secret", "login-one:secret"]);
 });

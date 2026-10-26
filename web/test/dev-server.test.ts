@@ -13,6 +13,7 @@ import type { Configuration } from "../../server/src/config.ts";
 import { SessionHub } from "../../server/src/session-hub.ts";
 import { Transport } from "../../server/src/transport.ts";
 import { FakeSource } from "../../server/test/fake-source.ts";
+import { ProjectStore } from "../../server/src/project-store.ts";
 
 async function getFreePort(): Promise<number> {
   const server = createServer();
@@ -43,11 +44,12 @@ test("the UI dev command proxies HTTP and authenticated WebSockets while preserv
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-dev-test-"));
   const configuration: Configuration = {
     host: "127.0.0.1", port: 7710, origin: `http://127.0.0.1:${await getFreePort()}`,
-    allowedUser: "local-test-user", projects: [directory], idleMinutes: 30,
+    allowedUser: "local-test-user", projectsRoot: directory, idleMinutes: 30,
   };
   const source = new FakeSource();
   source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1 });
-  const hub = new SessionHub(source, configuration, () => {});
+  const store = { root: directory, list: async () => [directory] } as unknown as ProjectStore;
+  const hub = new SessionHub(source, configuration, () => {}, store);
   const transport = new Transport(hub, configuration, directory, 10_000);
   transport.server.listen(0, configuration.host);
   await once(transport.server, "listening");

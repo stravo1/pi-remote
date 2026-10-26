@@ -4,7 +4,7 @@ import PiLogo from "./PiLogo.vue";
 import { getProjectName, getSessionTitle, type ConnectionStatus, type ProjectGroup } from "../protocol.ts";
 
 defineProps<{ projects: ProjectGroup[]; status: ConnectionStatus; canCreateGroups: boolean }>();
-defineEmits<{ select: [sessionId: string]; create: [project: string]; createGroup: [] }>();
+defineEmits<{ select: [sessionId: string]; create: [project: string]; createGroup: []; settings: [] }>();
 
 const statusLabels: Record<ConnectionStatus, string> = {
   connecting: "Connecting…", connected: "Connected", disconnected: "Reconnecting…",
@@ -21,7 +21,8 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
         <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
         <p :class="['text-p-xs', status === 'connected' ? 'text-ink-gray-5' : 'text-ink-gray-5']">{{ statusLabels[status] }}</p>
       </div>
-      <Button v-if="canCreateGroups" variant="subtle" icon-left="lucide-folder-plus" label="New group" @click="$emit('createGroup')" />
+      <Button v-if="canCreateGroups" variant="subtle" icon-left="lucide-folder-plus" label="New project" @click="$emit('createGroup')" />
+      <Button variant="ghost" icon="lucide-settings" aria-label="Provider settings" @click="$emit('settings')" />
       </div>
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto" aria-label="Sessions">

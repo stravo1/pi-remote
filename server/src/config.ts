@@ -6,9 +6,8 @@ export interface Configuration {
   port: number;
   origin: string;
   allowedUser: string;
-  projects: string[];
   idleMinutes: number;
-  projectsRoot?: string;
+  projectsRoot: string;
   model?: { provider: string; id: string };
 }
 
@@ -27,12 +26,11 @@ export function getConfiguration(value: unknown): Configuration {
     "port", "use an integer from 1 to 65535");
   requireField(typeof value.origin === "string" && isOrigin(value.origin), "origin", "use an HTTP or HTTPS origin without a path");
   requireField(isNonemptyString(value.allowedUser), "allowedUser", "use a nonempty user name");
-  requireField(isProjects(value.projects),
-    "projects", "use a nonempty list of absolute paths");
   requireField(isPositiveNumber(value.idleMinutes),
     "idleMinutes", "use a positive number");
-  requireField(value.projectsRoot === undefined || (isNonemptyString(value.projectsRoot) && isAbsolute(value.projectsRoot)),
+  requireField(isNonemptyString(value.projectsRoot) && isAbsolute(value.projectsRoot),
     "projectsRoot", "use an absolute path");
+  requireField(value.projects === undefined, "projects", "use projectsRoot instead");
   if (value.model !== undefined) validateModel(value.model);
   return value as unknown as Configuration;
 }
@@ -43,11 +41,6 @@ function isPort(value: unknown): boolean {
 
 function isNonemptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-function isProjects(value: unknown): value is string[] {
-  return Array.isArray(value) && value.length > 0
-    && value.every((project) => isNonemptyString(project) && isAbsolute(project));
 }
 
 function isPositiveNumber(value: unknown): boolean {

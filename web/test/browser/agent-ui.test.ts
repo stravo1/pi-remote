@@ -73,7 +73,7 @@ for (const width of [375, 1280]) {
       route.onMessage((raw) => {
         const command = JSON.parse(String(raw));
         commands.push(command);
-        if (command.type === "list_sessions") route.send(JSON.stringify({ type: "sessions", projects: [{ path: "/code/example", sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }] }] }));
+        if (command.type === "list_sessions") route.send(JSON.stringify({ type: "sessions", groupsRoot: "/code", projects: [{ path: "/code/example", sessions: [{ id: "one", firstMessage: "Example", modified: 1, isRunning }] }] }));
         if (command.type === "subscribe") snapshot();
         if (command.type === "set_model") { state.model = state.models.find((model) => model.id === command.modelId)!; snapshot(); }
         if (command.type === "set_thinking_level") { state.thinkingLevel = command.level; snapshot(); }
@@ -150,6 +150,10 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
+    await page.getByRole("button", { name: "New project" }).click();
+    await page.getByRole("textbox", { name: "Folder name" }).fill("notes");
+    await page.getByRole("button", { name: "Create project" }).click();
+    await waitFor(async () => commands.some((command) => command.type === "new_group" && command.name === "notes"));
     await screenshot(page, `sessions-${width}`);
     assert.deepEqual(errors, []);
   });
