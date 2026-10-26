@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { preview } from "vite";
 import { chromium } from "playwright";
 
-test("provider settings save keys and show OAuth device codes", { timeout: 30_000 }, async (context) => {
+test("settings save keys and show OAuth device codes", { timeout: 30_000 }, async (context) => {
   const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
   context.after(() => {
     if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
@@ -21,7 +21,7 @@ test("provider settings save keys and show OAuth device codes", { timeout: 30_00
       if (command.type === "list_sessions") socket.send(JSON.stringify({ type: "sessions", projects: [] }));
       if (command.type === "list_providers" || command.type === "set_provider_key") {
         socket.send(JSON.stringify({ type: "providers", providers: [{
-          id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], isConfigured: command.type === "set_provider_key",
+          id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key",
         }] }));
       }
       if (command.type === "start_provider_login") {
@@ -35,15 +35,20 @@ test("provider settings save keys and show OAuth device codes", { timeout: 30_00
   const address = server.httpServer.address();
   assert.ok(address && typeof address === "object");
   await page.goto(`http://127.0.0.1:${address.port}/#settings`);
-  await page.getByRole("heading", { name: "Provider settings" }).waitFor();
+  await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Add provider" }).click();
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: /OpenAI.*API key/ }).click();
   await page.getByRole("textbox", { name: "OpenAI API key" }).fill("not-a-real-key");
   await page.getByRole("button", { name: "Save key" }).click();
   for (let attempt = 0; attempt < 100 && !commands.some((command) => command.type === "set_provider_key"); attempt++) {
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
-  await page.getByText("Connected", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Add provider" }).click();
+  await page.getByRole("combobox").click();
+  await page.getByRole("option", { name: /OpenAI.*Sign in with ChatGPT/ }).click();
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
   assert.ok(commands.some((command) => command.type === "set_provider_key" && command.apiKey === "not-a-real-key"));
   assert.ok(commands.some((command) => command.type === "start_provider_login" && command.authType === "oauth"));
