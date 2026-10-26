@@ -45,12 +45,12 @@ function onEnter(event: KeyboardEvent): void {
       <li v-for="(message, index) in queue.followUp" :key="`follow-${index}`" class="flex items-start gap-2 px-3 py-1.5">
         <span class="lucide-clock mt-1 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
         <p class="min-w-0 flex-1 self-center whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
-        <Button variant="ghost" size="sm" label="Send now" @click="emit('steer', message)" />
+        <Button variant="ghost" size="sm" icon="lucide-arrow-up" aria-label="Send now" @click="emit('steer', message)" />
       </li>
     </ul>
     <div class="flex items-end gap-2 rounded-7 border border-outline-gray-2 bg-surface-base p-1.5 transition-colors hover:border-outline-gray-3 hover:shadow-sm focus-within:border-outline-gray-4 focus-within:shadow-sm">
       <Textarea v-model="text" class="min-w-0 flex-1 resize-none !py-2.5 sm:!min-h-8 sm:!py-1.5 !text-lg sm:!text-p-base" variant="ghost" size="md" :rows="1"
-        :disabled="disabled" aria-label="Message" :placeholder="isRunning ? 'Add a message while pi works' : 'Message pi'"
+        :disabled="disabled" aria-label="Message" placeholder="Message pi"
         @keydown.enter="onEnter" />
       <Button v-if="isRunning" type="button" variant="solid" :size="buttonSize" class="shrink-0" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
       <Button type="submit" variant="solid" :size="buttonSize" class="shrink-0" icon="lucide-arrow-up" :aria-label="isRunning ? 'Send follow-up' : 'Send prompt'" :disabled="!canSend" :loading="isSending" />
