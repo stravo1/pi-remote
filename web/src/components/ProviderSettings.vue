@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { Button, Password, toast } from "frappe-ui";
+import { Button, Password, Select, toast, useColorScheme, type ColorScheme } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
+
+const { colorScheme, setColorScheme } = useColorScheme();
+const schemeOptions = [
+  { label: "System", value: "system" },
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+];
 
 const props = defineProps<{
   providers: Provider[];
@@ -129,6 +136,16 @@ function saveKey(): void {
               </template>
             </li>
           </ul>
+        </section>
+        <section class="flex items-center gap-2" aria-labelledby="appearance-heading">
+          <h2 id="appearance-heading" class="min-w-0 flex-1 text-base font-medium text-ink-gray-9">Appearance</h2>
+          <Select
+            class="w-32"
+            aria-label="Appearance"
+            :options="schemeOptions"
+            :model-value="colorScheme"
+            @update:model-value="(scheme) => setColorScheme(scheme as ColorScheme)"
+          />
         </section>
       </div>
     </main>

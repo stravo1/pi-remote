@@ -146,4 +146,24 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   assert.equal(await bars.count(), 2);
   await page.getByText("Setup failed.", { exact: true }).waitFor();
   await page.getByRole("combobox", { name: "Provider" }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog").waitFor({ state: "detached" });
+  const getTheme = () => page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  assert.equal(await getTheme(), "light");
+  await page.getByRole("combobox", { name: "Appearance" }).click();
+  await page.getByRole("option", { name: "Dark" }).click();
+  assert.equal(await getTheme(), "dark");
+  assert.equal(await page.evaluate(() => localStorage.getItem("theme")), "dark");
+  // The inline script in index.html applies the saved scheme before the app loads.
+  await page.addInitScript(() => {
+    document.addEventListener("DOMContentLoaded", () => {
+      (window as any).themeBeforeApp = document.documentElement.getAttribute("data-theme");
+    });
+  });
+  await page.reload();
+  assert.equal(await page.evaluate(() => (window as any).themeBeforeApp), "dark");
+  const systemDark = await browser.newPage({ colorScheme: "dark" });
+  await systemDark.goto(page.url());
+  assert.equal(await systemDark.evaluate(() => document.documentElement.getAttribute("data-theme")), "dark");
+  await systemDark.close();
 });

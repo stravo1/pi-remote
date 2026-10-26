@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import { reactive } from "vue";
-import { Button, Dialogs, Spinner, ToastProvider } from "frappe-ui";
+import { Button, Dialogs, Spinner, ToastProvider, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
@@ -13,6 +13,8 @@ import { Workspace } from "./workspace.ts";
 
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
+// Restores the saved light, dark, or system scheme and follows the OS setting.
+useColorScheme();
 const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-right" : "top-center";
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;
