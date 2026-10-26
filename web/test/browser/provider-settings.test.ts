@@ -37,7 +37,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.goto(`http://127.0.0.1:${address.port}/#settings`);
   await page.getByRole("heading", { name: "Settings", exact: true }).waitFor();
   await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("combobox").click();
+  await page.getByRole("button", { name: "Search providers" }).click();
   await page.getByRole("option", { name: /OpenAI.*API key/ }).click();
   await page.getByRole("textbox", { name: "OpenAI API key" }).fill("not-a-real-key");
   await page.getByRole("button", { name: "Save key" }).click();
@@ -47,7 +47,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Add provider" }).click();
-  await page.getByRole("combobox").click();
+  await page.getByRole("button", { name: "Search providers" }).click();
   await page.getByRole("option", { name: /OpenAI.*Sign in with ChatGPT/ }).click();
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
   assert.ok(commands.some((command) => command.type === "set_provider_key" && command.apiKey === "not-a-real-key"));
