@@ -15,7 +15,7 @@ export class Workspace {
   isUpdatingSettings = false;
   settings?: SessionSettings;
   providers: ProviderSettings[] = [];
-  providerLogin?: { id?: string; event?: ProviderLoginEvent };
+  providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
   private isSyncing = false;
   private lastSequence = 0;
   private connection?: Connection;
@@ -174,7 +174,8 @@ export class Workspace {
 
   private handleProviderLoginEvent(message: { loginId: string; event: ProviderLoginEvent }): void {
     if (this.providerLogin?.id && message.loginId !== this.providerLogin.id) return;
-    this.providerLogin = { id: message.loginId, event: message.event };
+    const isNotice = message.event.type === "auth_url" || message.event.type === "device_code";
+    this.providerLogin = { id: message.loginId, event: message.event, notice: isNotice ? message.event : this.providerLogin?.notice };
     if (message.event.type === "failed") {
       this.error = message.event.message;
       this.providerLogin = undefined;

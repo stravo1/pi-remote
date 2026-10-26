@@ -6,7 +6,7 @@ import AddProviderMenu from "./AddProviderMenu.vue";
 import ApiKeyForm from "./ApiKeyForm.vue";
 import ProviderLoginPanel from "./ProviderLoginPanel.vue";
 
-const props = defineProps<{ providers: Provider[]; login?: { id?: string; event?: ProviderLoginEvent }; error: string }>();
+const props = defineProps<{ providers: Provider[]; login?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent }; error: string }>();
 const emit = defineEmits<{
   back: [];
   saveKey: [provider: string, key: string];
@@ -42,7 +42,7 @@ function startGuidedSetup(provider: string): void {
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto">
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4">
-      <ProviderLoginPanel v-if="login" :event="login.event" @answer="emit('answer', $event)" @cancel="emit('cancel')" />
+      <ProviderLoginPanel v-if="login" :event="login.event" :notice="login.notice" @answer="emit('answer', $event)" @cancel="emit('cancel')" />
 
       <section class="space-y-3" aria-labelledby="providers-heading">
         <div class="flex items-center gap-2">

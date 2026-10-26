@@ -119,3 +119,14 @@ test("manages provider credentials without storing them in client state", () => 
     { type: "submit_provider_login", loginId: "login-one", value: "another-secret" },
   ]);
 });
+
+test("keeps the sign-in link while the login waits for a pasted code", () => {
+  const workspace = new Workspace();
+  workspace.startProviderLogin("openai", "oauth");
+  workspace.handle({ type: "provider_login_started", loginId: "login-one" });
+  const link = { type: "auth_url" as const, url: "https://example.com/sign-in" };
+  workspace.handle({ type: "provider_login_event", loginId: "login-one", event: link });
+  workspace.handle({ type: "provider_login_event", loginId: "login-one", event: { type: "prompt", prompt: { type: "text", message: "Paste the URL" } } });
+  assert.equal(workspace.providerLogin?.event?.type, "prompt");
+  assert.deepEqual(workspace.providerLogin?.notice, link);
+});

@@ -32,6 +32,9 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
         socket.send(JSON.stringify({ type: "provider_login_event", loginId: "login-one", event: {
           type: "device_code", verificationUri: "https://example.com/device", userCode: "ABCD-1234",
         } }));
+        socket.send(JSON.stringify({ type: "provider_login_event", loginId: "login-one", event: {
+          type: "prompt", prompt: { type: "text", message: "Paste the redirect URL" },
+        } }));
       }
     });
   });
@@ -51,6 +54,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByRole("button", { name: "Add provider" }).click();
   await page.getByRole("option", { name: /OpenAI.*Sign in with ChatGPT/ }).click();
   await page.getByText("ABCD-1234", { exact: true }).waitFor();
+  await page.getByRole("textbox", { name: "Paste the redirect URL" }).waitFor();
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Add provider" }).click();
   await page.getByRole("option", { name: /OpenAI.*API key/ }).click();
