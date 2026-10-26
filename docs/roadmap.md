@@ -80,6 +80,28 @@ Pick these as needed. Each one is independent.
 - Image attachments in prompts.
 - MCP: load pi's `codemode`, `tool_search`, and MCP extensions in `PiAdapter`.
 
+### Gaps compared with the pi terminal app
+
+The pi terminal app has these features, and pi remote does not have them yet. The list comes from pi's `docs/slash-commands.md` and `docs/sdk.md`.
+
+| pi feature                                                  | What pi remote needs                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------- |
+| `/name`: rename a session                                   | A rename action. Titles come only from the automatic summary. |
+| `/compact [instructions]`                                   | A compact action. Only pi's automatic compaction runs.        |
+| `/tree`, `/fork`, `/clone`: branch from an earlier message  | A way to fork from a message and to show branches.            |
+| `/copy`, `/export` (HTML or JSONL), `/share`                | Copy and export actions on a session.                         |
+| `/session`: tokens, cost, and other statistics              | A session info view. pi already reports usage.                |
+| `/import <path>`: resume a JSONL session                    | An import action.                                             |
+| `/reload`: reload extensions, skills, templates, and themes | A reload action. A server restart works today.                |
+| `/scoped-models`                                            | pi remote keeps its own recent models list instead.           |
+| MCP servers, `codemode`, and `tool_search`                  | SDK sessions do not load them. See the MCP item above.        |
+| Image input                                                 | See the image attachments item above.                         |
+| Extension prompts that ask the user a question              | A UI for extension prompts (`docs/rpc-extension-ui.md`).      |
+
+These already work, because the SDK loads them: model and thinking choice, provider login, new and saved sessions, skills, prompt templates, context files, and extensions in `~/.pi/agent/extensions`. A prompt that starts with a template or extension command, such as `/foo`, goes to pi. pi's built-in commands, such as `/compact`, belong to its terminal app and do nothing in pi remote.
+
+Web search: pi has no built-in search tool. The host runs SearXNG as the `searxng` user service on `127.0.0.1:8888`, and the `web-search` skill in `~/.pi/agent/skills` calls it. Run `~/searxng/update.sh` on the host to update SearXNG.
+
 ## Risks
 
 | Risk                                                                                                            | Mitigation                                                                                                                                           |
