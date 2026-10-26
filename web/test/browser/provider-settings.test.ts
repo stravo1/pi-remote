@@ -62,6 +62,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Edit key" }).click();
   await page.waitForFunction(() => document.querySelector<HTMLInputElement>("input[aria-label='OpenAI API key']")?.value === "not-a-real-key");
+  await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "OpenAI API key");
   await page.getByRole("button", { name: "Show password" }).click();
   assert.equal(await page.getByLabel("OpenAI API key").getAttribute("type"), "text");
   await page.getByLabel("OpenAI API key").fill("another-key");

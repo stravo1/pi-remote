@@ -153,6 +153,7 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
     await page.getByRole("button", { name: "New project" }).click();
+    await waitFor(async () => page.getByRole("textbox", { name: "Folder name" }).evaluate((input) => input === document.activeElement));
     await page.getByRole("textbox", { name: "Folder name" }).fill("taken");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await page.getByText("Folder exists.", { exact: true }).waitFor();
