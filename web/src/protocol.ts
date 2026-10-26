@@ -18,5 +18,5 @@ export function getProjectName(path: string): string {
 }
 
 export function getSessionTitle(session: SessionItem): string {
-  return session.name || session.firstMessage || "Untitled session";
+  return session.name || session.firstMessage || "New session";
 }
