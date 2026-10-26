@@ -194,6 +194,11 @@ for (const width of [375, 1280]) {
     assert.match((await page.locator("meta[name=viewport]").getAttribute("content")) ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByRole("status", { name: "Loading session" }).waitFor();
+    const message = page.getByRole("textbox", { name: "Message", exact: true });
+    assert.equal(await message.isEditable(), true, "The message field stays editable while a session loads");
+    await message.fill("Typed early");
+    assert.equal(await page.getByRole("button", { name: "Send prompt" }).isDisabled(), true);
+    await message.fill("");
     await page.getByText("File diff", { exact: true }).waitFor();
     const conversation = page.getByRole("region", { name: "Conversation" });
     const addMessage = async (text: string) => {

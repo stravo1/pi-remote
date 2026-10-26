@@ -101,7 +101,6 @@ function onEnter(event: KeyboardEvent): void {
           variant="ghost"
           size="md"
           :rows="1"
-          :disabled="disabled"
           aria-label="Message"
           placeholder="Message pi"
           @keydown.enter="onEnter"
