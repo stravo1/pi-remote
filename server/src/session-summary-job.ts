@@ -3,32 +3,68 @@ import type { AgentSession } from "@earendil-works/pi-coding-agent";
 export class SessionSummaryJob {
   private readonly session: AgentSession;
   private readonly isBusy: () => boolean;
-  private readonly timer: ReturnType<typeof setInterval>;
+  private readonly delay: number;
   private readonly controller = new AbortController();
+  private timer?: ReturnType<typeof setTimeout>;
   private pending?: Promise<void>;
+  private hasChanges = false;
+  private activeMessages = "";
   private lastMessages = "";
 
-  constructor(session: AgentSession, isBusy: () => boolean, interval = 60_000) {
+  constructor(session: AgentSession, isBusy: () => boolean, delay = 2_000) {
     this.session = session;
     this.isBusy = isBusy;
-    this.timer = setInterval(() => {
-      void this.update().catch((error: unknown) => {
-        console.error("Session summary failed", session.sessionId, error);
+    this.delay = delay;
+  }
+
+  schedule(): void {
+    if (this.controller.signal.aborted) return;
+    if (this.pending) {
+      if (this.recentMessages !== this.activeMessages) this.hasChanges = true;
+      return;
+    }
+    this.hasChanges = true;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      void this.start().catch((error: unknown) => {
+        console.error("Session summary failed", this.session.sessionId, error);
       });
-    }, interval);
+    }, this.delay);
     this.timer.unref();
   }
 
   update(): Promise<void> {
     if (this.pending) return this.pending;
-    this.pending = this.summarize().finally(() => { this.pending = undefined; });
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    this.hasChanges = true;
+    return this.start();
+  }
+
+  private start(): Promise<void> {
+    if (this.pending) return this.pending;
+    this.pending = this.run().finally(() => {
+      this.pending = undefined;
+      if (this.hasChanges) this.schedule();
+    });
     return this.pending;
   }
 
   async close(): Promise<void> {
-    clearInterval(this.timer);
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    this.hasChanges = false;
     this.controller.abort();
     await this.pending?.catch(() => {});
+  }
+
+  private async run(): Promise<void> {
+    while (this.hasChanges && !this.controller.signal.aborted) {
+      this.hasChanges = false;
+      this.activeMessages = this.recentMessages;
+      await this.summarize();
+    }
   }
 
   private get recentMessages(): string {

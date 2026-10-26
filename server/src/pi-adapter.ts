@@ -41,9 +41,9 @@ export class PiSession {
   private isChangingModel = false;
   private readonly summaryJob: SessionSummaryJob;
 
-  constructor(session: AgentSession) {
+  constructor(session: AgentSession, summaryDelay?: number) {
     this.session = session;
-    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChangingModel);
+    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChangingModel, summaryDelay);
   }
 
   get id(): string {
@@ -71,6 +71,7 @@ export class PiSession {
       await this.session.prompt(text);
     } finally {
       this._isRunning = false;
+      this.summaryJob.schedule();
     }
   }
 
@@ -132,10 +133,12 @@ export class PiSession {
 export class PiAdapter {
   private readonly options: CreateAgentSessionOptions;
   private readonly sessionDirectory?: string;
+  private readonly summaryDelay?: number;
 
-  constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string) {
+  constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string, summaryDelay?: number) {
     this.options = options;
     this.sessionDirectory = sessionDirectory;
+    this.summaryDelay = summaryDelay;
   }
 
   static async fromConfiguration(configuration: Configuration): Promise<PiAdapter> {
@@ -167,7 +170,7 @@ export class PiAdapter {
     const { session } = await createAgentSession({ ...this.options, model, cwd: project, sessionManager });
     try {
       await session.modelRuntime.getAvailable();
-      return new PiSession(session);
+      return new PiSession(session, this.summaryDelay);
     } catch (error) {
       session.dispose();
       throw error;

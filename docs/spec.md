@@ -63,7 +63,7 @@ One person runs pi on one machine and uses it from any device through a browser.
 ### Client views
 
 - Session list: sessions grouped by project, newest first. A button starts a new session in a project. The list is a full page. Picking a session opens the chat page, with a back button to the list. Both pages have a maximum width on desktop.
-- Session names: once per minute, each open idle session summarizes its last six user and assistant messages. The selected model returns a title of three to eight words. The server saves that title as the pi session name. It skips unchanged messages and discards a result if the conversation changes during the request.
+- Session names: after a run changes the conversation, the idle session summarizes its last six user and assistant messages. A short delay combines changes without polling. The selected model returns a title of three to eight words. The server saves that title as the pi session name. It discards a result if the conversation changes during the request.
 - Session view: the transcript, live output, tool calls, and an input box. While a run is active, the input box sends a follow-up by default and offers "steer" as a second action. A stop button aborts the run.
 - Session settings: a settings button beside the send button opens a native frappe-ui bottom sheet on a phone and a popover on desktop. Both show the same content. The sheet lists the current and the most recently used models (up to four, saved in the browser), an Effort row, and a More models row with search.
   The model list matches the field width and scrolls within a fixed height limit.

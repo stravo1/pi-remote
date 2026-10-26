@@ -8,7 +8,7 @@ import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { PiAdapter } from "../src/pi-adapter.ts";
 import { SessionSummaryJob } from "../src/session-summary-job.ts";
 
-async function setup(context: TestContext, responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0]) {
+async function setup(context: TestContext, responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0], summaryDelay = 60_000) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-adapter-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
   const faux = fauxProvider({ models: [{ id: "first" }, { id: "second", reasoning: true }] });
@@ -16,7 +16,7 @@ async function setup(context: TestContext, responses: Parameters<ReturnType<type
   const modelRuntime = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
   modelRuntime.registerNativeProvider(faux.provider);
   await modelRuntime.setRuntimeApiKey(faux.provider.id, "test");
-  const adapter = new PiAdapter({ agentDir: directory, modelRuntime, model: faux.getModel() }, join(directory, "sessions"));
+  const adapter = new PiAdapter({ agentDir: directory, modelRuntime, model: faux.getModel() }, join(directory, "sessions"), summaryDelay);
   return { directory, faux, adapter };
 }
 
@@ -111,26 +111,21 @@ test("a queued message arriving after a run starts a new prompt", async (context
   assert.match(JSON.stringify(session.snapshot.messages), /A late follow-up/);
 });
 
-test("periodically saves a summary without changing the transcript and skips unchanged messages", async (context) => {
+test("updates the summary after the conversation changes without polling", async (context) => {
   const { directory, adapter, faux } = await setup(context, [
     fauxAssistantMessage("Done."), fauxAssistantMessage("Update session summaries"),
-  ]);
+  ], 10);
   const session = await adapter.create(directory);
   context.after(() => session.close());
   await session.prompt("Add session summaries");
   const messages = session.snapshot.messages;
-  context.mock.timers.enable({ apis: ["setInterval"] });
-  const periodic = new SessionSummaryJob(session.session, () => session.is_running);
-  context.after(() => periodic.close());
-  context.mock.timers.tick(60_000);
-  await periodic.update();
+  assert.equal(faux.state.callCount, 1);
+  for (let attempt = 0; attempt < 100 && faux.state.callCount < 2; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
   assert.equal((await adapter.list(directory))[0].name, "Update session summaries");
   assert.deepEqual(session.snapshot.messages, messages);
-  await periodic.update();
-  assert.equal(faux.state.callCount, 2);
-  await periodic.close();
-  context.mock.timers.tick(60_000);
-  await periodic.update();
+  await new Promise((resolve) => setTimeout(resolve, 30));
   assert.equal(faux.state.callCount, 2);
 });
 
