@@ -57,7 +57,7 @@ function openGroupDialog(): void {
     <template v-else>
       <header class="flex h-14 shrink-0 items-center gap-1 border-b border-outline-gray-1 px-2 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <Button variant="ghost" size="lg" class="sm:hidden" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
-        <h1 :class="['min-w-0 flex-1 truncate text-lg font-medium sm:text-base', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-amber-3']">
+        <h1 :class="['min-w-0 flex-1 truncate text-base font-medium', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-amber-3']">
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
         <span v-if="workspace.transcript.is_running" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-green-7" role="status" aria-label="Working" />

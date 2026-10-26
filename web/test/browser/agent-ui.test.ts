@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { preview } from "vite";
-import { chromium, type Page, type WebSocketRoute } from "playwright";
+import { chromium, type Locator, type Page, type WebSocketRoute } from "playwright";
 
 const settings = {
   model: { provider: "faux", id: "first", name: "First model" },
@@ -24,6 +24,10 @@ async function waitFor(check: () => Promise<boolean>): Promise<void> {
 
 async function checkWidth(page: Page): Promise<void> {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+}
+
+async function getFontSize(locator: Locator): Promise<number> {
+  return locator.evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
 }
 
 async function screenshot(page: Page, name: string): Promise<void> {
@@ -94,6 +98,7 @@ for (const width of [375, 1280]) {
     await dialog.getByRole("button", { name: "More models" }).click();
     await screenshot(page, `model-picker-${width}`);
     await checkWidth(page);
+    if (width === 375) assert.ok(await getFontSize(page.getByPlaceholder("Search models")) >= 16);
     await page.getByPlaceholder("Search models").fill("reasoner");
     assert.equal(await page.getByRole("option").count(), 1);
     await page.getByRole("option", { name: /Second model/ }).click();
@@ -103,6 +108,7 @@ for (const width of [375, 1280]) {
     await waitFor(async () => state.thinkingLevel === "high");
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
+    if (width === 375) assert.ok(await getFontSize(page.getByRole("textbox", { name: "Message", exact: true })) >= 16);
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Start work");
     await page.getByRole("button", { name: "Send prompt" }).click();
     await page.getByRole("button", { name: "Stop run" }).waitFor();
