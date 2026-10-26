@@ -52,5 +52,6 @@ function onEnter(event: KeyboardEvent): void {
       <Button v-if="isRunning" type="button" variant="solid" size="lg" class="shrink-0 !rounded-full" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
       <Button type="submit" variant="solid" size="lg" class="shrink-0 !rounded-full" icon="lucide-arrow-up" :aria-label="isRunning ? (mode === 'steer' ? 'Send steer' : 'Send follow-up') : 'Send prompt'" :disabled="!canSend" :loading="isSending" />
     </div>
+    <div class="hidden justify-end sm:flex"><slot name="settings" /></div>
   </form>
 </template>

@@ -85,12 +85,12 @@ for (const width of [375, 1280]) {
     });
     const address = server.httpServer.address();
     assert.ok(address && typeof address === "object");
-    await page.goto(`http://127.0.0.1:${address.port}/${width === 375 ? "" : "#one"}`);
-    if (width === 375) await page.getByRole("button", { name: /Example/ }).click();
+    await page.goto(`http://127.0.0.1:${address.port}/`);
+    await page.getByRole("button", { name: /Example/ }).click();
     await page.getByText("File diff", { exact: true }).waitFor();
     assert.equal(await page.locator(".hljs-keyword").textContent(), "const");
     await checkWidth(page);
-    await page.getByRole("button", { name: "Session settings", exact: true }).click();
+    await page.getByRole("button", { name: width === 375 ? "Session settings" : /First model/ }).click();
     const dialog = page.locator("[data-session-settings]");
     await dialog.waitFor();
     await checkWidth(page);
@@ -124,11 +124,9 @@ for (const width of [375, 1280]) {
     await screenshot(page, `agent-${width}`);
     await page.getByRole("button", { name: "Stop run" }).click();
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
-    if (width === 375) {
-      await page.getByRole("button", { name: "All sessions" }).click();
-      await page.getByRole("button", { name: /Example/ }).waitFor();
-      await screenshot(page, `sessions-${width}`);
-    }
+    await page.getByRole("button", { name: "All sessions" }).click();
+    await page.getByRole("button", { name: /Example/ }).waitFor();
+    await screenshot(page, `sessions-${width}`);
     assert.deepEqual(errors, []);
   });
 }
