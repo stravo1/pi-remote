@@ -25,6 +25,7 @@ let isClosing = false;
 async function close(): Promise<void> {
   if (isClosing) return;
   isClosing = true;
+  await adapter.cancelProviderLogins();
   await hub.close();
   await transport.close();
 }

@@ -206,3 +206,19 @@ test("starting a provider login cancels the login that is still waiting", async 
   assert.deepEqual(started, ["openai-0", "openai-1"]);
   assert.deepEqual(events, []);
 });
+
+test("cancelling all provider logins releases every waiting login", async () => {
+  let isWaiting = true;
+  const modelRuntime = {
+    getProvider: () => ({ auth: { oauth: {} } }),
+    refresh: async () => undefined,
+    login: (_provider: string, _type: string, interaction: { signal: AbortSignal }) => new Promise<void>((_resolve, reject) => {
+      interaction.signal.addEventListener("abort", () => { isWaiting = false; reject(new Error("Login cancelled")); });
+    }),
+  };
+  const adapter = new PiAdapter({ modelRuntime: modelRuntime as never });
+  adapter.startProviderLogin("openai", "oauth", () => undefined);
+  await new Promise((resolve) => setImmediate(resolve));
+  await adapter.cancelProviderLogins();
+  assert.equal(isWaiting, false);
+});

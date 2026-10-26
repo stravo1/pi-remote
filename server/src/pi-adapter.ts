@@ -239,6 +239,12 @@ export class PiAdapter {
     answer(value);
   }
 
+  cancelProviderLogins(): Promise<unknown> {
+    const pending = [...this.logins.values()];
+    for (const login of pending) login.controller.abort();
+    return Promise.allSettled(pending.map((login) => login.settled));
+  }
+
   cancelProviderLogin(loginId: string): void {
     const login = this.logins.get(loginId);
     if (!login) throw new Error("Unknown login.");
