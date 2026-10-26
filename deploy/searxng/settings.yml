@@ -5,5 +5,35 @@ server:
   limiter: false
   bind_address: "127.0.0.1"
   port: 8888
+  image_proxy: true
 search:
   formats: [html, json]
+  default_lang: "en"
+outgoing:
+  # Slow engines often take longer than the default 2 s. Cut a slow engine off
+  # instead of failing the whole request.
+  request_timeout: 6.0
+  max_request_timeout: 10.0
+  useragent_suffix: "(+https://github.com/searxng/searxng)"
+# Re-enable the engines that the default settings ship disabled, and seed the
+# ones that give the best hit rate with the lowest wait.
+engines:
+  - name: duckduckgo web
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: yandex
+    disabled: false
+  - name: seznam
+    disabled: true # Engine hardcodes a 3 s timeout and still times out or gets a 429.
+  - name: wiby
+    disabled: false
+  - name: yep
+    disabled: false
+    weight: 1.5
+  - name: brave
+    weight: 2.0
+  - name: google cse
+    weight: 2.0
