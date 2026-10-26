@@ -24,7 +24,7 @@ Set `projects[0]` in `config.local.json` to your project's absolute path.
 The example selects the OpenRouter model from the spike.
 Add its credentials through pi before you start the server.
 You can also select another model or omit `model` to use pi's settings.
-The server does not send credentials to the browser.
+The provider list never contains keys. The server sends a saved API key to the browser only when you open its edit row in settings.
 
 For development, start the backend with automatic restart in one terminal:
 
@@ -42,6 +42,15 @@ Open the `origin` from your local configuration. The example uses `http://127.0.
 Vite reads the same configuration and proxies `/api` and `/ws` to the backend.
 It adds the configured user header for local WebSocket connections. No Caddy or Authelia is needed for development.
 The development server listens only on loopback.
+
+To open it from a phone on the same network, add `--lan`:
+
+```sh
+npm run dev -w web -- "$PWD/config.local.json" --lan
+```
+
+Vite prints a Network URL, such as `http://192.168.1.5:8080`. Open that address on the phone.
+With `--lan`, anyone on the network can use pi through this server without a login. Use it only on a network you trust.
 Both commands take the same configuration path. Restart them after changing that file.
 Changes to Vue components and styles reload through Vite without a frontend build.
 

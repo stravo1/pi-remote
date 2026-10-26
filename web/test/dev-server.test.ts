@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { test } from "node:test";
+import { test, type TestContext } from "node:test";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
@@ -40,55 +40,60 @@ async function waitForProxy(url: string, getOutput: () => string): Promise<void>
   throw new Error(`The development proxy did not become ready: ${getOutput()}`);
 }
 
+async function startDevServer(context: TestContext, flags: string[] = []) {
+  const directory = await mkdtemp(join(tmpdir(), "pi-remote-dev-test-"));
+  const configuration: Configuration = {
+    host: "127.0.0.1",
+    port: 7710,
+    origin: `http://127.0.0.1:${await getFreePort()}`,
+    allowedUser: "local-test-user",
+    projectsRoot: directory,
+    idleMinutes: 30,
+  };
+  const source = new FakeSource();
+  source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1 });
+  const store = { root: directory, list: async () => [directory] } as unknown as ProjectStore;
+  const hub = new SessionHub(source, configuration, () => {}, store);
+  const transport = new Transport(hub, configuration, directory, 10_000);
+  transport.server.listen(0, configuration.host);
+  await once(transport.server, "listening");
+  const address = transport.server.address();
+  assert.ok(address && typeof address === "object");
+  configuration.port = address.port;
+  const path = join(directory, "configuration.json");
+  await writeFile(path, JSON.stringify(configuration));
+  const child = spawn(process.execPath, ["dev.ts", path, ...flags], {
+    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  let output = "";
+  child.stdout.on("data", (data) => {
+    output += data;
+  });
+  child.stderr.on("data", (data) => {
+    output += data;
+  });
+  const clients: WebSocket[] = [];
+  context.after(async () => {
+    for (const client of clients) client.terminate();
+    if (child.exitCode === null) {
+      const stopped = once(child, "exit");
+      child.kill("SIGTERM");
+      await stopped;
+    }
+    await hub.close();
+    await transport.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await waitForProxy(configuration.origin, () => output);
+  return { configuration, source, clients, getOutput: () => output };
+}
+
 test(
   "the UI dev command proxies HTTP and authenticated WebSockets while preserving Origin checks",
   { timeout: 25_000 },
   async (context) => {
-    const directory = await mkdtemp(join(tmpdir(), "pi-remote-dev-test-"));
-    const configuration: Configuration = {
-      host: "127.0.0.1",
-      port: 7710,
-      origin: `http://127.0.0.1:${await getFreePort()}`,
-      allowedUser: "local-test-user",
-      projectsRoot: directory,
-      idleMinutes: 30,
-    };
-    const source = new FakeSource();
-    source.stored.push({ id: "stored", path: "/s/stored", project: directory, firstMessage: "Hello", modified: 1 });
-    const store = { root: directory, list: async () => [directory] } as unknown as ProjectStore;
-    const hub = new SessionHub(source, configuration, () => {}, store);
-    const transport = new Transport(hub, configuration, directory, 10_000);
-    transport.server.listen(0, configuration.host);
-    await once(transport.server, "listening");
-    const address = transport.server.address();
-    assert.ok(address && typeof address === "object");
-    configuration.port = address.port;
-    const path = join(directory, "configuration.json");
-    await writeFile(path, JSON.stringify(configuration));
-    const child = spawn(process.execPath, ["dev.ts", path], {
-      cwd: fileURLToPath(new URL("..", import.meta.url)),
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let output = "";
-    child.stdout.on("data", (data) => {
-      output += data;
-    });
-    child.stderr.on("data", (data) => {
-      output += data;
-    });
-    const clients: WebSocket[] = [];
-    context.after(async () => {
-      for (const client of clients) client.terminate();
-      if (child.exitCode === null) {
-        const stopped = once(child, "exit");
-        child.kill("SIGTERM");
-        await stopped;
-      }
-      await hub.close();
-      await transport.close();
-      await rm(directory, { recursive: true, force: true });
-    });
-    await waitForProxy(configuration.origin, () => output);
+    const { configuration, source, clients } = await startDevServer(context);
     const page = await fetch(configuration.origin);
     assert.match(await page.text(), /\/src\/main.ts/);
     const url = `${configuration.origin.replace("http:", "ws:")}/ws`;
@@ -115,3 +120,18 @@ test(
     await assert.rejects(once(denied, "open"), /403/);
   },
 );
+
+test("--lan accepts same-address IP origins and still rejects other sites", { timeout: 25_000 }, async (context) => {
+  const { configuration, clients, getOutput } = await startDevServer(context, ["--lan"]);
+  assert.match(getOutput(), /without a login/);
+  const port = new URL(configuration.origin).port;
+  const url = `${configuration.origin.replace("http:", "ws:")}/ws`;
+  const connect = (origin: string, host: string) => {
+    const socket = new WebSocket(url, { origin, headers: { host } });
+    clients.push(socket);
+    return once(socket, "open");
+  };
+  await connect(`http://192.168.1.5:${port}`, `192.168.1.5:${port}`);
+  await assert.rejects(connect("https://other.example.com", `192.168.1.5:${port}`), /403/);
+  await assert.rejects(connect(`http://rebind.example.com:${port}`, `rebind.example.com:${port}`), /403/);
+});
