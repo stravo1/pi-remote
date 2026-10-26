@@ -9,6 +9,7 @@ const props = defineProps<{ disabled: boolean; isSending: boolean; isRunning: bo
 const emit = defineEmits<{ send: [text: string]; steer: [text: string]; abort: [] }>();
 const text = ref("");
 const root = ref<HTMLElement>();
+const queueList = ref<HTMLElement>();
 const canSend = computed(() => !props.disabled && text.value.trim() !== "");
 const hasKeyboard = window.matchMedia("(pointer: fine)").matches;
 const maxHeight = 160;
@@ -19,6 +20,12 @@ watch(text, async () => {
   if (!element) return;
   element.style.height = "auto";
   element.style.height = `${Math.min(element.scrollHeight, maxHeight)}px`;
+});
+
+watch(() => props.queue.followUp.length, async (count, previous) => {
+  if (count <= previous) return;
+  await nextTick();
+  queueList.value?.scrollTo({ top: queueList.value.scrollHeight });
 });
 
 function submit(): void {
@@ -37,7 +44,7 @@ function onEnter(event: KeyboardEvent): void {
 <template>
   <form ref="root" class="mx-auto w-full max-w-2xl shrink-0 space-y-2 px-3 pt-2 sm:space-y-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
     <Alert v-if="error" role="alert" theme="red" :title="error" />
-    <ul v-if="queue.steering.length || queue.followUp.length" class="max-h-[7.625rem] divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1 text-p-sm" aria-label="Queued messages">
+    <ul v-if="queue.steering.length || queue.followUp.length" ref="queueList" class="max-h-[7.625rem] divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1 text-p-sm" aria-label="Queued messages">
       <li v-for="(message, index) in queue.steering" :key="`steer-${index}`" class="flex min-h-10 items-start gap-2 px-3 py-2">
         <span class="lucide-corner-down-right mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After the current turn" />
         <p class="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
