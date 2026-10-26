@@ -8,20 +8,36 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 async function showNotice(notice) {
-  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-  // Focus is not required: on mobile the app is often on screen without the
-  // browser reporting focus (after app switching, with the keyboard up), and a
-  // notice for the thread the reader is looking at is noise either way.
-  const isWatching = windows.some(
-    (client) => client.visibilityState === "visible" && new URL(client.url).hash === `#${notice.sessionId}`,
-  );
-  if (notice.sessionId && isWatching) return;
+  // A client's `url` is its creation URL, which a same-document hash change
+  // never updates, so it cannot say which session the page shows. Ask instead.
+  if (notice.sessionId && (await isSessionOnScreen(notice.sessionId))) return;
   await self.registration.showNotification(notice.title || "pi remote", {
     body: notice.body,
     tag: notice.sessionId || "pi-remote",
     icon: "/icon-192.png",
     data: { sessionId: notice.sessionId },
   });
+}
+
+async function isSessionOnScreen(sessionId) {
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const replies = [];
+  const reply = (event) => {
+    if (event.data?.type === "viewing_session") replies.push(event.data);
+  };
+  self.addEventListener("message", reply);
+  try {
+    for (const client of windows) client.postMessage({ type: "which_session" });
+    // The push handler must not stall, so bound the wait for page replies.
+    const deadline = Date.now() + 400;
+    while (Date.now() < deadline) {
+      if (replies.some((r) => r.visible && r.sessionId === sessionId)) return true;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return replies.some((r) => r.visible && r.sessionId === sessionId);
+  } finally {
+    self.removeEventListener("message", reply);
+  }
 }
 
 async function openSession(sessionId) {

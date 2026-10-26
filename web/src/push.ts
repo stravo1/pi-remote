@@ -1,4 +1,22 @@
 // Web Push needs a service worker. iOS offers it only in an app added to the Home Screen.
+
+/**
+ * Answers the worker's "which session is on screen?" during a push. The worker
+ * cannot read the page's hash itself: a client's url is its creation URL, and
+ * a same-document hash change never updates it.
+ */
+export function answerSessionQueries(): void {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type !== "which_session") return;
+    event.source?.postMessage({
+      type: "viewing_session",
+      sessionId: location.hash.slice(1),
+      visible: document.visibilityState === "visible",
+    });
+  });
+}
+
 export class DevicePush {
   get is_supported(): boolean {
     return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
