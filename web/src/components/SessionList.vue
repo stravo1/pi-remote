@@ -19,13 +19,13 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
   <div class="flex min-h-0 flex-1 flex-col">
     <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
       <div class="flex h-14 w-full items-center gap-3 px-4 sm:h-11">
-      <NewGroupForm v-if="isCreatingGroup" class="min-w-0 flex-1" :error="error" @submit="(name) => $emit('createGroup', name)" @cancel="isCreatingGroup = false" />
-      <template v-else>
-      <span class="size-8 shrink-0"><PiLogo /></span>
-      <div class="min-w-0 flex-1">
+      <span :class="['size-8 shrink-0', { 'max-sm:hidden': isCreatingGroup }]"><PiLogo /></span>
+      <div :class="['min-w-0 flex-1', { 'max-sm:hidden': isCreatingGroup }]">
         <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
         <p :class="['text-p-xs', status === 'connected' ? 'text-ink-gray-5' : 'text-ink-gray-5']">{{ statusLabels[status] }}</p>
       </div>
+      <NewGroupForm v-if="isCreatingGroup" class="min-w-0 flex-1 sm:max-w-sm" :error="error" @submit="(name) => $emit('createGroup', name)" @cancel="isCreatingGroup = false" />
+      <template v-else>
       <Button v-if="canCreateGroups" variant="ghost" icon="lucide-folder-plus" aria-label="New project" @click="isCreatingGroup = true" />
       <Button variant="ghost" icon="lucide-settings" aria-label="Settings" @click="$emit('settings')" />
       </template>
