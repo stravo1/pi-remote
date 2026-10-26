@@ -75,11 +75,11 @@ function saveKey(): void {
         <section class="space-y-3" aria-labelledby="providers-heading">
           <div class="flex items-center gap-2">
             <h2 id="providers-heading" class="min-w-0 flex-1 text-base font-medium text-ink-gray-9">Providers</h2>
-            <Button variant="subtle" icon="lucide-plus" aria-label="Add provider" @click="isAdding = true" />
+            <Button variant="ghost" icon="lucide-plus" aria-label="Add provider" @click="isAdding = true" />
           </div>
           <div
             v-if="!connected.length"
-            class="flex flex-col items-center gap-2 rounded-4 border border-dashed border-outline-gray-2 px-4 py-10 text-center"
+            class="flex flex-col items-center gap-2 rounded-4 bg-surface-gray-1 px-4 py-10 text-center"
           >
             <span class="lucide-key-round size-6 text-ink-gray-4" aria-hidden="true" />
             <p class="text-base font-medium text-ink-gray-9">No providers connected</p>
@@ -87,10 +87,14 @@ function saveKey(): void {
           </div>
           <ul
             v-else
-            class="divide-y divide-outline-gray-1 rounded-4 border border-outline-gray-2"
+            class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
             aria-label="Connected providers"
           >
-            <li v-for="provider in connected" :key="provider.id" class="flex min-h-16 items-center gap-3 px-4 py-3">
+            <li
+              v-for="provider in connected"
+              :key="provider.id"
+              class="flex min-h-14 items-center gap-3 px-4 py-2 sm:min-h-12"
+            >
               <form
                 v-if="editingId === provider.id"
                 class="flex w-full items-center gap-2"
@@ -115,10 +119,7 @@ function saveKey(): void {
                 />
               </form>
               <template v-else>
-                <div class="min-w-0 flex-1">
-                  <h3 class="truncate text-base font-medium text-ink-gray-9">{{ provider.name }}</h3>
-                  <p class="truncate text-p-sm text-ink-gray-5">{{ provider.source ?? provider.id }}</p>
-                </div>
+                <h3 class="min-w-0 flex-1 truncate text-base text-ink-gray-9">{{ provider.name }}</h3>
                 <Button
                   v-if="provider.isUsingApiKey && provider.authTypes.includes('api_key')"
                   variant="ghost"
@@ -139,7 +140,7 @@ function saveKey(): void {
         </section>
         <section class="space-y-3" aria-labelledby="appearance-heading">
           <h2 id="appearance-heading" class="text-base font-medium text-ink-gray-9">Appearance</h2>
-          <div class="flex items-center gap-3 rounded-4 border border-outline-gray-2 px-4 py-3">
+          <div class="flex min-h-14 items-center gap-3 rounded-4 bg-surface-gray-1 px-4 py-2 sm:min-h-12">
             <span id="theme-label" class="min-w-0 flex-1 text-base text-ink-gray-9">Theme</span>
             <Select
               class="w-32"
