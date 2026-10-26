@@ -198,8 +198,23 @@ export class PiAdapter {
     const runtime = this.getModelRuntime();
     const target = runtime.getProvider(provider);
     if (!target?.auth.apiKey?.login) throw new Error("This provider does not accept an API key.");
-    await runtime.setRuntimeApiKey(provider, apiKey);
+    let isAnswered = false;
+    await runtime.login(provider, "api_key", {
+      notify: () => undefined,
+      prompt: async (prompt) => {
+        if (isAnswered || prompt.type !== "secret") throw new Error("This provider needs guided setup.");
+        isAnswered = true;
+        return apiKey;
+      },
+    });
+    await runtime.removeRuntimeApiKey(provider);
     await runtime.refresh({ providers: [provider], allowNetwork: false });
+  }
+
+  async getProviderApiKey(provider: string): Promise<string> {
+    const runtime = this.getModelRuntime();
+    if (runtime.isUsingOAuth(provider)) throw new Error("This provider does not use an API key.");
+    return (await runtime.getAuth(provider))?.auth.apiKey ?? "";
   }
 
   async logoutProvider(provider: string): Promise<void> {

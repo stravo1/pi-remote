@@ -47,8 +47,8 @@ function closeProviderSettings(): void {
 <template>
   <div class="flex h-dvh min-h-0 flex-col bg-surface-base text-ink-gray-8">
     <ToastProvider />
-    <ProviderSettings v-if="isProviderSettingsOpen" :providers="workspace.providers" :login="workspace.providerLogin" :error="workspace.error"
-      @back="closeProviderSettings" @save-key="(provider, key) => workspace.setProviderKey(provider, key)" @logout="(provider) => workspace.logoutProvider(provider)"
+    <ProviderSettings v-if="isProviderSettingsOpen" :providers="workspace.providers" :login="workspace.providerLogin" :error="workspace.error" :provider-key="workspace.providerKey"
+      @back="closeProviderSettings" @save-key="(provider, key) => workspace.setProviderKey(provider, key)" @load-key="(provider) => workspace.getProviderKey(provider)" @logout="(provider) => workspace.logoutProvider(provider)"
       @login="(provider, type) => workspace.startProviderLogin(provider, type)" @answer="(value) => workspace.submitProviderLogin(value)" @cancel="() => workspace.cancelProviderLogin()" />
     <SessionList v-else-if="!workspace.sessionId" :projects="workspace.projects" :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot" :error="workspace.error" @select="(id) => workspace.select(id)"

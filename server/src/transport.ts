@@ -24,6 +24,7 @@ interface Command {
 export interface ProviderManager {
   getProviderSettings: PiAdapter["getProviderSettings"];
   setProviderApiKey: PiAdapter["setProviderApiKey"];
+  getProviderApiKey: PiAdapter["getProviderApiKey"];
   logoutProvider: PiAdapter["logoutProvider"];
   startProviderLogin: PiAdapter["startProviderLogin"];
   submitProviderLogin: PiAdapter["submitProviderLogin"];
@@ -112,6 +113,7 @@ export class Transport {
       abort: () => this.hub.abort(requireSessionId(command)),
       list_providers: () => this.listProviders(client),
       set_provider_key: () => this.setProviderKey(client, command),
+      get_provider_key: () => this.getProviderKey(client, command),
       logout_provider: () => this.logoutProvider(client, command),
       start_provider_login: () => this.startProviderLogin(client, command),
       submit_provider_login: () => this.submitProviderLogin(command),
@@ -126,6 +128,11 @@ export class Transport {
   private async setProviderKey(client: HubClient, command: Command): Promise<void> {
     await this.requireProviders().setProviderApiKey(requireString(command.provider), requireString(command.apiKey));
     await this.listProviders(client);
+  }
+
+  private async getProviderKey(client: HubClient, command: Command): Promise<void> {
+    const provider = requireString(command.provider);
+    client.send(JSON.stringify({ type: "provider_key", provider, apiKey: await this.requireProviders().getProviderApiKey(provider) }));
   }
 
   private async logoutProvider(client: HubClient, command: Command): Promise<void> {

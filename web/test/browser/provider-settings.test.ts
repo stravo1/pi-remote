@@ -33,6 +33,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
           id: "openai", name: "OpenAI", authTypes: ["api_key", "oauth"], accountLabel: "Sign in with ChatGPT", isConfigured: command.type === "set_provider_key", isUsingApiKey: command.type === "set_provider_key",
         }, { id: "groq", name: "Groq", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }] }));
       }
+      if (command.type === "get_provider_key") socket.send(JSON.stringify({ type: "provider_key", provider: command.provider, apiKey: "not-a-real-key" }));
       if (command.type === "start_provider_login" && command.authType === "api_key") {
         socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-two" }));
         socket.send(JSON.stringify({ type: "provider_login_event", loginId: "login-two", event: { type: "failed", message: "Setup failed." } }));
@@ -60,6 +61,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   assert.ok(commands.some((command) => command.type === "set_provider_key"));
   await page.getByRole("list", { name: "Connected providers" }).getByText("OpenAI", { exact: true }).waitFor();
   await page.getByRole("button", { name: "Edit key" }).click();
+  await page.waitForFunction(() => document.querySelector<HTMLInputElement>("input[aria-label='OpenAI API key']")?.value === "not-a-real-key");
   await page.getByLabel("OpenAI API key").fill("another-key");
   await page.getByRole("button", { name: "Save key" }).click();
   for (let attempt = 0; attempt < 100 && !commands.some((command) => command.apiKey === "another-key"); attempt++) {

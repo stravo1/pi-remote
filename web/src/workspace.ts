@@ -16,6 +16,7 @@ export class Workspace {
   settings?: SessionSettings;
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
+  providerKey?: { provider: string; apiKey: string };
   private isSyncing = false;
   private lastSequence = 0;
   private connection?: Connection;
@@ -71,8 +72,14 @@ export class Workspace {
     this.run({ type: "list_providers" });
   }
 
+  getProviderKey(provider: string): void {
+    this.providerKey = undefined;
+    this.run({ type: "get_provider_key", provider });
+  }
+
   setProviderKey(provider: string, apiKey: string): void {
     this.error = "";
+    this.providerKey = undefined;
     this.run({ type: "set_provider_key", provider, apiKey });
   }
 
@@ -125,6 +132,7 @@ export class Workspace {
     switch (message.type) {
       case "sessions": this.projects = message.projects; this.groupsRoot = message.groupsRoot; break;
       case "providers": this.providers = message.providers; break;
+      case "provider_key": this.providerKey = { provider: message.provider, apiKey: message.apiKey }; break;
       case "provider_login_started": this.providerLogin = { id: message.loginId }; break;
       case "provider_login_event": this.handleProviderLoginEvent(message); break;
       case "group_created": this.lastGroup = message.project; this.createSession(message.project); break;

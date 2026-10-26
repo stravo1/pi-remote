@@ -190,6 +190,14 @@ test("provider settings mark providers that use an API key", async (context) => 
   assert.equal(faux?.isUsingApiKey, true);
 });
 
+test("saved provider keys persist and can be read back", async (context) => {
+  const { directory, adapter } = await setup(context, []);
+  await adapter.setProviderApiKey("openai", "saved-key");
+  assert.equal(await adapter.getProviderApiKey("openai"), "saved-key");
+  const restarted = await ModelRuntime.create({ authPath: join(directory, "auth.json"), refreshOnCreate: false });
+  assert.equal((await restarted.getAuth("openai"))?.auth.apiKey, "saved-key");
+});
+
 test("starting a provider login cancels the login that is still waiting", async () => {
   const started: string[] = [];
   const aborted: string[] = [];

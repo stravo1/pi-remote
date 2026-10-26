@@ -191,6 +191,7 @@ test("lists provider status and keeps login prompts separate from credentials", 
   const providers = {
     getProviderSettings: async () => [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }],
     setProviderApiKey: async (provider: string, key: string) => { received.push(`${provider}:${key}`); },
+    getProviderApiKey: async (provider: string) => `${provider}-key`,
     logoutProvider: async (provider: string) => { received.push(`logout:${provider}`); },
     startProviderLogin: (_provider: string, _type: string, notify: (event: any) => void) => {
       notify({ type: "prompt", prompt: { type: "secret", message: "API key" } });
@@ -205,6 +206,7 @@ test("lists provider status and keeps login prompts separate from credentials", 
   assert.deepEqual(list, { type: "providers", providers: [{ id: "faux", name: "Faux", authTypes: ["api_key"], isConfigured: false, isUsingApiKey: false }] });
   await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
   assert.deepEqual(received, ["faux:secret"]);
+  assert.deepEqual(await request(socket, { type: "get_provider_key", provider: "faux" }), { type: "provider_key", provider: "faux", apiKey: "faux-key" });
   const loginMessages: any[] = [];
   const recordMessage = (message: Buffer) => loginMessages.push(JSON.parse(message.toString()));
   socket.on("message", recordMessage);

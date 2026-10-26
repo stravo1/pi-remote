@@ -4,10 +4,14 @@ import { Button, TextInput, toast } from "frappe-ui";
 import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
 
-const props = defineProps<{ providers: Provider[]; login?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent }; error: string }>();
+const props = defineProps<{
+  providers: Provider[]; error: string; providerKey?: { provider: string; apiKey: string };
+  login?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
+}>();
 const emit = defineEmits<{
   back: [];
   saveKey: [provider: string, key: string];
+  loadKey: [provider: string];
   logout: [provider: string];
   login: [provider: string, type: "api_key" | "oauth"];
   answer: [value: string];
@@ -20,10 +24,14 @@ const connected = computed(() => props.providers.filter((provider) => provider.i
 
 onBeforeUnmount(() => { if (props.login) emit("cancel"); });
 watch(() => props.error, (message) => { if (message) toast.error(message); });
+watch(() => props.providerKey, (loaded) => {
+  if (loaded && loaded.provider === editingId.value && !key.value) key.value = loaded.apiKey;
+});
 
 function editKey(provider: string): void {
   key.value = "";
   editingId.value = provider;
+  emit("loadKey", provider);
 }
 
 function saveKey(): void {
@@ -67,7 +75,7 @@ function saveKey(): void {
               <p class="truncate text-p-sm text-ink-gray-5">{{ provider.source ?? provider.id }}</p>
             </div>
             <Button v-if="provider.isUsingApiKey && provider.authTypes.includes('api_key')" variant="ghost" icon="lucide-pencil" aria-label="Edit key" @click="editKey(provider.id)" />
-            <Button variant="ghost" theme="red" label="Sign out" @click="emit('logout', provider.id)" />
+            <Button variant="ghost" theme="red" icon="lucide-trash-2" aria-label="Sign out" @click="emit('logout', provider.id)" />
             </template>
           </li>
         </ul>
