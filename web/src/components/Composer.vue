@@ -94,7 +94,7 @@ function onEnter(event: KeyboardEvent): void {
           </li>
         </ul>
       </div>
-      <div class="flex items-end gap-1.5 px-2 py-1.5 sm:px-1.5">
+      <div class="flex items-end gap-1.5 px-2 py-2 sm:px-1.5 sm:py-1.5">
         <Textarea
           v-model="text"
           class="min-w-0 flex-1 resize-none !py-2 sm:!min-h-10 sm:!py-1.5 !text-lg sm:!text-p-base"

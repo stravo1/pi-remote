@@ -205,6 +205,15 @@ for (const width of [375, 1280]) {
     await page.keyboard.press("Escape");
     if (width === 375)
       assert.ok((await getFontSize(page.getByRole("textbox", { name: "Message", exact: true }))) >= 16);
+    if (width === 375) {
+      const rowHeight = (selector: string) =>
+        page
+          .locator(selector)
+          .first()
+          .evaluate((row) => row.getBoundingClientRect().height);
+      assert.equal(await rowHeight("header > div"), 56);
+      assert.equal(await rowHeight("form > div > div:last-child"), 56);
+    }
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Start work");
     await page.getByRole("button", { name: "Send prompt" }).click();
     await page.getByRole("button", { name: "Stop run" }).waitFor();
