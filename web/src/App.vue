@@ -42,10 +42,10 @@ function openGroupDialog(): void {
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
         <div class="flex h-14 w-full items-center gap-1 px-2 sm:h-11">
         <Button variant="ghost" size="lg" icon="lucide-arrow-left" aria-label="All sessions" @click="workspace.select('')" />
-        <h1 :class="['min-w-0 flex-1 truncate text-base font-medium', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-amber-3']">
+        <h1 :class="['min-w-0 flex-1 truncate text-base font-medium', workspace.status === 'connected' ? 'text-ink-gray-9' : 'text-ink-gray-5']">
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
-        <span v-if="workspace.transcript.is_running" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-green-7" role="status" aria-label="Working" />
+        <span v-if="workspace.transcript.is_running" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-gray-9" role="status" aria-label="Working" />
         <Button variant="ghost" size="lg" icon="lucide-plus" aria-label="New session"
           :disabled="!workspace.activeProjectPath" @click="workspace.createSession(workspace.activeProjectPath!)" />
         </div>

@@ -26,9 +26,9 @@ body { @apply bg-surface-base text-ink-gray-9; }
 .markdown th, .markdown td { @apply border border-outline-gray-2 px-2 py-1 text-left; }
 .markdown th { @apply bg-surface-gray-1 font-medium; }
 
-.markdown .hljs-keyword, .markdown .hljs-selector-tag, .markdown .hljs-literal { @apply font-medium text-ink-violet-2; }
-.markdown .hljs-string, .markdown .hljs-attr, .markdown .hljs-regexp { @apply text-ink-green-4; }
-.markdown .hljs-number, .markdown .hljs-symbol { @apply text-ink-orange-3; }
-.markdown .hljs-title, .markdown .hljs-built_in { @apply text-ink-blue-2; }
-.markdown .hljs-comment, .markdown .hljs-meta { @apply text-ink-gray-5; }
+.markdown .hljs-keyword, .markdown .hljs-selector-tag, .markdown .hljs-literal { @apply font-semibold text-ink-gray-9; }
+.markdown .hljs-string, .markdown .hljs-attr, .markdown .hljs-regexp { @apply text-ink-gray-6; }
+.markdown .hljs-number, .markdown .hljs-symbol { @apply text-ink-gray-6; }
+.markdown .hljs-title, .markdown .hljs-built_in { @apply font-medium text-ink-gray-9; }
+.markdown .hljs-comment, .markdown .hljs-meta { @apply italic text-ink-gray-5; }
 .markdown pre { @apply whitespace-pre-wrap break-all; }

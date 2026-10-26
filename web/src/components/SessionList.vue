@@ -19,7 +19,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
       <span class="size-8 shrink-0"><PiLogo /></span>
       <div class="min-w-0 flex-1">
         <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
-        <p :class="['text-p-xs', status === 'connected' ? 'text-ink-gray-5' : 'text-ink-amber-3']">{{ statusLabels[status] }}</p>
+        <p :class="['text-p-xs', status === 'connected' ? 'text-ink-gray-5' : 'text-ink-gray-5']">{{ statusLabels[status] }}</p>
       </div>
       <Button v-if="canCreateGroups" variant="subtle" icon-left="lucide-folder-plus" label="New group" @click="$emit('createGroup')" />
       </div>
@@ -39,7 +39,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
                   <span class="block truncate text-base text-ink-gray-9">{{ getSessionTitle(session) }}</span>
                   <time class="block text-p-xs text-ink-gray-5">{{ timeFormat.format(session.modified) }}</time>
                 </span>
-                <span v-if="session.isRunning" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-green-7" role="status" aria-label="Working" />
+                <span v-if="session.isRunning" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-gray-9" role="status" aria-label="Working" />
                 <span class="lucide-chevron-right size-5 shrink-0 text-ink-gray-4" aria-hidden="true" />
               </button>
             </li>
