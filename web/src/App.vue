@@ -46,6 +46,9 @@ function openGroupDialog(): void {
           {{ workspace.status === "connected" ? (workspace.activeSession ? getSessionTitle(workspace.activeSession) : "Session") : "Reconnecting…" }}
         </h1>
         <span v-if="workspace.transcript.is_running" class="size-2 shrink-0 animate-pulse rounded-full bg-surface-gray-9" role="status" aria-label="Working" />
+        <SessionSettingsMenu v-if="workspace.settings" :settings="workspace.settings" :is-running="workspace.transcript.is_running"
+          :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
+          @model="(value) => workspace.setModel(value)" @thinking="(level) => workspace.setThinkingLevel(level)" />
         <Button variant="ghost" size="lg" icon="lucide-plus" aria-label="New session"
           :disabled="!workspace.activeProjectPath" @click="workspace.createSession(workspace.activeProjectPath!)" />
         </div>
@@ -58,13 +61,7 @@ function openGroupDialog(): void {
       </section>
       <Composer :key="workspace.sessionId" class="max-sm:order-3" :disabled="workspace.is_disabled" :is-sending="workspace.isSending"
         :is-running="workspace.transcript.is_running" :error="workspace.error" :queue="workspace.transcript.queue"
-        @send="(text, mode) => workspace.sendPrompt(text, mode)" @abort="workspace.abort()">
-        <template #settings>
-          <SessionSettingsMenu v-if="workspace.settings" :settings="workspace.settings" :is-running="workspace.transcript.is_running"
-            :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
-            @model="(value) => workspace.setModel(value)" @thinking="(level) => workspace.setThinkingLevel(level)" />
-        </template>
-      </Composer>
+        @send="(text, mode) => workspace.sendPrompt(text, mode)" @abort="workspace.abort()" />
     </template>
   </div>
 </template>

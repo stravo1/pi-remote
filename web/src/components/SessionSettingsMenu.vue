@@ -17,7 +17,7 @@ watch(isOpen, (value) => { if (!value) view.value = "main"; });
 
 <template>
   <span class="contents">
-    <Popover v-if="isDesktop" v-model:open="isOpen" side="top" align="end">
+    <Popover v-if="isDesktop" v-model:open="isOpen" side="bottom" align="end">
       <template #trigger>
         <Button variant="ghost" size="lg" icon="lucide-sliders-horizontal" aria-label="Session settings" />
       </template>

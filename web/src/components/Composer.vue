@@ -45,11 +45,10 @@ function onEnter(event: KeyboardEvent): void {
       <Select v-model="mode" aria-label="Message mode" :options="[{ label: 'Follow-up', value: 'follow_up' }, { label: 'Steer', value: 'steer' }]" />
       <span class="text-p-xs text-ink-gray-5">{{ mode === 'steer' ? 'After the current turn' : 'After this run' }}</span>
     </div>
-    <div class="flex items-end gap-2 rounded-6 border border-outline-gray-2 bg-surface-base p-1.5 pl-4 shadow-sm transition-colors focus-within:border-outline-gray-4">
-      <Textarea v-model="text" class="min-w-0 flex-1 resize-none !bg-transparent !px-0 !py-2 !text-lg sm:!text-p-base" variant="ghost" :rows="1"
+    <div class="flex items-end gap-2 rounded-7 border border-outline-gray-2 bg-surface-base p-1.5 transition-colors hover:border-outline-gray-3 hover:shadow-sm focus-within:border-outline-gray-4 focus-within:shadow-sm">
+      <Textarea v-model="text" class="min-w-0 flex-1 resize-none !py-2.5 !text-lg sm:!text-p-base" variant="ghost" size="md" :rows="1"
         :disabled="disabled" aria-label="Message" :placeholder="isRunning ? 'Add a message while pi works' : 'Message pi'"
         @keydown.enter="onEnter" />
-      <slot name="settings" />
       <Button v-if="isRunning" type="button" variant="solid" size="lg" class="shrink-0" icon="lucide-square" aria-label="Stop run" @click="emit('abort')" />
       <Button type="submit" variant="solid" size="lg" class="shrink-0" icon="lucide-arrow-up" :aria-label="isRunning ? (mode === 'steer' ? 'Send steer' : 'Send follow-up') : 'Send prompt'" :disabled="!canSend" :loading="isSending" />
     </div>
