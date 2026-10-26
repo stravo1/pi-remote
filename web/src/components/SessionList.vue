@@ -17,7 +17,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <header class="shrink-0 border-b border-outline-gray-1">
+    <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
       <div class="flex h-14 w-full items-center gap-3 px-4 sm:h-11">
       <span class="size-8 shrink-0"><PiLogo /></span>
       <div class="min-w-0 flex-1">
@@ -28,9 +28,9 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
       <Button variant="ghost" icon="lucide-settings" aria-label="Settings" @click="$emit('settings')" />
       </div>
     </header>
-    <main class="min-h-0 flex-1 overflow-y-auto" aria-label="Sessions">
-      <div class="mx-auto min-h-full w-full max-w-2xl space-y-6 px-4 py-4 sm:space-y-3 sm:py-3 max-sm:flex max-sm:flex-col max-sm:justify-end">
-        <NewGroupForm v-if="isCreatingGroup" :error="error" @submit="(name) => $emit('createGroup', name)" @cancel="isCreatingGroup = false" />
+    <main class="min-h-0 flex-1 overflow-y-auto max-sm:order-1" aria-label="Sessions">
+      <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end">
+        <NewGroupForm v-if="isCreatingGroup" class="max-sm:order-last" :error="error" @submit="(name) => $emit('createGroup', name)" @cancel="isCreatingGroup = false" />
         <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
           <div class="mb-2 flex items-center gap-2">
             <h2 class="min-w-0 flex-1 truncate text-p-sm font-medium text-ink-gray-5">{{ getProjectName(project.path) }}</h2>
