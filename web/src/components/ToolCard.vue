@@ -8,7 +8,7 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
 </script>
 
 <template>
-  <div class="min-w-0 rounded-4 border border-outline-gray-2 text-base sm:text-p-sm" :aria-label="`${tool.name}: ${statusLabels[tool.status]}`">
+  <div class="min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-base sm:text-p-sm" :aria-label="`${tool.name}: ${statusLabels[tool.status]}`">
     <div class="flex items-start gap-2 bg-surface-gray-1 px-3 py-2">
       <span class="lucide-terminal mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
       <div class="min-w-0 flex-1">

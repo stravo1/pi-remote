@@ -29,7 +29,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { month: "short", day: "nu
             <h2 class="min-w-0 flex-1 truncate text-p-sm font-medium text-ink-gray-5">{{ getProjectName(project.path) }}</h2>
             <Button variant="ghost" icon-left="lucide-plus" label="New session" @click="$emit('create', project.path)" />
           </div>
-          <ul class="divide-y divide-outline-gray-1 rounded-4 bg-surface-gray-1">
+          <ul class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
             <li v-for="session in project.sessions" :key="session.id">
               <button type="button" class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left hover:bg-surface-gray-2 active:bg-surface-gray-3"
                 @click="$emit('select', session.id)">
