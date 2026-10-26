@@ -71,10 +71,12 @@ function saveKey(): void {
       </div>
     </header>
     <main class="min-h-0 flex-1 overflow-y-auto max-sm:order-1">
-      <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-5 px-4 py-5 sm:py-4 max-sm:justify-end">
-        <section class="space-y-3" aria-labelledby="providers-heading">
-          <div class="flex items-center gap-2">
-            <h2 id="providers-heading" class="min-w-0 flex-1 text-base font-medium text-ink-gray-9">Providers</h2>
+      <div
+        class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
+      >
+        <section aria-labelledby="providers-heading">
+          <div class="mb-2 flex min-h-7 items-center gap-1">
+            <h2 id="providers-heading" class="min-w-0 flex-1 py-1 text-p-sm font-medium text-ink-gray-5">Providers</h2>
             <Button variant="ghost" icon="lucide-plus" aria-label="Add provider" @click="isAdding = true" />
           </div>
           <div
@@ -129,7 +131,6 @@ function saveKey(): void {
                 />
                 <Button
                   variant="ghost"
-                  theme="red"
                   icon="lucide-trash-2"
                   aria-label="Sign out"
                   @click="emit('logout', provider.id)"
@@ -138,8 +139,12 @@ function saveKey(): void {
             </li>
           </ul>
         </section>
-        <section class="space-y-3" aria-labelledby="appearance-heading">
-          <h2 id="appearance-heading" class="text-base font-medium text-ink-gray-9">Appearance</h2>
+        <section aria-labelledby="appearance-heading">
+          <div class="mb-2 flex min-h-7 items-center gap-1">
+            <h2 id="appearance-heading" class="min-w-0 flex-1 py-1 text-p-sm font-medium text-ink-gray-5">
+              Appearance
+            </h2>
+          </div>
           <div class="flex min-h-14 items-center gap-3 rounded-4 bg-surface-gray-1 px-4 py-2 sm:min-h-12">
             <span id="theme-label" class="min-w-0 flex-1 text-base text-ink-gray-9">Theme</span>
             <Select
