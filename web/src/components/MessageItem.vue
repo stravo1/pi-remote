@@ -33,7 +33,7 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
       </details>
       <div
         v-else-if="message.role === 'notice'"
-        class="markdown notice"
+        class="markdown notice border-y border-outline-gray-2 py-2"
         role="note"
         v-html="renderMarkdown(message.content[0]?.text ?? '')"
       />
