@@ -18,7 +18,7 @@ const isLocked = computed(() => props.disabled || props.isRunning);
 const recentModels = computed(() => {
   const keys = props.settings.model ? [getModelKey(props.settings.model), ...recentKeys.value] : recentKeys.value;
   const models = [...new Set(keys)].map((key) => props.settings.models.find((model) => getModelKey(model) === key));
-  return models.filter((model): model is ModelChoice => !!model).slice(0, 4);
+  return models.filter((model): model is ModelChoice => !!model).slice(0, 3);
 });
 const filteredModels = computed(() => {
   const text = query.value.trim().toLowerCase();
@@ -31,6 +31,22 @@ watch(view, () => {
 onMounted(() => {
   if (props.isSheet) sheetHeight.value = panel.value?.offsetHeight;
 });
+
+// A drag up grows the sheet to 60% of the screen. A drag down stays the sheet's close gesture.
+let resizeStart: { y: number; height: number } | undefined;
+
+function startResize(event: TouchEvent): void {
+  if (props.isSheet && panel.value) resizeStart = { y: event.touches[0].clientY, height: panel.value.offsetHeight };
+}
+
+function resize(event: TouchEvent): void {
+  if (!resizeStart || !panel.value) return;
+  const growth = resizeStart.y - event.touches[0].clientY;
+  const height = Math.min(resizeStart.height + growth, window.innerHeight * 0.6);
+  if (growth <= 0 || height <= panel.value.offsetHeight) return;
+  sheetHeight.value = height;
+  event.preventDefault();
+}
 
 function isSelected(model: ModelChoice): boolean {
   return !!props.settings.model && getModelKey(model) === getModelKey(props.settings.model);
@@ -52,6 +68,9 @@ function chooseEffort(level: string): void {
   <div
     ref="panel"
     data-session-settings
+    @touchstart="startResize"
+    @touchmove="resize"
+    @touchend="resizeStart = undefined"
     :style="isSheet && sheetHeight ? { height: `${sheetHeight}px` } : undefined"
     :class="[
       'flex flex-col gap-3 overflow-y-auto px-4 pb-4 sm:px-2 sm:pb-2',

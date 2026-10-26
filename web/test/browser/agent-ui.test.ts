@@ -201,6 +201,21 @@ for (const width of [375, 1280]) {
     await checkDrawerHeight();
     await page.getByRole("option", { name: "high", exact: true }).click();
     await waitFor(async () => state.thinkingLevel === "high");
+    if (width === 375) {
+      assert.ok((await dialog.getByRole("listbox", { name: "Recent models" }).getByRole("option").count()) <= 3);
+      const resized = await dialog.evaluate(async (element) => {
+        const touch = (y: number) => new Touch({ identifier: 1, target: element, clientX: 100, clientY: y });
+        const send = (type: string, touches: Touch[]) =>
+          element.dispatchEvent(new TouchEvent(type, { touches, bubbles: true, cancelable: true }));
+        send("touchstart", [touch(700)]);
+        send("touchmove", [touch(100)]);
+        send("touchend", []);
+        await new Promise(requestAnimationFrame);
+        return element.getBoundingClientRect().height;
+      });
+      assert.ok(resized > drawerHeight, "A drag up grows the drawer");
+      assert.ok(Math.abs(resized - 812 * 0.6) <= 1, `The drawer stops at 60% of the screen, not ${resized}px`);
+    }
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     if (width === 375)
