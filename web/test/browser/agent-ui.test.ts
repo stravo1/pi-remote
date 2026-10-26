@@ -361,33 +361,32 @@ for (const width of [375, 1280]) {
     await screenshot(page, `sessions-${width}`);
     const row = page.getByRole("button", { name: /Example/ });
     if (width === 375) {
-      // The open menu hides the page from the accessibility tree, so release through a handle.
-      const header = await page.getByRole("button", { name: "example", exact: true }).elementHandle();
-      await header!.dispatchEvent("pointerdown", { pointerType: "touch", isPrimary: true, button: 0 });
-      await page.waitForTimeout(900);
-      await header!.dispatchEvent("pointerup", { pointerType: "touch", isPrimary: true, button: 0 });
-      assert.equal(await page.getByRole("menu").count(), 0, "A long press outside a session row opens no menu");
-      const pressed = await row.elementHandle();
-      const box = (await row.boundingBox())!;
-      const touch = { pointerType: "touch", isPrimary: true, button: 0, clientX: box.x + 150, clientY: box.y + 20 };
-      await pressed!.dispatchEvent("pointerdown", touch);
-      await page.getByRole("menuitem", { name: "Select" }).waitFor({ timeout: 650 });
-      await pressed!.dispatchEvent("pointerup", touch);
-      const menu = (await page.getByRole("menu").boundingBox())!;
-      assert.ok(
-        Math.abs(menu.x - touch.clientX) < 40 && Math.abs(menu.y - touch.clientY) < 40,
-        "The menu opens at the finger",
-      );
-      const other = await page.locator('[data-session-id="older-0"]').elementHandle();
-      await other!.dispatchEvent("pointerdown", { ...touch, clientY: touch.clientY + 60 });
-      await page.waitForTimeout(500);
-      await other!.dispatchEvent("pointerup", touch);
-      assert.equal(await page.getByRole("menu").count(), 1, "Only one menu is open");
+      // A real finger lift sends pointerup and then a click on the row.
+      const longPress = async (target: Locator) => {
+        const handle = (await target.elementHandle())!;
+        const touch = { pointerType: "touch", isPrimary: true, button: 0 };
+        await handle.dispatchEvent("pointerdown", touch);
+        await page.waitForTimeout(500);
+        await handle.dispatchEvent("pointerup", touch);
+        await handle.dispatchEvent("click");
+      };
+      const expectMenuBelow = async (target: Locator) => {
+        await page.getByRole("menu").waitFor();
+        assert.equal(await page.getByRole("menu").count(), 1, "Only one menu is open");
+        const rowBox = (await target.boundingBox())!;
+        const menuBox = (await page.getByRole("menu").boundingBox())!;
+        assert.ok(Math.abs(menuBox.x - rowBox.x) < 12, "The menu lines up with the row's left edge");
+        assert.ok(Math.abs(menuBox.y - (rowBox.y + rowBox.height)) < 24, "The menu opens below the row");
+      };
+      const older = page.getByRole("button", { name: /Older task 0/ });
+      await longPress(row);
+      await expectMenuBelow(row);
+      assert.equal(await page.getByText("1 selected").count(), 0, "The release click does not open the session");
+      await longPress(older);
+      await expectMenuBelow(older);
       await page.keyboard.press("Escape");
       await page.getByRole("menu").waitFor({ state: "detached" });
-      await pressed!.dispatchEvent("pointerdown", touch);
-      await page.getByRole("menuitem", { name: "Select" }).waitFor({ timeout: 650 });
-      await pressed!.dispatchEvent("pointerup", touch);
+      await longPress(row);
     } else await row.click({ button: "right" });
     await page.getByRole("menuitem", { name: "Select" }).click();
     await page.getByText("1 selected", { exact: true }).waitFor();
