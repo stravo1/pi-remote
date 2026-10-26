@@ -1,4 +1,4 @@
-import type { AgentSessionEvent, SessionInfo, SessionSettings, Snapshot } from "../src/pi-adapter.ts";
+import type { AgentSessionEvent, PromptImage, SessionInfo, SessionSettings, Snapshot } from "../src/pi-adapter.ts";
 import type { HubSession, SessionSource } from "../src/session-hub.ts";
 
 export class FakeSession implements HubSession {
@@ -8,6 +8,7 @@ export class FakeSession implements HubSession {
   compactions: (string | undefined)[] = [];
   messages: Snapshot["messages"] = [];
   pending = { steering: [] as string[], followUp: [] as string[] };
+  prompts: { text: string; images?: PromptImage[] }[] = [];
   settings: SessionSettings = {
     model: { provider: "faux", id: "first", name: "First" },
     models: [
@@ -44,7 +45,8 @@ export class FakeSession implements HubSession {
     };
   }
 
-  async prompt(): Promise<void> {
+  async prompt(text: string = "", images?: PromptImage[]): Promise<void> {
+    this.prompts.push({ text, images });
     if (this.is_running) throw new Error("A run is already active.");
     this.is_running = true;
     this.listener({ type: "agent_start" });

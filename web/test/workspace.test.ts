@@ -96,6 +96,29 @@ test("keeps the groups root from the session list", () => {
   assert.equal(workspace.groupsRoot, "/home/me");
 });
 
+test("a pushed session list update also refreshes the list", () => {
+  const { workspace } = setup();
+  workspace.handle({
+    type: "sessions",
+    push: true,
+    projects: [{ path: "/p", sessions: [{ id: "one", firstMessage: "Hi", modified: 1, isRunning: true }] }],
+  });
+  assert.equal(workspace.hasSessionList, true);
+  assert.equal(workspace.activeSession?.isRunning, true);
+});
+
+test("returning to the home page refreshes the session list", () => {
+  const { workspace, sent } = setup();
+  (globalThis as any).location = { hash: "" };
+  try {
+    workspace.select("");
+  } finally {
+    delete (globalThis as any).location;
+  }
+  assert.equal(workspace.sessionId, "");
+  assert.deepEqual(sent, [{ type: "unsubscribe", sessionId: "one" }, { type: "list_sessions" }]);
+});
+
 test("queues input during a run as a follow-up and steers a queued follow-up", () => {
   const { workspace, sent } = setup();
   workspace.status = "connected";
@@ -308,7 +331,7 @@ test("runs /name, /compact, and /session here and sends other commands to pi", (
     { type: "compact", sessionId: "one", instructions: "" },
     { type: "compact", sessionId: "one", instructions: "keep the plan\nand the decisions" },
     { type: "get_session_info", sessionId: "one" },
-    { type: "prompt", sessionId: "one", text: "/review the diff" },
+    { type: "prompt", sessionId: "one", text: "/review the diff", images: [] },
   ]);
   workspace.sendPrompt("/name");
   assert.equal(workspace.error, "Add a name after /name.");

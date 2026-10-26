@@ -25,11 +25,18 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
             aria-hidden="true"
           />Output
         </summary>
-        <pre
-          v-for="(block, index) in message.content"
-          :key="index"
-          class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7"
-          >{{ block.text }}</pre>
+        <template v-for="(block, index) in message.content" :key="index">
+          <img
+            v-if="block.type === 'image' && block.image"
+            :src="`data:${block.image.mimeType};base64,${block.image.data}`"
+            alt="Image from the tool"
+            class="max-h-96 border-t border-outline-gray-1 p-3"
+          />
+          <pre
+            v-else
+            class="overflow-x-auto whitespace-pre-wrap break-words border-t border-outline-gray-1 bg-surface-gray-1 p-3 font-mono text-ink-gray-7"
+            >{{ block.text }}</pre>
+        </template>
       </details>
       <div
         v-else-if="message.role === 'notice'"
@@ -66,6 +73,20 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
           <p class="mt-2 whitespace-pre-wrap break-words border-l-2 border-outline-gray-2 pl-3">{{ block.text }}</p>
         </details>
         <ToolCard v-else-if="block.toolCall && tools[block.toolCall.id]" :tool="tools[block.toolCall.id]" />
+        <img
+          v-else-if="block.type === 'image' && block.image"
+          :src="`data:${block.image.mimeType};base64,${block.image.data}`"
+          alt="Image in the conversation"
+          class="max-h-96 rounded-4 border border-outline-gray-1"
+        />
+        <p
+          v-else-if="block.type === 'image'"
+          class="flex items-center gap-1.5 text-p-sm text-ink-gray-5"
+          role="img"
+          aria-label="Attached image"
+        >
+          <span class="lucide-image size-4" aria-hidden="true" />Image
+        </p>
         <p
           v-else-if="block.text && message.role === 'user'"
           class="whitespace-pre-wrap break-words rounded-4 bg-surface-gray-2 px-4 py-3 sm:px-3 sm:py-2 leading-relaxed text-ink-gray-8 text-p-base"

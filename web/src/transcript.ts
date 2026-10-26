@@ -3,9 +3,10 @@ import type { AgentSessionEvent, Snapshot } from "../../server/src/pi-adapter.ts
 import { getToolDiff, getToolOutput, type ToolCall } from "./tools.ts";
 
 export interface TranscriptBlock {
-  type: "text" | "thinking" | "toolCall";
+  type: "text" | "thinking" | "toolCall" | "image";
   text: string;
   toolCall?: { id: string; name: string; arguments: Record<string, unknown> };
+  image?: { data: string; mimeType: string };
 }
 
 export interface TranscriptMessage {
@@ -204,6 +205,13 @@ function getBlocks(content: unknown): TranscriptBlock[] {
           type: "toolCall",
           text: `${block.name} ${JSON.stringify(block.arguments)}`,
           toolCall: { id: block.id, name: block.name, arguments: block.arguments ?? {} },
+        };
+      case "image":
+        // Older snapshots carried no data and showed a placeholder instead.
+        return {
+          type: "image",
+          text: "",
+          image: typeof block.data === "string" ? { data: block.data, mimeType: block.mimeType } : undefined,
         };
       default:
         return { type: "text", text: "" };

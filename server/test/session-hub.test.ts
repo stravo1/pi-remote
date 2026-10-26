@@ -53,6 +53,38 @@ test("rejects a project that is not configured", async (context) => {
   await assert.rejects(hub.subscribe(setup().client(), "missing"), /Unknown session/);
 });
 
+test("pushes session list updates to added clients", async (context) => {
+  const { hub, source, client } = setup();
+  context.after(() => hub.close());
+  const watcher = client();
+  hub.addClient(watcher);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+  const updates = () =>
+    watcher.messages
+      .filter((message) => message.type === "sessions" && message.push)
+      .map((message) => ({
+        id: message.projects[1].sessions[0]?.id,
+        isRunning: message.projects[1].sessions[0]?.isRunning,
+      }));
+  const id = await hub.createSession("/p/two");
+  await settle();
+  assert.deepEqual(updates(), [{ id, isRunning: false }]);
+  const run = hub.prompt(id, "Go");
+  await settle();
+  assert.deepEqual(updates(), [
+    { id, isRunning: false },
+    { id, isRunning: true },
+  ]);
+  source.sessions.get(id)!.finish();
+  await run;
+  await settle();
+  assert.deepEqual(updates(), [
+    { id, isRunning: false },
+    { id, isRunning: true },
+    { id, isRunning: false },
+  ]);
+});
+
 test("fans events out in seq order and gives a late subscriber the run buffer", async (context) => {
   const { hub, source, client, metrics } = setup();
   context.after(() => hub.close());
@@ -78,7 +110,7 @@ test("fans events out in seq order and gives a late subscriber the run buffer", 
   assert.equal(metrics[0].eventCount, 2);
 });
 
-test("leaves image data out of snapshots and events", async (context) => {
+test("delivers image data in snapshots and events", async (context) => {
   const { hub, source, client } = setup();
   context.after(() => hub.close());
   const viewer = client();
@@ -97,9 +129,9 @@ test("leaves image data out of snapshots and events", async (context) => {
   session.listener({ type: "message_end", message } as AgentSessionEvent);
   const second = client();
   await hub.subscribe(second, "old");
-  const stripped = { type: "image", mimeType: "image/png" };
-  assert.deepEqual(viewer.messages[1].event.message.content, [stripped]);
-  assert.deepEqual(second.messages[0].messages[0].content, [stripped]);
+  // The client renders images, so the data travels with the message.
+  assert.deepEqual(viewer.messages[1].event.message.content, [image]);
+  assert.deepEqual(second.messages[0].messages[0].content, [image]);
 });
 
 test("keeps the run alive when every client leaves", async (context) => {

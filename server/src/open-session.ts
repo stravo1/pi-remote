@@ -39,6 +39,7 @@ export class OpenSession {
   private readonly unsubscribe: () => void;
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly onSettled: (notice: RunNotice) => void;
+  private readonly onChange: () => void;
   private runEvents: AgentSessionEvent[] = [];
   private sequence = 0;
   private eventCount = 0;
@@ -49,11 +50,13 @@ export class OpenSession {
     session: HubSession,
     logRun: (metrics: RunMetrics) => void,
     onSettled: (notice: RunNotice) => void,
+    onChange: () => void = () => {},
   ) {
     this.project = project;
     this.session = session;
     this.logRun = logRun;
     this.onSettled = onSettled;
+    this.onChange = onChange;
     this.unsubscribe = session.subscribe((event) => this.broadcast(event));
   }
 
@@ -77,17 +80,19 @@ export class OpenSession {
 
   broadcast(event: AgentSessionEvent): void {
     if (event.type === "agent_start") this.eventCount = this.bytes = 0;
-    const message = toJson({ type: "event", sessionId: this.id, seq: ++this.sequence, event });
+    const message = JSON.stringify({ type: "event", sessionId: this.id, seq: ++this.sequence, event });
     this.eventCount++;
     for (const client of this.subscribers) {
       client.send(message);
       this.bytes += Buffer.byteLength(message);
     }
     this.record(event);
+    // Run state and names show on the session list, so the list needs a refresh.
+    if (["agent_start", "agent_settled", "session_info_changed"].includes(event.type)) this.onChange();
   }
 
   sendSnapshot(clients: Iterable<HubClient> = this.subscribers): void {
-    const message = toJson(this.snapshot);
+    const message = JSON.stringify(this.snapshot);
     for (const client of clients) client.send(message);
   }
 
@@ -114,13 +119,6 @@ export class OpenSession {
       body: isAborted ? "Stopped." : getReplyText(reply),
     };
   }
-}
-
-// The client does not show images, and their base64 data can be megabytes per session.
-function toJson(value: unknown): string {
-  return JSON.stringify(value, (_key, item) =>
-    item?.type === "image" && typeof item.data === "string" ? { type: "image", mimeType: item.mimeType } : item,
-  );
 }
 
 function getReplyText(reply: Snapshot["messages"][number] | undefined): string {

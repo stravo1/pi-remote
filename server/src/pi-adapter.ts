@@ -16,6 +16,10 @@ import { SessionSummaryJob } from "./session-summary-job.ts";
 
 export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
+function toImageContent(image: PromptImage): { type: "image"; data: string; mimeType: string } {
+  return { type: "image", data: image.data, mimeType: image.mimeType };
+}
+
 export interface SessionSummary {
   id: string;
   path: string;
@@ -38,6 +42,14 @@ export interface ModelChoice {
   provider: string;
   id: string;
   name: string;
+  /** The model accepts images in prompts, so the client can show the attach button. */
+  hasImageInput?: boolean;
+}
+
+/** An image attached to a prompt, base64 without the data URL prefix. */
+export interface PromptImage {
+  data: string;
+  mimeType: string;
 }
 
 export interface CommandChoice {
@@ -110,12 +122,12 @@ export class PiSession {
     };
   }
 
-  async prompt(text: string): Promise<void> {
+  async prompt(text: string, images: PromptImage[] = []): Promise<void> {
     if (this.isChanging) throw new Error("The session is changing. Try again when it finishes.");
     if (this.is_running) throw new Error("A run is already active.");
     this._isRunning = true;
     try {
-      await this.session.prompt(text);
+      await this.session.prompt(text, images.length ? { images: images.map(toImageContent) } : undefined);
     } finally {
       this._isRunning = false;
       this.summaryJob.schedule();
@@ -123,7 +135,12 @@ export class PiSession {
   }
 
   get settings(): SessionSettings {
-    const describe = ({ provider, id, name }: ModelChoice): ModelChoice => ({ provider, id, name });
+    const describe = (model: { provider: string; id: string; name: string; input: string[] }): ModelChoice => ({
+      provider: model.provider,
+      id: model.id,
+      name: model.name,
+      hasImageInput: model.input.includes("image"),
+    });
     return {
       model: this.session.model ? describe(this.session.model) : undefined,
       models: this.session.modelRuntime.getAvailableSnapshot().map(describe),

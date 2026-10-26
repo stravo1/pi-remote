@@ -225,10 +225,11 @@ function closeProviderSettings(): void {
         :disabled="workspace.is_disabled"
         :is-sending="workspace.isSending"
         :is-running="workspace.transcript.is_running"
+        :can-send-images="workspace.canSendImages"
         :error="workspace.error"
         :queue="workspace.transcript.queue"
         :commands="[...ownCommands, ...(workspace.settings?.commands ?? [])]"
-        @send="(text) => workspace.sendPrompt(text)"
+        @send="(text, images) => workspace.sendPrompt(text, images)"
         @steer="(text) => workspace.steerFollowUp(text)"
         @abort="workspace.abort()"
       />

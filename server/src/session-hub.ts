@@ -1,6 +1,6 @@
 import type { Configuration } from "./config.ts";
 import { OpenSession, type HubClient, type HubSession, type RunMetrics } from "./open-session.ts";
-import type { PiAdapter } from "./pi-adapter.ts";
+import type { PiAdapter, PromptImage } from "./pi-adapter.ts";
 import { ProjectStore } from "./project-store.ts";
 import type { PushNotifier } from "./push-notifier.ts";
 
@@ -22,6 +22,8 @@ export class SessionHub {
   private readonly sessions = new Map<string, OpenSession>();
   private readonly opening = new Map<string, Promise<OpenSession>>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly clients = new Set<HubClient>();
+  private listBroadcast?: ReturnType<typeof setTimeout>;
 
   constructor(
     source: SessionSource,
@@ -80,19 +82,24 @@ export class SessionHub {
     entry.subscribers.add(client);
     entry.sendSnapshot([client]);
   }
-
   unsubscribe(client: HubClient, sessionId: string): void {
     const entry = this.sessions.get(sessionId);
     if (!entry?.subscribers.delete(client)) return;
     this.scheduleDisposal(entry);
   }
 
+  /** Every connected socket registers here, so list updates can reach them all. */
+  addClient(client: HubClient): void {
+    this.clients.add(client);
+  }
+
   removeClient(client: HubClient): void {
+    this.clients.delete(client);
     for (const entry of this.sessions.values()) this.unsubscribe(client, entry.id);
   }
 
-  async prompt(sessionId: string, text: string): Promise<void> {
-    await (await this.getSession(sessionId)).session.prompt(text);
+  async prompt(sessionId: string, text: string, images?: PromptImage[]): Promise<void> {
+    await (await this.getSession(sessionId)).session.prompt(text, images);
   }
 
   async abort(sessionId: string): Promise<void> {
@@ -134,6 +141,8 @@ export class SessionHub {
   }
 
   async close(): Promise<void> {
+    clearTimeout(this.listBroadcast);
+    this.listBroadcast = undefined;
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
     await Promise.all([...this.sessions.values()].map((entry) => entry.close()));
@@ -178,13 +187,35 @@ export class SessionHub {
   }
 
   private register(project: string, session: HubSession): OpenSession {
-    const entry = new OpenSession(project, session, this.logRun, (notice) => {
-      this.scheduleDisposal(entry);
-      this.notifier?.notify(notice).catch((error: unknown) => console.error("Push notification failed", error));
-    });
+    const entry = new OpenSession(
+      project,
+      session,
+      this.logRun,
+      (notice) => {
+        this.scheduleDisposal(entry);
+        this.notifier?.notify(notice).catch((error: unknown) => console.error("Push notification failed", error));
+      },
+      () => this.scheduleListBroadcast(),
+    );
     this.sessions.set(entry.id, entry);
     this.scheduleDisposal(entry);
+    this.scheduleListBroadcast();
     return entry;
+  }
+
+  /** Sends one session list to every client when run state, names, or open sessions change. */
+  private scheduleListBroadcast(): void {
+    if (this.listBroadcast) return;
+    this.listBroadcast = setTimeout(() => {
+      this.listBroadcast = undefined;
+      void this.getSessionList()
+        .then((list) => {
+          // The push flag marks this as an update, so clients can tell it from a command reply.
+          const message = JSON.stringify({ ...list, push: true });
+          for (const client of this.clients) client.send(message);
+        })
+        .catch((error: unknown) => console.error("Session list broadcast failed", error));
+    }, 100);
   }
 
   private scheduleDisposal(entry: OpenSession): void {
@@ -204,5 +235,6 @@ export class SessionHub {
   private async disposeIfIdle(entry: OpenSession): Promise<void> {
     if (!entry.is_idle || this.sessions.get(entry.id) !== entry) return;
     await this.forget(entry);
+    this.scheduleListBroadcast();
   }
 }

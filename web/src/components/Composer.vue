@@ -4,21 +4,34 @@ import { Alert, Button, Textarea } from "frappe-ui";
 
 import { buttonSize } from "../button-size.ts";
 import type { CommandChoice, Snapshot } from "../../../server/src/pi-adapter.ts";
+import { readImageFile, type AttachedImage } from "../images.ts";
 import { getCommandMatches } from "../slash-commands.ts";
 
 const props = defineProps<{
   disabled: boolean;
   isSending: boolean;
   isRunning: boolean;
+  canSendImages: boolean;
   error: string;
   queue: Snapshot["queue"];
   commands: CommandChoice[];
 }>();
-const emit = defineEmits<{ send: [text: string]; steer: [text: string]; abort: [] }>();
+const emit = defineEmits<{
+  send: [text: string, images: { data: string; mimeType: string }[]];
+  steer: [text: string];
+  abort: [];
+}>();
 const text = ref("");
 const root = ref<HTMLElement>();
 const queueList = ref<HTMLElement>();
-const canSend = computed(() => !props.disabled && text.value.trim() !== "");
+const fileInput = ref<HTMLInputElement>();
+const images = ref<AttachedImage[]>([]);
+const canSend = computed(
+  () =>
+    !props.disabled &&
+    (text.value.trim() !== "" || images.value.length > 0) &&
+    !(props.isRunning && images.value.length > 0),
+);
 const hasKeyboard = window.matchMedia("(pointer: fine)").matches;
 const maxHeight = 160;
 const highlighted = ref(0);
@@ -44,9 +57,33 @@ watch(
   },
 );
 
+async function onFilesChosen(event: Event): Promise<void> {
+  // Reading the FileList must precede clearing the input: the list is live
+  // and clearing the value empties it.
+  const files = Array.from((event.target as HTMLInputElement).files ?? []);
+  (event.target as HTMLInputElement).value = "";
+  if (!files.length) return;
+  for (const file of files) {
+    if (images.value.length >= 4) break;
+    try {
+      images.value.push(await readImageFile(file));
+    } catch {
+      // A file the browser cannot decode as an image is simply not attached.
+    }
+  }
+}
+
+function removeImage(image: AttachedImage): void {
+  URL.revokeObjectURL(image.preview);
+  images.value = images.value.filter((item) => item !== image);
+}
+
 function submit(): void {
   if (!canSend.value) return;
-  emit("send", text.value);
+  const payloads = images.value.map(({ data, mimeType }) => ({ data, mimeType }));
+  emit("send", text.value, payloads);
+  for (const image of images.value) URL.revokeObjectURL(image.preview);
+  images.value = [];
   text.value = "";
 }
 
@@ -149,7 +186,40 @@ function onMenuKey(event: KeyboardEvent): void {
           </li>
         </ul>
       </div>
+      <div v-if="images.length" class="flex flex-wrap gap-2 px-3 pt-2 sm:px-2" role="list" aria-label="Attached images">
+        <div v-for="(image, index) in images" :key="image.preview" class="relative" role="listitem">
+          <img :src="image.preview" alt="" class="size-14 rounded-4 border border-outline-gray-2 object-cover" />
+          <Button
+            variant="ghost"
+            size="sm"
+            class="absolute -right-1 -top-1 !h-5 !w-5 rounded-full bg-surface-gray-3"
+            icon="lucide-x"
+            :aria-label="`Remove image ${index + 1}`"
+            @click="removeImage(image)"
+          />
+        </div>
+      </div>
       <div class="flex items-end gap-1.5 px-2 py-2 sm:px-1.5 sm:py-1.5">
+        <input
+          ref="fileInput"
+          type="file"
+          accept="image/*"
+          multiple
+          class="sr-only"
+          aria-label="Choose images"
+          @change="onFilesChosen"
+        />
+        <Button
+          v-if="canSendImages"
+          type="button"
+          variant="ghost"
+          :size="buttonSize"
+          class="shrink-0"
+          icon="lucide-paperclip"
+          :aria-label="images.length ? 'Attach more images' : 'Attach images'"
+          :disabled="disabled"
+          @click="fileInput?.click()"
+        />
         <Textarea
           v-model="text"
           class="min-w-0 flex-1 resize-none !py-2 sm:!min-h-10 sm:!py-1.5 !text-lg sm:!text-p-base"

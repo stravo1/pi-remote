@@ -39,6 +39,11 @@ export class Workspace {
     return (project ?? this.projects[0])?.path;
   }
 
+  /** Only a model that accepts images shows the attach button, and only while idle. */
+  get canSendImages(): boolean {
+    return !!this.settings?.model?.hasImageInput && !this.transcript.is_running;
+  }
+
   get is_disabled(): boolean {
     return (
       this.status !== "connected" ||
@@ -78,6 +83,8 @@ export class Workspace {
     this.isSending = false;
     this.isUpdatingSettings = false;
     this.subscribe();
+    // The list may have changed while this client was inside a session.
+    if (!sessionId) this.refreshList();
   }
 
   createSession(project: string): void {
@@ -159,11 +166,15 @@ export class Workspace {
     this.run({ type: "push_test" });
   }
 
-  sendPrompt(text: string): void {
-    if (this.runSlashCommand(text)) return;
+  sendPrompt(text: string, images: { data: string; mimeType: string }[] = []): void {
+    if (!images.length && this.runSlashCommand(text)) return;
     this.isSending = true;
     this.error = "";
-    this.run({ type: this.transcript.is_running ? "follow_up" : "prompt", sessionId: this.sessionId, text });
+    // Queued messages are text-only, so a send during a run leaves images out.
+    const command = this.transcript.is_running
+      ? { type: "follow_up", sessionId: this.sessionId, text }
+      : { type: "prompt", sessionId: this.sessionId, text, images };
+    this.run(command);
   }
 
   steerFollowUp(text: string): void {

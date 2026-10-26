@@ -104,6 +104,8 @@ test(
     const settled = new Promise<void>((resolve) =>
       socket.on("message", (data) => {
         const message = JSON.parse(data.toString());
+        // Skip session-list pushes; this test checks the proxied run flow only.
+        if (message.type === "sessions" && message.push) return;
         events.push(message.type === "event" ? message.event.type : message.type);
         if (message.type === "snapshot") {
           socket.send(JSON.stringify({ type: "prompt", sessionId: "stored", text: "A development prompt" }));

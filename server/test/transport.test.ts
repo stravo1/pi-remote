@@ -65,9 +65,17 @@ async function connect(url: string, options = {}) {
 }
 
 async function request(socket: WebSocket, command: object) {
-  const reply = once(socket, "message");
   socket.send(JSON.stringify(command));
-  return JSON.parse((await reply)[0].toString());
+  return nextReply(socket);
+}
+
+/** The next reply, skipping session-list pushes the server sends on its own. */
+async function nextReply(socket: WebSocket): Promise<any> {
+  for (;;) {
+    const [raw] = await once(socket, "message");
+    const reply = JSON.parse(raw.toString());
+    if (!(reply.type === "sessions" && reply.push)) return reply;
+  }
 }
 
 /** Waits for unsolicited messages. A setImmediate spin loses that race under load. */
@@ -104,17 +112,70 @@ test("two clients share one run and either can abort it", { timeout: 5000 }, asy
   const second = await connect(url);
   assert.equal((await request(first, { type: "subscribe", sessionId: "stored" })).type, "snapshot");
   assert.equal((await request(second, { type: "subscribe", sessionId: "stored" })).type, "snapshot");
-  const started = Promise.all([once(first, "message"), once(second, "message")]);
+  const started = Promise.all([nextReply(first), nextReply(second)]);
   first.send(JSON.stringify({ type: "prompt", sessionId: "stored", text: "Hello" }));
-  const [[one], [two]] = await started;
-  assert.equal(one.toString(), two.toString());
-  assert.equal(JSON.parse(one.toString()).seq, 1);
+  const [one, two] = await started;
+  assert.deepEqual(one, two);
+  assert.equal(one.seq, 1);
   const busy = await request(second, { type: "prompt", sessionId: "stored", text: "Too soon" });
   assert.match(busy.message, /already active/);
-  const settled = Promise.all([once(first, "message"), once(second, "message")]);
+  const settled = Promise.all([nextReply(first), nextReply(second)]);
   second.send(JSON.stringify({ type: "abort", sessionId: "stored" }));
-  const [[end]] = await settled;
-  assert.equal(JSON.parse(end.toString()).event.type, "agent_settled");
+  const [end] = await settled;
+  assert.equal(end.event.type, "agent_settled");
+});
+
+test(
+  "pushes session list updates to every client when a run starts and settles",
+  { timeout: 5000 },
+  async (context) => {
+    const { url } = await setup(context);
+    const watcher = await connect(url);
+    const runner = await connect(url);
+    const updates: (boolean | undefined)[] = [];
+    watcher.on("message", (raw: Buffer) => {
+      const message = JSON.parse(raw.toString());
+      if (message.type === "sessions" && message.push) {
+        updates.push(message.projects[0].sessions.find((session: any) => session.id === "stored")?.isRunning);
+      }
+    });
+    // The runner does not subscribe, so it gets no reply for the prompt itself.
+    runner.send(JSON.stringify({ type: "prompt", sessionId: "stored", text: "Work" }));
+    await waitFor(() => updates.at(-1) === true);
+    runner.send(JSON.stringify({ type: "abort", sessionId: "stored" }));
+    await waitFor(() => updates.at(-1) === false);
+    // The opening list may merge into the starting push, so only the last two states are certain.
+    assert.deepEqual(updates.slice(-2), [true, false]);
+  },
+);
+
+test("delivers prompt images and rejects malformed ones", { timeout: 5000 }, async (context) => {
+  const { url, source } = await setup(context);
+  const socket = await connect(url);
+  await request(socket, { type: "subscribe", sessionId: "stored" });
+  const data = Buffer.from("These are fake image bytes.").toString("base64");
+  socket.send(
+    JSON.stringify({ type: "prompt", sessionId: "stored", text: "", images: [{ data, mimeType: "image/png" }] }),
+  );
+  await waitFor(() => (source.sessions.get("stored")?.prompts.length ?? 0) > 0);
+  assert.deepEqual(source.sessions.get("stored")!.prompts[0], {
+    text: "",
+    images: [{ data, mimeType: "image/png" }],
+  });
+  const badType = await request(socket, {
+    type: "prompt",
+    sessionId: "stored",
+    text: "Look",
+    images: [{ data, mimeType: "text/plain" }],
+  });
+  assert.match(badType.message, /unsupported type/);
+  const tooMany = await request(socket, {
+    type: "prompt",
+    sessionId: "stored",
+    text: "Look",
+    images: Array.from({ length: 5 }, () => ({ data, mimeType: "image/png" })),
+  });
+  assert.match(tooMany.message, /at most 4 images/);
 });
 
 for (const options of [
@@ -202,21 +263,21 @@ test("shares queues and settings with two clients and a reconnect", { timeout: 5
     { type: "set_model", provider: "faux", modelId: "second" },
     { type: "set_thinking_level", level: "high" },
   ]) {
-    const other = once(second, "message");
+    const other = nextReply(second);
     const reply = await request(first, { ...command, sessionId: "stored" });
-    assert.deepEqual(reply, JSON.parse((await other)[0].toString()));
+    assert.deepEqual(reply, await other);
     assert.equal(reply.settings.model.id, "second");
   }
   const current = await request(first, { type: "subscribe", sessionId: "stored" });
   assert.equal(current.settings.thinkingLevel, "high");
-  const started = once(second, "message");
+  const started = nextReply(second);
   await request(first, { type: "prompt", sessionId: "stored", text: "Work" });
   await started;
   for (const type of ["steer", "follow_up"]) {
-    const other = once(second, "message");
+    const other = nextReply(second);
     const reply = await request(first, { type, sessionId: "stored", text: type });
     assert.equal(reply.event.type, "queue_update");
-    assert.deepEqual(reply, JSON.parse((await other)[0].toString()));
+    assert.deepEqual(reply, await other);
   }
   const steered = await request(first, { type: "steer_follow_up", sessionId: "stored", text: "follow_up" });
   assert.deepEqual(steered.event, { type: "queue_update", steering: ["steer", "follow_up"], followUp: [] });

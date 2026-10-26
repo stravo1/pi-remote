@@ -4,7 +4,7 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import type { Configuration } from "./config.ts";
 import { serveHttp } from "./http.ts";
 import type { HubClient, SessionHub } from "./session-hub.ts";
-import type { PiAdapter } from "./pi-adapter.ts";
+import type { PiAdapter, PromptImage } from "./pi-adapter.ts";
 import type { PushNotifier } from "./push-notifier.ts";
 
 interface Command {
@@ -23,6 +23,7 @@ interface Command {
   deleteFolder?: unknown;
   sessionIds?: unknown;
   instructions?: unknown;
+  images?: unknown;
   subscription?: unknown;
   endpoint?: unknown;
 }
@@ -41,7 +42,9 @@ export class Transport {
   readonly server;
   readonly sockets = new WebSocketServer({
     noServer: true,
-    maxPayload: 64 * 1024,
+    // Prompt frames can carry attached images. The client downscales images
+    // before sending; four of them still fit well inside this bound.
+    maxPayload: 12 * 1024 * 1024,
     perMessageDeflate: { threshold: 1024 },
   });
   readonly hub: SessionHub;
@@ -98,6 +101,7 @@ export class Transport {
         if (socket.readyState === WebSocket.OPEN) socket.send(message);
       },
     };
+    this.hub.addClient(client);
     this.alive.set(socket, true);
     socket.on("pong", () => this.alive.set(socket, true));
     socket.on("close", () => {
@@ -136,7 +140,10 @@ export class Transport {
       delete_sessions: () => this.deleteSessions(client, command),
       subscribe: () => this.hub.subscribe(client, requireSessionId(command)),
       unsubscribe: () => this.hub.unsubscribe(client, requireSessionId(command)),
-      prompt: () => this.hub.prompt(requireSessionId(command), requireText(command)),
+      prompt: () => {
+        const images = requireImages(command.images);
+        return this.hub.prompt(requireSessionId(command), requireText(command, !!images), images);
+      },
       steer: () => this.hub.queue(requireSessionId(command), requireText(command), "steer"),
       follow_up: () => this.hub.queue(requireSessionId(command), requireText(command), "follow_up"),
       steer_follow_up: () => this.hub.steerFollowUp(requireSessionId(command), requireText(command)),
@@ -301,10 +308,29 @@ function requireSessionId(command: Command): string {
   return command.sessionId;
 }
 
-function requireText(command: Command): string {
-  if (typeof command.text !== "string" || !command.text.trim())
+function requireText(command: Command, allowEmpty = false): string {
+  if (typeof command.text !== "string" || (!allowEmpty && !command.text.trim()))
     throw new Error("The prompt text must be a nonempty string.");
   return command.text;
+}
+
+const maxPromptImages = 4;
+const maxImageBytes = 8 * 1024 * 1024;
+
+function requireImages(value: unknown): PromptImage[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > maxPromptImages)
+    throw new Error(`A prompt carries at most ${maxPromptImages} images.`);
+  const images = value.map((item): PromptImage => {
+    const { data, mimeType } = item as PromptImage;
+    if (typeof data !== "string" || !data) throw new Error("An attached image is missing its data.");
+    if (typeof mimeType !== "string" || !mimeType.startsWith("image/"))
+      throw new Error("An attached image has an unsupported type.");
+    // Base64 holds three bytes in four characters, so this bounds the decoded size.
+    if (data.length > (maxImageBytes / 3) * 4) throw new Error("An attached image is too large.");
+    return { data, mimeType };
+  });
+  return images.length ? images : undefined;
 }
 
 function requireAuthType(value: unknown): "api_key" | "oauth" {

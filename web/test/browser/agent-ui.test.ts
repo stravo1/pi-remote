@@ -7,10 +7,10 @@ import { preview } from "vite";
 import { chromium, type Locator, type Page, type WebSocketRoute } from "playwright";
 
 const settings = {
-  model: { provider: "faux", id: "first", name: "First model" },
+  model: { provider: "faux", id: "first", name: "First model", hasImageInput: true },
   models: [
-    { provider: "faux", id: "first", name: "First model" },
-    { provider: "other", id: "reasoner", name: "Second model" },
+    { provider: "faux", id: "first", name: "First model", hasImageInput: true },
+    { provider: "other", id: "reasoner", name: "Second model", hasImageInput: true },
   ],
   thinkingLevel: "off",
   thinkingLevels: ["off", "high"],
@@ -65,6 +65,7 @@ for (const width of [375, 1280]) {
         provider: "faux",
         id: `extra-${index}`,
         name: `Extra model ${index} with a very long name that should stay within the drawer`,
+        hasImageInput: false,
       })),
     );
     const commands: any[] = [];
@@ -80,7 +81,13 @@ for (const width of [375, 1280]) {
           queue: { steering: [], followUp: [] },
           runEvents: [],
           messages: [
-            { role: "user", content: "Update the example" },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Update the example" },
+                { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+              ],
+            },
             {
               role: "assistant",
               content: [
@@ -346,8 +353,17 @@ for (const width of [375, 1280]) {
       assert.equal(await rowHeight("header > div"), 56);
       assert.equal(await rowHeight("form > div > div:last-child"), 56);
     }
+    await page.getByRole("img", { name: "Image in the conversation" }).waitFor();
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    await page.locator('input[type="file"]').setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
+    await page.getByRole("list", { name: "Attached images" }).getByRole("listitem").waitFor();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Start work");
     await page.getByRole("button", { name: "Send prompt" }).click();
+    await waitFor(async () => commands.some((c) => c.type === "prompt" && c.images?.length === 1));
+    await page.getByRole("list", { name: "Attached images" }).waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Stop run" }).waitFor();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Next task");
     await page.getByRole("button", { name: "Send follow-up" }).click();
