@@ -2,14 +2,11 @@
 import { computed, nextTick, ref, watch } from "vue";
 import { Alert, Button, Textarea, Select } from "frappe-ui";
 
-import type { SessionSettings, Snapshot } from "../../../server/src/pi-adapter.ts";
+import type { Snapshot } from "../../../server/src/pi-adapter.ts";
 
-import SessionSettingsDrawer from "./SessionSettingsDrawer.vue";
-
-const props = defineProps<{ disabled: boolean; isSending: boolean; isRunning: boolean; error: string; settings?: SessionSettings; queue: Snapshot["queue"]; isUpdatingSettings: boolean }>();
-const emit = defineEmits<{ send: [text: string, mode: "follow_up" | "steer"]; abort: []; model: [value: string]; thinking: [level: string] }>();
+const props = defineProps<{ disabled: boolean; isSending: boolean; isRunning: boolean; error: string; queue: Snapshot["queue"] }>();
+const emit = defineEmits<{ send: [text: string, mode: "follow_up" | "steer"]; abort: [] }>();
 const mode = ref<"follow_up" | "steer">("follow_up");
-const isSettingsOpen = ref(false);
 const text = ref("");
 const root = ref<HTMLElement>();
 const canSend = computed(() => !props.disabled && text.value.trim() !== "");
@@ -38,12 +35,8 @@ function onEnter(event: KeyboardEvent): void {
 </script>
 
 <template>
-  <form ref="root" class="mx-auto w-full max-w-2xl space-y-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
+  <form ref="root" class="w-full shrink-0 space-y-2 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4" @submit.prevent="submit">
     <Alert v-if="error" role="alert" theme="red" :title="error" />
-    <SessionSettingsDrawer v-if="settings" v-model:open="isSettingsOpen" :settings="settings" :is-running="isRunning"
-      :disabled="disabled || isUpdatingSettings" :error="error" @model="(value) => emit('model', value)" @thinking="(level) => emit('thinking', level)" />
-    <Button v-if="settings" type="button" variant="ghost" icon-left="lucide-sliders-horizontal"
-      label="Session settings" class="max-w-full" @click="isSettingsOpen = true" />
     <div v-if="queue.steering.length || queue.followUp.length" class="max-h-28 space-y-1 overflow-y-auto rounded-4 bg-surface-gray-1 px-3 py-2 text-p-sm" aria-label="Queued messages">
       <p v-for="(message, index) in queue.steering" :key="`steer-${index}`" class="whitespace-pre-wrap break-words"><span class="font-medium">Steer:</span> {{ message }}</p>
       <p v-for="(message, index) in queue.followUp" :key="`follow-${index}`" class="whitespace-pre-wrap break-words"><span class="font-medium">Follow-up:</span> {{ message }}</p>

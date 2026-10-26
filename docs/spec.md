@@ -62,9 +62,9 @@ One person runs pi on one machine and uses it from any device through a browser.
 
 ### Client views
 
-- Session list: sessions grouped by project, newest first. A button starts a new session in a project.
+- Session list: a full page with sessions grouped by project, newest first. A button starts a new session in a project. Picking a session opens the chat page. The chat page is full width, with a back button to the list.
 - Session view: the transcript, live output, tool calls, and an input box. While a run is active, the input box sends a follow-up by default and offers "steer" as a second action. A stop button aborts the run.
-- Session settings: a native frappe-ui bottom drawer holds the searchable model picker and the thinking level picker.
+- Session settings: one settings button in the session bar opens a native frappe-ui bottom sheet. The sheet lists the current and the most recently used models (up to four, saved in the browser), an Effort row, and a More models row with search.
   The model list matches the field width and scrolls within a fixed height limit.
   Only models with configured access and supported thinking levels appear. Settings changes require an idle session.
   Choices apply to that session and survive reopening it. They do not change the global defaults.

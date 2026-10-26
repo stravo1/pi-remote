@@ -61,7 +61,7 @@ npm run test:browser -w web
 ```
 
 These checks use headless Chromium with a temporary profile at 375 px and 1280 px.
-They cover tool diffs, the searchable model drawer, thinking levels, follow-up, steer, and Stop.
+They cover tool diffs, the model sheet, thinking levels, follow-up, steer, and Stop.
 Screenshots go to `pi-remote-phase-3` inside the system temporary directory.
 If Chromium is already installed elsewhere, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to that test browser's executable.
 
@@ -83,7 +83,7 @@ It listens on loopback and has no login. Use it for local development only.
 The server checks the WebSocket origin and user header.
 Direct browser connections to port 7710 fail because browsers cannot set that header.
 
-The sidebar lists sessions by project. A new session runs in the project you pick, and the client reconnects after a network drop.
+The first page lists sessions by project. Pick one to open it in a full-width chat page. A new session runs in the project you pick, and the client reconnects after a network drop.
 The server logs each run's event count and JSON payload bytes sent across all connected clients.
 The byte count excludes WebSocket framing and proxy overhead.
 
