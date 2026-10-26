@@ -11,17 +11,13 @@ const statusLabels = { pending: "Pending", running: "Running", success: "Complet
 <template>
   <div class="min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-p-sm" :aria-label="`${tool.name}: ${statusLabels[tool.status]}`">
     <component :is="tool.output ? 'button' : 'div'" :type="tool.output ? 'button' : undefined" :aria-expanded="tool.output ? isOutputOpen : undefined"
-      :class="['flex w-full items-start gap-2 bg-surface-gray-1 px-3 py-2 text-left sm:py-1.5', tool.output && 'hover:bg-surface-gray-2']"
+      :class="['flex w-full flex-wrap items-center gap-x-2 bg-surface-gray-1 px-3 py-2 text-left sm:flex-nowrap sm:items-baseline sm:py-1.5', tool.output && 'hover:bg-surface-gray-2']"
       @click="tool.output && (isOutputOpen = !isOutputOpen)">
-      <span class="lucide-terminal mt-0.5 size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
-      <span class="block min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-3">
-        <span class="flex flex-wrap items-center justify-between gap-2 sm:contents">
-          <span class="font-medium text-ink-gray-9">{{ tool.name }}</span>
-          <span :class="['text-p-xs sm:order-last sm:ml-auto sm:shrink-0', tool.status === 'error' ? 'text-ink-red-4' : 'text-ink-gray-5']" role="status">{{ statusLabels[tool.status] }}</span>
-        </span>
-        <span class="mt-1 block whitespace-pre-wrap break-all font-mono text-ink-gray-7 sm:mt-0 sm:min-w-0">{{ getToolCommand(tool) }}</span>
-      </span>
-      <span v-if="tool.output" :class="[isOutputOpen ? 'lucide-chevrons-down-up' : 'lucide-chevrons-up-down', 'mt-0.5 size-4 shrink-0 text-ink-gray-5']" aria-hidden="true" />
+      <span class="lucide-terminal size-4 shrink-0 self-center text-ink-gray-6" aria-hidden="true" />
+      <span class="order-1 min-w-0 flex-1 font-medium text-ink-gray-9 sm:flex-none">{{ tool.name }}</span>
+      <span :class="['order-2 shrink-0 text-p-xs sm:order-3', tool.status === 'error' ? 'text-ink-red-4' : 'text-ink-gray-5']" role="status">{{ statusLabels[tool.status] }}</span>
+      <span v-if="tool.output" :class="[isOutputOpen ? 'lucide-chevrons-down-up' : 'lucide-chevrons-up-down', 'order-3 size-4 shrink-0 self-center text-ink-gray-5 sm:order-4']" aria-hidden="true" />
+      <span class="order-4 mt-1 block w-full whitespace-pre-wrap break-all font-mono text-ink-gray-7 sm:order-2 sm:mt-0 sm:w-auto sm:min-w-0 sm:flex-1">{{ getToolCommand(tool) }}</span>
     </component>
     <details v-if="diff" class="group border-t border-outline-gray-1" open>
       <summary class="flex cursor-pointer select-none list-none items-center gap-2 px-3 py-2 text-ink-gray-6 hover:text-ink-gray-8 sm:py-1"><span class="lucide-chevron-right size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden="true" />{{ tool.diff ? 'File diff' : 'Requested changes' }}</summary>
