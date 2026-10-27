@@ -243,7 +243,7 @@ function closeProviderSettings(): void {
         >
           <Button
             v-if="isScrolledUp"
-            class="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-outline-gray-1 bg-surface-gray-1 text-ink-gray-6 shadow-sm"
+            class="absolute bottom-2 left-1/2 -translate-x-1/2 !rounded-full border border-outline-gray-1 !bg-surface-gray-2 hover:!bg-surface-gray-3 text-ink-gray-7 shadow-sm"
             variant="ghost"
             :size="buttonSize"
             icon="lucide-arrow-down"
