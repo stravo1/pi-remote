@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { NOT_CONNECTED_MESSAGE } from "../src/connection.ts";
+import type { EventMessage, SnapshotMessage } from "../src/protocol.ts";
+import type { Snapshot } from "../../server/src/protocol.ts";
+
+type AgentMessage = Snapshot["messages"][number];
+type AssistantMessage = Extract<AgentMessage, { role: "assistant" }>;
+import type { SessionInfo } from "../../server/src/protocol.ts";
 import { Workspace } from "../src/workspace.ts";
 
 function setup() {
@@ -26,21 +32,52 @@ test("refreshes session names when the summary changes", () => {
     event: { type: "session_info_changed", name: "New summary" },
   });
   assert.deepEqual(sent, [{ type: "list_sessions" }]);
-  workspace.handle({ type: "sessions", projects: [{ path: "/p", sessions: [{ id: "one", name: "New summary" }] }] });
+  workspace.handle({
+    type: "sessions",
+    projects: [
+      {
+        path: "/p",
+        sessions: [{ id: "one", name: "New summary", firstMessage: "Hi", modified: 1, isRunning: false }],
+      },
+    ],
+  });
   assert.equal(workspace.activeSession?.name, "New summary");
 });
 
-const snapshot = {
+// A minimal assistant message with the fields the wire protocol always carries.
+const assistant: AssistantMessage = {
+  role: "assistant",
+  content: [],
+  api: "faux",
+  provider: "faux",
+  model: "one",
+  usage: {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 0,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  },
+  stopReason: "stop",
+  timestamp: 1,
+};
+
+const snapshot: SnapshotMessage = {
   type: "snapshot",
   sessionId: "one",
   seq: 4,
   isStreaming: true,
   isCompacting: false,
   queue: { steering: [], followUp: [] },
-  messages: [{ role: "user", content: [{ type: "text", text: "Hi" }] }],
+  messages: [{ role: "user", content: [{ type: "text", text: "Hi" }], timestamp: 1 }],
   runEvents: [
-    { type: "message_start", message: { role: "assistant", content: [] } },
-    { type: "message_update", assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "Hel" } },
+    { type: "message_start", message: assistant },
+    {
+      type: "message_update",
+      message: assistant,
+      assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: "Hel", partial: assistant },
+    },
   ],
 };
 
@@ -60,11 +97,15 @@ test("a snapshot rebuilds the transcript, including the partial message of the r
 test("applies the next event in order and subscribes again on a seq gap", () => {
   const { workspace, sent } = setup();
   workspace.handle(snapshot);
-  const delta = (seq: number, text: string) => ({
+  const delta = (seq: number, text: string): EventMessage => ({
     type: "event",
     sessionId: "one",
     seq,
-    event: { type: "message_update", assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: text } },
+    event: {
+      type: "message_update",
+      message: assistant,
+      assistantMessageEvent: { type: "text_delta", contentIndex: 0, delta: text, partial: assistant },
+    },
   });
   workspace.handle(delta(5, "lo"));
   assert.equal(workspace.transcript.messages[1].content[0].text, "Hello");
@@ -93,7 +134,6 @@ test("picks the project of the open session for a new session", () => {
 test("starts a session in a new group", () => {
   const { workspace, sent } = setup();
   workspace.handle({ type: "group_created", project: "/home/me/notes" });
-  assert.equal(workspace.lastGroup, "/home/me/notes");
   assert.deepEqual(sent, [{ type: "new_session", project: "/home/me/notes" }]);
 });
 
@@ -198,7 +238,16 @@ test("manages provider credentials without storing them in client state", () => 
   workspace.listProviders();
   workspace.handle({
     type: "providers",
-    providers: [{ id: "openrouter", name: "OpenRouter", authTypes: ["api_key"], isConfigured: false }],
+    providers: [
+      {
+        id: "openrouter",
+        name: "OpenRouter",
+        authTypes: ["api_key"],
+        isConfigured: false,
+        isUsingApiKey: false,
+        hasStoredLogin: false,
+      },
+    ],
   });
   workspace.setProviderKey("openrouter", "secret");
   workspace.startProviderLogin("openrouter", "api_key");
@@ -210,7 +259,14 @@ test("manages provider credentials without storing them in client state", () => 
   });
   workspace.submitProviderLogin("another-secret");
   assert.deepEqual(workspace.providers, [
-    { id: "openrouter", name: "OpenRouter", authTypes: ["api_key"], isConfigured: false },
+    {
+      id: "openrouter",
+      name: "OpenRouter",
+      authTypes: ["api_key"],
+      isConfigured: false,
+      isUsingApiKey: false,
+      hasStoredLogin: false,
+    },
   ]);
   assert.equal(workspace.providerLogin?.event?.type, "prompt");
   assert.deepEqual(sent, [
@@ -243,7 +299,7 @@ test("knows when the first session list has arrived", () => {
   assert.equal(workspace.hasSessionList, true);
 });
 
-const info = {
+const info: SessionInfo = {
   sessionId: "one",
   userMessages: 2,
   assistantMessages: 3,
@@ -277,7 +333,7 @@ test("notes a rename once the server saves that name, and keeps notes across a s
   const { workspace } = setup();
   workspace.handle(snapshot);
   workspace.renameSession("  Fix   login ");
-  const named = (seq: number, name: string) => ({
+  const named = (seq: number, name: string): EventMessage => ({
     type: "event",
     sessionId: "one",
     seq,

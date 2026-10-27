@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { Button, Dialog, FormControl, Radio, RadioGroup } from "frappe-ui";
-import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
+import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/protocol.ts";
 import ProviderLoginPanel from "./ProviderLoginPanel.vue";
 
 type AuthType = "api_key" | "oauth";

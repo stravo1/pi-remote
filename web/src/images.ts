@@ -1,6 +1,9 @@
 /** The largest side of an attached image after downscaling. */
 const maxDimension = 1568;
 
+/** The most images one prompt carries. The server enforces the same limit. */
+export const maxImages = 4;
+
 export interface AttachedImage {
   /** Base64 without the data URL prefix, as the prompt command expects. */
   data: string;

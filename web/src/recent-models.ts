@@ -1,4 +1,4 @@
-import type { ModelChoice } from "../../server/src/pi-adapter.ts";
+import type { ModelChoice } from "../../server/src/protocol.ts";
 
 const storageKey = "pi-remote.recent-models";
 const limit = 4;

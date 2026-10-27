@@ -1,4 +1,4 @@
-import type { AgentSessionEvent, PromptImage, SessionInfo, SessionSettings, Snapshot } from "../src/pi-adapter.ts";
+import type { AgentSessionEvent, PromptImage, SessionInfo, SessionSettings, Snapshot } from "../src/protocol.ts";
 import type { HubSession, SessionSource } from "../src/session-hub.ts";
 
 export class FakeSession implements HubSession {

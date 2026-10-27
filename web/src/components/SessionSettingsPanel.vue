@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { Button, TextInput } from "frappe-ui";
-import type { ModelChoice, SessionSettings } from "../../../server/src/pi-adapter.ts";
+import type { ModelChoice, SessionSettings } from "../../../server/src/protocol.ts";
 import { getModelKey, loadRecentKeys, rememberModel } from "../recent-models.ts";
 
 export type SettingsView = "main" | "models" | "effort";

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { BottomSheet, Button, Popover } from "frappe-ui";
-import type { SessionSettings } from "../../../server/src/pi-adapter.ts";
+import type { SessionSettings } from "../../../server/src/protocol.ts";
 import { buttonSize } from "../button-size.ts";
 import SessionSettingsPanel, { type SettingsView } from "./SessionSettingsPanel.vue";
 

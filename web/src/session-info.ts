@@ -1,4 +1,4 @@
-import type { SessionInfo } from "../../server/src/pi-adapter.ts";
+import type { SessionInfo } from "../../server/src/protocol.ts";
 
 const numberFormat = new Intl.NumberFormat();
 const costFormat = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 4 });

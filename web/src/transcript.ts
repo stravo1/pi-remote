@@ -1,4 +1,4 @@
-import type { AgentSessionEvent, Snapshot } from "../../server/src/pi-adapter.ts";
+import type { AgentSessionEvent, Snapshot } from "../../server/src/protocol.ts";
 
 import { getToolDiff, getToolOutput, type ToolCall } from "./tools.ts";
 

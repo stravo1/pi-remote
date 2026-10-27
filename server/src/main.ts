@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { getConfigurationFile } from "./config.ts";
 import { PiAdapter } from "./pi-adapter.ts";
 import { PushNotifier } from "./push-notifier.ts";
@@ -6,7 +7,7 @@ import { SessionHub } from "./session-hub.ts";
 import { Transport } from "./transport.ts";
 
 const configuration = await getConfigurationFile(process.argv[2]);
-const adapter = await PiAdapter.fromConfiguration(configuration);
+const adapter = new PiAdapter({ modelRuntime: await ModelRuntime.create() });
 const push = configuration.push ? await PushNotifier.load(configuration.push) : undefined;
 const hub = new SessionHub(adapter, configuration, undefined, undefined, push);
 const transport = new Transport(

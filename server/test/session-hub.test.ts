@@ -5,7 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProjectStore } from "../src/project-store.ts";
-import type { AgentSessionEvent, Snapshot } from "../src/pi-adapter.ts";
+import type { AgentSessionEvent, Snapshot } from "../src/protocol.ts";
 import type { RunNotice } from "../src/push-notifier.ts";
 import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 

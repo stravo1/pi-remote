@@ -1,4 +1,4 @@
-import type { CommandChoice } from "../../server/src/pi-adapter.ts";
+import type { CommandChoice } from "../../server/src/protocol.ts";
 
 // pi remote runs these itself. pi runs every other command.
 export const ownCommands: CommandChoice[] = [

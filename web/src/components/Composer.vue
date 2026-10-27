@@ -3,8 +3,8 @@ import { computed, nextTick, ref, watch } from "vue";
 import { Alert, Button, Textarea } from "frappe-ui";
 
 import { buttonSize } from "../button-size.ts";
-import type { CommandChoice, Snapshot } from "../../../server/src/pi-adapter.ts";
-import { readImageFile, type AttachedImage } from "../images.ts";
+import type { CommandChoice, Snapshot } from "../../../server/src/protocol.ts";
+import { readImageFile, maxImages, type AttachedImage } from "../images.ts";
 import { getCommandMatches } from "../slash-commands.ts";
 
 const props = defineProps<{
@@ -65,7 +65,7 @@ async function onFilesChosen(event: Event): Promise<void> {
   (event.target as HTMLInputElement).value = "";
   if (!files.length) return;
   for (const file of files) {
-    if (images.value.length >= 4) break;
+    if (images.value.length >= maxImages) break;
     try {
       images.value.push(await readImageFile(file));
     } catch {

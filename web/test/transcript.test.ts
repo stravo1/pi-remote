@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import type { AgentSessionEvent } from "../../server/src/pi-adapter.ts";
+import type { AgentSessionEvent } from "../../server/src/protocol.ts";
 import { Transcript } from "../src/transcript.ts";
 
 test("replays the spike tool-call log and skips system messages", async () => {

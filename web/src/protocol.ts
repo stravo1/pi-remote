@@ -1,30 +1,66 @@
-export interface SessionItem {
-  id: string;
-  name?: string;
-  firstMessage: string;
-  modified: number;
-  /** When the user last sent a message. Ordering uses this so a running reply does not move a chat. */
-  lastUserMessage?: number;
-  isRunning: boolean;
-}
+import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
+import {
+  lastUserActivity,
+  type DefaultModelSettings,
+  type ModelChoice,
+  type ProjectGroup,
+  type ProviderLoginEvent,
+  type ProviderSettings,
+  type SessionInfo,
+  type SessionListItem,
+  type Snapshot,
+} from "../../server/src/protocol.ts";
 
-export interface ProjectGroup {
-  path: string;
-  sessions: SessionItem[];
-}
+export type { ProjectGroup, SessionListItem as SessionItem } from "../../server/src/protocol.ts";
 
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
+
+/** The session list reply, or an update the server pushes to every client. */
+export interface SessionsMessage {
+  type: "sessions";
+  projects: ProjectGroup[];
+  groupsRoot?: string;
+  push?: boolean;
+}
+
+/** A live session event, in sequence after the snapshot's `seq`. */
+export interface EventMessage {
+  type: "event";
+  sessionId: string;
+  seq: number;
+  event: AgentSessionEvent;
+}
+
+/** A session's state, sent on subscribe and after a missed event forces a re-subscribe. */
+export interface SnapshotMessage extends Snapshot {
+  type: "snapshot";
+  sessionId: string;
+  runEvents: AgentSessionEvent[];
+  seq: number;
+}
+
+export type ServerMessage =
+  | SessionsMessage
+  | EventMessage
+  | SnapshotMessage
+  | { type: "error"; sessionId?: string; message: string }
+  | { type: "session_created"; sessionId: string }
+  | { type: "group_created"; project: string }
+  | { type: "session_info"; sessionId: string; info: SessionInfo }
+  | { type: "providers"; providers: ProviderSettings[] }
+  | { type: "provider_key"; provider: string; apiKey: string }
+  | ({ type: "default_model" } & DefaultModelSettings)
+  | { type: "provider_login_started"; loginId: string }
+  | { type: "provider_login_event"; loginId: string; event: ProviderLoginEvent }
+  | { type: "push_key"; publicKey: string | null }
+  | { type: "push_subscribed" | "push_unsubscribed" };
 
 export function getProjectName(path: string): string {
   return path.split("/").filter(Boolean).at(-1) ?? path;
 }
 
-export function getSessionTitle(session: SessionItem): string {
+export function getSessionTitle(session: SessionListItem): string {
   return session.name || session.firstMessage || "New session";
-}
-
-function lastUserActivity(session: SessionItem): number {
-  return session.lastUserMessage ?? session.modified;
 }
 
 /**

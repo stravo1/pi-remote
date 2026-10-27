@@ -236,7 +236,7 @@ test("bad commands return errors and leave the socket usable", { timeout: 5000 }
 test("new_group needs a name and creates a project", { timeout: 5000 }, async (context) => {
   const { url, removals } = await setup(context);
   const socket = await connect(url);
-  assert.match((await request(socket, { type: "new_group" })).message, /must be a string/);
+  assert.match((await request(socket, { type: "new_group" })).message, /must be a nonempty string/);
   const { project } = await request(socket, { type: "new_group", name: "notes" });
   assert.ok(project);
   const list = await request(socket, { type: "remove_group", project });

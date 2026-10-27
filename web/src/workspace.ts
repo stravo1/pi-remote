@@ -3,9 +3,16 @@ import type {
   ProviderLoginEvent,
   ProviderSettings,
   SessionSettings,
-} from "../../server/src/pi-adapter.ts";
+} from "../../server/src/protocol.ts";
 import { Connection, NOT_CONNECTED_MESSAGE } from "./connection.ts";
-import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
+import type {
+  ConnectionStatus,
+  EventMessage,
+  ProjectGroup,
+  ServerMessage,
+  SessionItem,
+  SnapshotMessage,
+} from "./protocol.ts";
 import { DevicePush, readPushChoice, writePushChoice } from "./push.ts";
 import { formatSessionInfo } from "./session-info.ts";
 import { Transcript } from "./transcript.ts";
@@ -15,7 +22,6 @@ export class Workspace {
   projects: ProjectGroup[] = [];
   hasSessionList = false;
   groupsRoot?: string;
-  lastGroup = "";
   sessionId = "";
   transcript = new Transcript();
   error = "";
@@ -246,7 +252,7 @@ export class Workspace {
     this.run({ type: "abort", sessionId: this.sessionId });
   }
 
-  handle(message: any): void {
+  handle(message: ServerMessage): void {
     switch (message.type) {
       case "sessions":
         this.projects = message.projects;
@@ -270,7 +276,6 @@ export class Workspace {
         this.handleProviderLoginEvent(message);
         break;
       case "group_created":
-        this.lastGroup = message.project;
         this.createSession(message.project);
         break;
       case "session_created":
@@ -342,7 +347,7 @@ export class Workspace {
     }
   }
 
-  private applySnapshot(message: any): void {
+  private applySnapshot(message: SnapshotMessage): void {
     if (message.sessionId !== this.sessionId) return;
     this.transcript.load(message);
     this.settings = message.settings;
@@ -352,7 +357,7 @@ export class Workspace {
     this.isSending = false;
   }
 
-  private applyEvent(message: any): void {
+  private applyEvent(message: EventMessage): void {
     if (message.sessionId !== this.sessionId || this.isSyncing) return;
     if (message.seq !== this.lastSequence + 1) return this.subscribe();
     this.lastSequence = message.seq;

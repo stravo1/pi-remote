@@ -1,4 +1,5 @@
-import type { AgentSessionEvent, PiSession, Snapshot } from "./pi-adapter.ts";
+import type { PiSession } from "./pi-adapter.ts";
+import type { AgentSessionEvent, Snapshot } from "./protocol.ts";
 import type { RunNotice } from "./push-notifier.ts";
 
 export interface HubClient {

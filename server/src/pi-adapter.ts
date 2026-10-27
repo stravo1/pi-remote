@@ -6,14 +6,23 @@ import {
   type AgentSession,
   type AgentSessionEvent,
   type CreateAgentSessionOptions,
-  type SessionStats,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import type { AuthEvent, AuthPrompt, AuthType } from "@earendil-works/pi-ai";
-import type { Configuration } from "./config.ts";
 import { SessionActivity } from "./session-activity.ts";
 import { SessionSummaryJob } from "./session-summary-job.ts";
+import type {
+  CommandChoice,
+  DefaultModelSettings,
+  ModelChoice,
+  PromptImage,
+  ProviderLoginEvent,
+  ProviderSettings,
+  SessionInfo,
+  SessionSettings,
+  Snapshot,
+} from "./protocol.ts";
 
 export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
@@ -30,69 +39,9 @@ export interface SessionSummary {
   lastUserMessage?: number;
 }
 
-export interface Snapshot {
-  messages: AgentSession["messages"];
-  isStreaming: boolean;
-  isCompacting: boolean;
-  queue: { steering: string[]; followUp: string[] };
-  settings?: SessionSettings;
-}
-
-export type SessionInfo = Omit<SessionStats, "sessionFile">;
-
-export interface ModelChoice {
-  provider: string;
-  id: string;
-  name: string;
-  /** The model accepts images in prompts, so the client can show the attach button. */
-  hasImageInput?: boolean;
-}
-
-/** An image attached to a prompt, base64 without the data URL prefix. */
-export interface PromptImage {
-  data: string;
-  mimeType: string;
-}
-
 function describeModel(model: { provider: string; id: string; name: string; input: string[] }): ModelChoice {
   return { provider: model.provider, id: model.id, name: model.name, hasImageInput: model.input.includes("image") };
 }
-
-export interface CommandChoice {
-  name: string;
-  description?: string;
-  argumentHint?: string;
-}
-
-export interface SessionSettings {
-  model?: ModelChoice;
-  models: ModelChoice[];
-  thinkingLevel: string;
-  thinkingLevels: string[];
-  commands: CommandChoice[];
-}
-
-export interface ProviderSettings {
-  id: string;
-  name: string;
-  authTypes: AuthType[];
-  isConfigured: boolean;
-  isUsingApiKey: boolean;
-  /** pi saved this login, so signing out can remove it. Keys from models.json or the environment cannot. */
-  hasStoredLogin: boolean;
-  source?: string;
-  accountLabel?: string;
-}
-
-/** The stored default model plus the models of the active providers, for the settings picker. */
-export interface DefaultModelSettings {
-  models: ModelChoice[];
-  /** The stored default model, when it is still available on an active provider. */
-  model?: ModelChoice;
-}
-
-export type ProviderLoginEvent =
-  AuthEvent | { type: "prompt"; prompt: AuthPrompt } | { type: "complete" } | { type: "failed"; message: string };
 
 // pi queues already-expanded text. These add it back without running input handlers again.
 interface QueueInternals {
@@ -266,10 +215,6 @@ export class PiAdapter {
     this.modelRuntime = options.modelRuntime as ModelRuntime | undefined;
     this.sessionDirectory = sessionDirectory;
     this.summaryDelay = summaryDelay;
-  }
-
-  static async fromConfiguration(_configuration: Configuration): Promise<PiAdapter> {
-    return new PiAdapter({ modelRuntime: await ModelRuntime.create() });
   }
 
   async list(project: string): Promise<SessionSummary[]> {

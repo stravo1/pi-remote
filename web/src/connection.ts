@@ -1,4 +1,4 @@
-import type { ConnectionStatus } from "./protocol.ts";
+import type { ConnectionStatus, ServerMessage } from "./protocol.ts";
 
 // Shown when a command cannot go out because the socket is closed.
 export const NOT_CONNECTED_MESSAGE = "Not connected. Reconnecting.";
@@ -6,7 +6,7 @@ export const NOT_CONNECTED_MESSAGE = "Not connected. Reconnecting.";
 export interface ConnectionHandlers {
   onStatus(status: ConnectionStatus): void;
   onOpen(): void;
-  onMessage(message: any): void;
+  onMessage(message: ServerMessage): void;
 }
 
 export interface ConnectionEnvironment {

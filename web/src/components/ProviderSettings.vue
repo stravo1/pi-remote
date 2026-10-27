@@ -5,7 +5,7 @@ import type {
   DefaultModelSettings,
   ProviderLoginEvent,
   ProviderSettings as Provider,
-} from "../../../server/src/pi-adapter.ts";
+} from "../../../server/src/protocol.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
 import { getModelKey } from "../recent-models.ts";
 

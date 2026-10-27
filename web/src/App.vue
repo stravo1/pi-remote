@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
-import { reactive } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { Button, Dialogs, Spinner, ToastProvider, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";

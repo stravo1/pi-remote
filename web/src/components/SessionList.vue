@@ -202,9 +202,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
           <span :class="['size-8 shrink-0', { 'max-sm:hidden': isCreatingGroup }]"><PiLogo /></span>
           <div :class="['min-w-0 flex-1', { 'max-sm:hidden': isCreatingGroup }]">
             <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
-            <p :class="['text-p-xs', status === 'connected' ? 'text-ink-gray-5' : 'text-ink-gray-5']">
-              {{ statusLabels[status] }}
-            </p>
+            <p v-if="status !== 'connected'" class="text-p-xs text-ink-gray-5">{{ statusLabels[status] }}</p>
           </div>
           <NewGroupForm
             v-if="isCreatingGroup"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { Button, Password, TextInput } from "frappe-ui";
-import type { ProviderLoginEvent } from "../../../server/src/pi-adapter.ts";
+import type { ProviderLoginEvent } from "../../../server/src/protocol.ts";
 
 const props = defineProps<{ event?: ProviderLoginEvent; notice?: ProviderLoginEvent }>();
 const emit = defineEmits<{ answer: [value: string] }>();

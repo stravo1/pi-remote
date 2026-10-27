@@ -4,7 +4,8 @@ import { WebSocket, WebSocketServer, type RawData } from "ws";
 import type { Configuration } from "./config.ts";
 import { serveHttp } from "./http.ts";
 import type { HubClient, SessionHub } from "./session-hub.ts";
-import type { PiAdapter, PromptImage } from "./pi-adapter.ts";
+import type { PiAdapter } from "./pi-adapter.ts";
+import type { PromptImage } from "./protocol.ts";
 import type { PushNotifier } from "./push-notifier.ts";
 
 interface Command {
@@ -150,9 +151,14 @@ export class Transport {
       follow_up: () => this.hub.queue(requireSessionId(command), requireText(command), "follow_up"),
       steer_follow_up: () => this.hub.steerFollowUp(requireSessionId(command), requireText(command)),
       set_model: () =>
-        this.hub.setModel(requireSessionId(command), requireString(command.provider), requireString(command.modelId)),
-      set_thinking_level: () => this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level)),
-      rename_session: () => this.hub.rename(requireSessionId(command), requireString(command.name)),
+        this.hub.setModel(
+          requireSessionId(command),
+          requireString(command.provider, "provider"),
+          requireString(command.modelId, "modelId"),
+        ),
+      set_thinking_level: () =>
+        this.hub.setThinkingLevel(requireSessionId(command), requireString(command.level, "level")),
+      rename_session: () => this.hub.rename(requireSessionId(command), requireString(command.name, "name")),
       get_session_info: () => this.sendSessionInfo(client, requireSessionId(command)),
       compact: () => this.hub.compact(requireSessionId(command), optionalString(command.instructions)),
       abort: () => this.hub.abort(requireSessionId(command)),
@@ -201,12 +207,15 @@ export class Transport {
   }
 
   private async setProviderKey(client: HubClient, command: Command): Promise<void> {
-    await this.requireProviders().setProviderApiKey(requireString(command.provider), requireString(command.apiKey));
+    await this.requireProviders().setProviderApiKey(
+      requireString(command.provider, "provider"),
+      requireString(command.apiKey, "API key"),
+    );
     await this.refreshProviders(client);
   }
 
   private async getProviderKey(client: HubClient, command: Command): Promise<void> {
-    const provider = requireString(command.provider);
+    const provider = requireString(command.provider, "provider");
     client.send(
       JSON.stringify({
         type: "provider_key",
@@ -217,7 +226,7 @@ export class Transport {
   }
 
   private async logoutProvider(client: HubClient, command: Command): Promise<void> {
-    await this.requireProviders().logoutProvider(requireString(command.provider));
+    await this.requireProviders().logoutProvider(requireString(command.provider, "provider"));
     await this.refreshProviders(client);
   }
 
@@ -230,7 +239,7 @@ export class Transport {
       if (event.type === "complete") void this.refreshProviders(client);
     };
     loginId = this.requireProviders().startProviderLogin(
-      requireString(command.provider),
+      requireString(command.provider, "provider"),
       requireAuthType(command.authType),
       sendEvent,
     );
@@ -239,11 +248,14 @@ export class Transport {
   }
 
   private submitProviderLogin(command: Command): void {
-    this.requireProviders().submitProviderLogin(requireString(command.loginId), requireString(command.value));
+    this.requireProviders().submitProviderLogin(
+      requireString(command.loginId, "loginId"),
+      requireString(command.value, "value"),
+    );
   }
 
   private cancelProviderLogin(command: Command): void {
-    this.requireProviders().cancelProviderLogin(requireString(command.loginId));
+    this.requireProviders().cancelProviderLogin(requireString(command.loginId, "loginId"));
   }
 
   private async subscribePush(client: HubClient, command: Command): Promise<void> {
@@ -252,7 +264,7 @@ export class Transport {
   }
 
   private async unsubscribePush(client: HubClient, command: Command): Promise<void> {
-    await this.requirePush().unsubscribe(requireString(command.endpoint));
+    await this.requirePush().unsubscribe(requireString(command.endpoint, "endpoint"));
     client.send(JSON.stringify({ type: "push_unsubscribed" }));
   }
 
@@ -267,13 +279,12 @@ export class Transport {
   }
 
   async createGroup(client: HubClient, command: Command): Promise<void> {
-    if (typeof command.name !== "string") throw new Error("The group name must be a string.");
-    const project = await this.hub.createGroup(command.name);
+    const project = await this.hub.createGroup(requireString(command.name, "group name"));
     client.send(JSON.stringify({ type: "group_created", project }));
   }
 
   async removeGroup(client: HubClient, command: Command): Promise<void> {
-    await this.hub.removeGroup(requireString(command.project), command.deleteFolder === true);
+    await this.hub.removeGroup(requireString(command.project, "project"), command.deleteFolder === true);
     client.send(JSON.stringify(await this.hub.getSessionList()));
   }
 
@@ -287,8 +298,7 @@ export class Transport {
   }
 
   async createSession(client: HubClient, command: Command): Promise<void> {
-    if (typeof command.project !== "string") throw new Error("The project must be a string.");
-    const sessionId = await this.hub.createSession(command.project);
+    const sessionId = await this.hub.createSession(requireString(command.project, "project"));
     client.send(JSON.stringify({ type: "session_created", sessionId }));
   }
 
@@ -314,8 +324,8 @@ export class Transport {
   }
 }
 
-function requireString(value: unknown): string {
-  if (typeof value !== "string" || !value.trim()) throw new Error("The setting must be a nonempty string.");
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`The ${field} must be a nonempty string.`);
   return value;
 }
 

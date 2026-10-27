@@ -1,6 +1,7 @@
 import type { Configuration } from "./config.ts";
 import { OpenSession, type HubClient, type HubSession, type RunMetrics } from "./open-session.ts";
-import type { PiAdapter, PromptImage } from "./pi-adapter.ts";
+import type { PiAdapter } from "./pi-adapter.ts";
+import { lastUserActivity, type ProjectGroup, type PromptImage, type SessionListItem } from "./protocol.ts";
 import { ProjectStore } from "./project-store.ts";
 import type { PushNotifier } from "./push-notifier.ts";
 
@@ -43,7 +44,7 @@ export class SessionHub {
   }
 
   async getSessionList() {
-    const projects = await Promise.all(
+    const projects: ProjectGroup[] = await Promise.all(
       (await this.getProjects()).map(async (path) => ({
         path,
         sessions: await this.getProjectSessions(path),
@@ -175,11 +176,11 @@ export class SessionHub {
     return this.store.list();
   }
 
-  private async getProjectSessions(project: string) {
+  private async getProjectSessions(project: string): Promise<SessionListItem[]> {
     const stored = await this.source.list(project);
     const open = [...this.sessions.values()].filter((entry) => entry.project === project);
     const storedIds = new Set(stored.map((summary) => summary.id));
-    const summaries = [
+    const summaries: Omit<SessionListItem, "isRunning">[] = [
       ...stored.map(({ id, name, firstMessage, modified, lastUserMessage }) => ({
         id,
         name,
@@ -198,13 +199,8 @@ export class SessionHub {
         })),
     ];
     return summaries
-      .sort((a, b) => this.lastUserActivity(b) - this.lastUserActivity(a))
+      .sort((a, b) => lastUserActivity(b) - lastUserActivity(a))
       .map((summary) => ({ ...summary, isRunning: this.sessions.get(summary.id)?.session.is_running ?? false }));
-  }
-
-  /** A running reply changes modified, so the list follows the last message the user sent. */
-  private lastUserActivity(summary: { modified: number; lastUserMessage?: number }): number {
-    return summary.lastUserMessage ?? summary.modified;
   }
 
   private getSession(sessionId: string): Promise<OpenSession> {
