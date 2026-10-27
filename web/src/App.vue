@@ -265,7 +265,7 @@ function closeProviderSettings(): void {
         :error="workspace.error"
         :queue="workspace.transcript.queue"
         :commands="[...ownCommands, ...(workspace.settings?.commands ?? [])]"
-        @send="(text, images) => workspace.sendPrompt(text, images)"
+        :send="(text, images) => workspace.sendPrompt(text, images)"
         @steer="(text) => workspace.steerFollowUp(text)"
         @abort="workspace.abort()"
       />

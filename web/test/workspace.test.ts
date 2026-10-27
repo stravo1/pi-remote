@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { NOT_CONNECTED_MESSAGE } from "../src/connection.ts";
 import { Workspace } from "../src/workspace.ts";
 
 function setup() {
   const sent: any[] = [];
   const workspace = new Workspace();
-  (workspace as any).connection = { send: (command: object) => sent.push(command) };
+  (workspace as any).connection = {
+    is_open: true,
+    send(command: object) {
+      if (!this.is_open) throw new Error(NOT_CONNECTED_MESSAGE);
+      sent.push(command);
+    },
+  };
   workspace.sessionId = "one";
   return { workspace, sent };
 }
@@ -360,4 +367,40 @@ test("runs /name, /compact, and /session here and sends other commands to pi", (
   workspace.sendPrompt("/name");
   assert.equal(workspace.error, "Add a name after /name.");
   assert.equal(sent.length, 5);
+});
+
+test("clears a send error from a closed socket once the socket is open again", () => {
+  const { workspace } = setup();
+  (workspace as any).connection = {
+    is_open: false,
+    send: () => {
+      throw new Error(NOT_CONNECTED_MESSAGE);
+    },
+  };
+  assert.equal(workspace.sendPrompt("Are you there?"), false);
+  assert.equal(workspace.error, NOT_CONNECTED_MESSAGE);
+  assert.equal(workspace.isSending, false);
+  assert.equal(workspace.is_disabled, true);
+  (workspace as any).handleStatus("disconnected");
+  assert.equal(workspace.error, NOT_CONNECTED_MESSAGE);
+  (workspace as any).handleStatus("connected");
+  assert.equal(workspace.error, "");
+});
+
+test("keeps a server error after a reconnect", () => {
+  const { workspace } = setup();
+  workspace.handle({ type: "error", sessionId: "one", message: "The server refused the request." });
+  (workspace as any).handleStatus("disconnected");
+  (workspace as any).handleStatus("connected");
+  assert.equal(workspace.error, "The server refused the request.");
+});
+
+test("reports whether a send reached the socket", () => {
+  const { workspace, sent } = setup();
+  assert.equal(workspace.sendPrompt("Next"), true);
+  assert.equal(workspace.sendPrompt("/name"), false);
+  assert.equal(workspace.error, "Add a name after /name.");
+  (workspace as any).connection.is_open = false;
+  assert.equal(workspace.sendPrompt("Again"), false);
+  assert.deepEqual(sent, [{ type: "prompt", sessionId: "one", text: "Next", images: [] }]);
 });

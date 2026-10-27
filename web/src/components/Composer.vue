@@ -15,9 +15,10 @@ const props = defineProps<{
   error: string;
   queue: Snapshot["queue"];
   commands: CommandChoice[];
+  // Returns false when the text did not reach the socket.
+  send: (text: string, images: { data: string; mimeType: string }[]) => boolean;
 }>();
 const emit = defineEmits<{
-  send: [text: string, images: { data: string; mimeType: string }[]];
   steer: [text: string];
   abort: [];
 }>();
@@ -81,7 +82,8 @@ function removeImage(image: AttachedImage): void {
 function submit(): void {
   if (!canSend.value) return;
   const payloads = images.value.map(({ data, mimeType }) => ({ data, mimeType }));
-  emit("send", text.value, payloads);
+  // A send that did not reach the socket keeps the draft and its images, so nothing is lost.
+  if (!props.send(text.value, payloads)) return;
   for (const image of images.value) URL.revokeObjectURL(image.preview);
   images.value = [];
   text.value = "";

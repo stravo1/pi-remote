@@ -1,5 +1,8 @@
 import type { ConnectionStatus } from "./protocol.ts";
 
+// Shown when a command cannot go out because the socket is closed.
+export const NOT_CONNECTED_MESSAGE = "Not connected. Reconnecting.";
+
 export interface ConnectionHandlers {
   onStatus(status: ConnectionStatus): void;
   onOpen(): void;
@@ -68,7 +71,7 @@ export class Connection {
   }
 
   send(command: object): void {
-    if (!this.is_open) throw new Error("Not connected. Reconnecting.");
+    if (!this.is_open) throw new Error(NOT_CONNECTED_MESSAGE);
     this.socket!.send(JSON.stringify(command));
   }
 

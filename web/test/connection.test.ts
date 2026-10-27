@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Connection, getBackoffDelay, type ConnectionEnvironment } from "../src/connection.ts";
+import { Connection, getBackoffDelay, NOT_CONNECTED_MESSAGE, type ConnectionEnvironment } from "../src/connection.ts";
 import type { ConnectionStatus } from "../src/protocol.ts";
 
 class FakeSocket {
@@ -71,7 +71,7 @@ test("reconnects after a drop and resets the backoff once open", async () => {
   assert.equal(sockets.length, 3);
   assert.equal(getOpens(), 2);
   assert.equal(statuses.at(-1), "connected");
-  assert.throws(() => setup().connection.send({}), /Not connected/);
+  assert.throws(() => setup().connection.send({}), { message: NOT_CONNECTED_MESSAGE });
 });
 
 test("reloads the page when the login has expired", async () => {

@@ -4,7 +4,7 @@ import type {
   ProviderSettings,
   SessionSettings,
 } from "../../server/src/pi-adapter.ts";
-import { Connection } from "./connection.ts";
+import { Connection, NOT_CONNECTED_MESSAGE } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
 import { DevicePush, readPushChoice, writePushChoice } from "./push.ts";
 import { formatSessionInfo } from "./session-info.ts";
@@ -57,6 +57,8 @@ export class Workspace {
   get is_disabled(): boolean {
     return (
       this.status !== "connected" ||
+      // The socket can die before its close event reaches us, so the button follows the socket.
+      !this.connection?.is_open ||
       !this.sessionId ||
       this.isSyncing ||
       this.isSending ||
@@ -68,9 +70,7 @@ export class Workspace {
   start(): void {
     this.sessionId = this.getHashSessionId();
     this.connection = new Connection({
-      onStatus: (status) => {
-        this.status = status;
-      },
+      onStatus: (status) => this.handleStatus(status),
       onOpen: () => {
         this.refreshList();
         this.subscribe();
@@ -191,15 +191,19 @@ export class Workspace {
     this.run({ type: "push_test" });
   }
 
-  sendPrompt(text: string, images: { data: string; mimeType: string }[] = []): void {
-    if (!images.length && this.runSlashCommand(text)) return;
+  /** Returns false when the text did not reach the socket, so the composer can keep the draft. */
+  sendPrompt(text: string, images: { data: string; mimeType: string }[] = []): boolean {
+    if (!images.length) {
+      const isOwnCommand = this.runSlashCommand(text);
+      if (isOwnCommand !== undefined) return isOwnCommand;
+    }
     this.isSending = true;
     this.error = "";
     // Queued messages are text-only, so a send during a run leaves images out.
     const command = this.transcript.is_running
       ? { type: "follow_up", sessionId: this.sessionId, text }
       : { type: "prompt", sessionId: this.sessionId, text, images };
-    this.run(command);
+    return this.run(command);
   }
 
   steerFollowUp(text: string): void {
@@ -221,21 +225,21 @@ export class Workspace {
     this.run({ type: "set_thinking_level", sessionId: this.sessionId, level });
   }
 
-  renameSession(name: string): void {
+  renameSession(name: string): boolean {
     this.error = "";
     // The server saves the name with spaces collapsed, so the note waits for that same name.
     this.pendingName = name.replace(/\s+/g, " ").trim().slice(0, 120);
-    this.run({ type: "rename_session", sessionId: this.sessionId, name });
+    return this.run({ type: "rename_session", sessionId: this.sessionId, name });
   }
 
-  showSessionInfo(): void {
+  showSessionInfo(): boolean {
     this.error = "";
-    this.run({ type: "get_session_info", sessionId: this.sessionId });
+    return this.run({ type: "get_session_info", sessionId: this.sessionId });
   }
 
-  compact(instructions: string): void {
+  compact(instructions: string): boolean {
     this.error = "";
-    this.run({ type: "compact", sessionId: this.sessionId, instructions });
+    return this.run({ type: "compact", sessionId: this.sessionId, instructions });
   }
 
   abort(): void {
@@ -302,15 +306,18 @@ export class Workspace {
   }
 
   // pi's own commands belong to its terminal app, so pi remote runs these. Other commands go to pi.
-  private runSlashCommand(text: string): boolean {
+  // Returns undefined when the text is not one of pi remote's commands.
+  private runSlashCommand(text: string): boolean | undefined {
     const match = /^\/(name|compact|session)(?:\s+([\s\S]*))?$/.exec(text.trim());
-    if (!match) return false;
+    if (!match) return undefined;
     const [, command, argument = ""] = match;
-    if (command === "session") this.showSessionInfo();
-    else if (command === "compact") this.compact(argument);
-    else if (argument.trim()) this.renameSession(argument);
-    else this.error = "Add a name after /name.";
-    return true;
+    if (command === "session") return this.showSessionInfo();
+    if (command === "compact") return this.compact(argument);
+    if (!argument.trim()) {
+      this.error = "Add a name after /name.";
+      return false;
+    }
+    return this.renameSession(argument);
   }
 
   // The server may have lost this device, so a device that has a subscription sends it again.
@@ -397,13 +404,21 @@ export class Workspace {
     return value === "settings" ? "" : value;
   }
 
-  private run(command: object): void {
+  // A send that struck a closed socket is not an error once the socket is open again.
+  private handleStatus(status: ConnectionStatus): void {
+    this.status = status;
+    if (status === "connected" && this.error === NOT_CONNECTED_MESSAGE) this.error = "";
+  }
+
+  private run(command: object): boolean {
     try {
       this.connection!.send(command);
+      return true;
     } catch (error) {
       this.isSending = false;
       this.isUpdatingSettings = false;
       this.error = error instanceof Error ? error.message : "The command failed.";
+      return false;
     }
   }
 }
