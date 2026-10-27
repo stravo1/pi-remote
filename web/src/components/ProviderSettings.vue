@@ -203,8 +203,8 @@ function chooseDefaultModel(value: string): void {
               class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left sm:min-h-12"
               @click="openModelPicker"
             >
-              <span class="min-w-0 flex-1 text-base text-ink-gray-9">Model for new sessions</span>
-              <span class="truncate text-p-sm text-ink-gray-5">{{ chosenModelLabel }}</span>
+              <span class="min-w-0 flex-1 truncate text-base text-ink-gray-9">New sessions</span>
+              <span class="min-w-0 shrink truncate text-p-sm text-ink-gray-5">{{ chosenModelLabel }}</span>
               <span class="lucide-chevron-right size-5 shrink-0 text-ink-gray-4" aria-hidden="true" />
             </button>
             <template v-else>

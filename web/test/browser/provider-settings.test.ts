@@ -161,7 +161,7 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByRole("button", { name: "Confirm sign out of OpenAI" }).click();
   await page.getByText("No providers connected").waitFor();
   await page.getByText("No providers connected").waitFor();
-  await page.getByRole("button", { name: /Model for new sessions/ }).click();
+  await page.getByRole("button", { name: /New sessions/ }).click();
   await page.getByRole("option", { name: /GPT-5/ }).click();
   assert.ok(
     commands.some(
