@@ -95,7 +95,7 @@ Later out-of-scope requests from the user, all on `main`:
 
 The settings screen now has a Providers section. It lists connected providers only. A `+` button opens a searchable list of provider and sign-in method pairs, such as OpenAI with ChatGPT or an API key. The UI uses gray tokens. Red marks errors only.
 
-The user reported a red alert that said "Not connected. Reconnecting." while the session kept working. A send that lands between a dead socket and its close event throws that error, and the alert used to stay after the reconnect. `Connection` now exports `NOT_CONNECTED_MESSAGE`, and `Workspace.handleStatus` clears the error once the socket is connected again. A server error still stays until the next action. Unit tests in `web/test/workspace.test.ts` cover both cases. The failed message itself is still dropped: the composer clears its text on send and nothing replays it.
+The user reported a red alert that said "Not connected. Reconnecting." while the session kept working. A send that lands between a dead socket and its close event throws that error, and the alert used to stay after the reconnect. `Connection` now exports `NOT_CONNECTED_MESSAGE`, and `Workspace.handleStatus` clears the error once the socket is connected again. A server error still stays until the next action. Unit tests in `web/test/workspace.test.ts` cover both cases. The composer also keeps the draft and its images when a send cannot go out: `sendPrompt` returns a boolean and `Composer` clears only on true. The send button checks the live socket, not only the status. A browser check types a bare `/name`, which fails without a socket round trip, and asserts the draft stays.
 
 ## Handoff
 
