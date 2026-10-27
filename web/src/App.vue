@@ -20,6 +20,8 @@ useColorScheme();
 const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-right" : "top-center";
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;
+// Shows the scroll button while the transcript is scrolled away from the bottom.
+const isScrolledUp = ref(false);
 const isProviderSettingsOpen = ref(location.hash === "#settings");
 // Long sessions render their last messages first and add earlier ones as the reader scrolls up.
 const renderBatch = 60;
@@ -56,6 +58,14 @@ watch(
   },
   { deep: true },
 );
+
+async function scrollToBottom(): Promise<void> {
+  isFollowing = true;
+  await nextTick();
+  const element = transcriptElement.value;
+  if (element) element.scrollTop = element.scrollHeight;
+  trackScroll();
+}
 watch(
   () => workspace.sessionId,
   () => {
@@ -67,7 +77,9 @@ watch(
 function trackScroll(): void {
   const element = transcriptElement.value;
   if (!element) return;
-  isFollowing = element.scrollHeight - element.scrollTop - element.clientHeight < 32;
+  const distance = element.scrollHeight - element.scrollTop - element.clientHeight;
+  isFollowing = distance < 32;
+  isScrolledUp.value = distance >= 32;
   if (element.scrollTop < element.clientHeight && firstRendered.value > 0) renderEarlier(element);
 }
 
@@ -193,35 +205,53 @@ function closeProviderSettings(): void {
           />
         </div>
       </header>
-      <section
-        ref="transcriptElement"
-        class="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] max-sm:order-1"
-        @scroll.passive="trackScroll"
-        aria-label="Conversation"
-        aria-live="polite"
-      >
-        <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-3">
-          <Spinner
-            v-if="workspace.isSyncing && !workspace.transcript.messages.length"
-            class="m-auto size-5 text-ink-gray-5"
-            aria-label="Loading session"
+      <div class="relative min-h-0 flex-1 max-sm:order-1">
+        <section
+          ref="transcriptElement"
+          class="min-h-0 h-full overflow-y-auto [overflow-anchor:none]"
+          @scroll.passive="trackScroll"
+          aria-label="Conversation"
+          aria-live="polite"
+        >
+          <div class="mx-auto flex min-h-full w-full max-w-2xl flex-col px-4 py-6 sm:py-3">
+            <Spinner
+              v-if="workspace.isSyncing && !workspace.transcript.messages.length"
+              class="m-auto size-5 text-ink-gray-5"
+              aria-label="Loading session"
+            />
+            <MessageItem
+              v-for="(message, index) in workspace.transcript.messages.slice(firstRendered)"
+              :key="firstRendered + index"
+              :message="message"
+              :is-group-start="workspace.transcript.isGroupStart(firstRendered + index)"
+              :tools="workspace.transcript.tools"
+            />
+            <p
+              v-if="workspace.transcript.is_compacting"
+              class="mt-3 flex items-center gap-2 text-p-sm text-ink-gray-5"
+              role="status"
+            >
+              <Spinner class="size-4" />Compacting context…
+            </p>
+          </div>
+        </section>
+        <Transition
+          enter-active-class="transition duration-150 ease-out"
+          enter-from-class="opacity-0 translate-y-1"
+          leave-active-class="transition duration-100 ease-in"
+          leave-to-class="opacity-0 translate-y-1"
+        >
+          <Button
+            v-if="isScrolledUp"
+            class="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-outline-gray-1 bg-surface-gray-1 text-ink-gray-6 shadow-sm"
+            variant="ghost"
+            :size="buttonSize"
+            icon="lucide-arrow-down"
+            aria-label="Scroll to bottom"
+            @click="scrollToBottom"
           />
-          <MessageItem
-            v-for="(message, index) in workspace.transcript.messages.slice(firstRendered)"
-            :key="firstRendered + index"
-            :message="message"
-            :is-group-start="workspace.transcript.isGroupStart(firstRendered + index)"
-            :tools="workspace.transcript.tools"
-          />
-          <p
-            v-if="workspace.transcript.is_compacting"
-            class="mt-3 flex items-center gap-2 text-p-sm text-ink-gray-5"
-            role="status"
-          >
-            <Spinner class="size-4" />Compacting context…
-          </p>
-        </div>
-      </section>
+        </Transition>
+      </div>
       <Composer
         :key="workspace.sessionId"
         class="max-sm:order-3"
