@@ -13,6 +13,21 @@ import {
 
 export type { ProjectGroup, SessionListItem as SessionItem } from "../../server/src/protocol.ts";
 
+const projectHashPrefix = "#project:";
+
+export function projectHash(path: string): string {
+  return `${projectHashPrefix}${encodeURIComponent(path)}`;
+}
+
+export function projectPathFromHash(hash: string): string | undefined {
+  if (!hash.startsWith(projectHashPrefix)) return undefined;
+  try {
+    return decodeURIComponent(hash.slice(projectHashPrefix.length));
+  } catch {
+    return undefined;
+  }
+}
+
 export type ConnectionStatus = "connecting" | "connected" | "disconnected";
 
 /** The session list reply, or an update the server pushes to every client. */

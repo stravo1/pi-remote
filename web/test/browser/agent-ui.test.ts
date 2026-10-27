@@ -208,16 +208,7 @@ for (const width of [375, 1280]) {
     await page.getByRole("region", { name: "Loading sessions" }).waitFor();
     assert.equal(await page.getByText("No projects found.").count(), 0);
     await page.getByRole("button", { name: /Example/ }).waitFor();
-    if (width === 375) {
-      const list = page.getByRole("main", { name: "Sessions" });
-      await waitFor(async () =>
-        list.evaluate(
-          (element) =>
-            element.scrollHeight > element.clientHeight &&
-            element.scrollHeight - element.scrollTop - element.clientHeight < 2,
-        ),
-      );
-    }
+    if (width === 375) await page.getByRole("button", { name: "View all sessions" }).waitFor();
     assert.match((await page.locator("meta[name=viewport]").getAttribute("content")) ?? "", /maximum-scale=1/);
     await page.getByRole("button", { name: /Example/ }).click();
     await page.getByRole("status", { name: "Loading session" }).waitFor();
@@ -403,6 +394,12 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
+    if (width === 375) {
+      await page.getByRole("button", { name: "View all sessions" }).click();
+      await page.getByRole("button", { name: /Older task 5/ }).waitFor();
+      await page.getByRole("button", { name: "All sessions" }).click();
+      await page.getByRole("button", { name: /Example/ }).waitFor();
+    }
     await page.getByRole("button", { name: "example", exact: true }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor({ state: "detached" });
     await page.getByRole("button", { name: "example", exact: true }).click();
@@ -447,12 +444,14 @@ for (const width of [375, 1280]) {
         const gap = side === "below" ? menuBox.y - (rowBox.y + rowBox.height) : rowBox.y - (menuBox.y + menuBox.height);
         assert.ok(Math.abs(gap) < 24, `The menu opens ${side} the row`);
       };
-      const older = page.getByRole("button", { name: /Older task 5/ });
+      const older = page.getByRole("button", { name: /Older task 0/ });
       await longPress(older);
       await expectMenuNextTo(older, "below");
       assert.equal(await page.getByText("1 selected").count(), 0, "The release click does not open the session");
+      await page.keyboard.press("Escape");
+      await page.getByRole("menu").waitFor({ state: "detached" });
       await longPress(row);
-      await expectMenuNextTo(row, "above");
+      await expectMenuNextTo(row, "below");
       await page.keyboard.press("Escape");
       await page.getByRole("menu").waitFor({ state: "detached" });
       await longPress(row);

@@ -17,9 +17,12 @@ const props = defineProps<{
   status: ConnectionStatus;
   canCreateGroups: boolean;
   error: string;
+  projectPath?: string;
 }>();
 const emit = defineEmits<{
   select: [sessionId: string];
+  back: [];
+  openProject: [project: string];
   create: [project: string];
   createGroup: [name: string];
   removeGroup: [project: string, isDeletingFolder: boolean];
@@ -31,7 +34,18 @@ const listElement = ref<HTMLElement>();
 const desktopQuery = window.matchMedia("(min-width: 640px)");
 // On phones the header sits at the bottom, so the last active chat goes to the list's bottom.
 const isPhone = ref(!desktopQuery.matches);
-const orderedProjects = computed(() => orderProjects(props.projects, !isPhone.value));
+const orderedProjects = computed(() => {
+  const projects = props.projectPath
+    ? props.projects.filter((project) => project.path === props.projectPath)
+    : props.projects;
+  return orderProjects(projects, !isPhone.value);
+});
+const isProjectPage = computed(() => !!props.projectPath);
+
+function shownSessions(project: ProjectGroup): ProjectGroup["sessions"] {
+  if (isProjectPage.value) return project.sessions;
+  return isPhone.value ? project.sessions.slice(-3) : project.sessions.slice(0, 3);
+}
 
 desktopQuery.addEventListener("change", handleViewportChange);
 onBeforeUnmount(() => desktopQuery.removeEventListener("change", handleViewportChange));
@@ -199,9 +213,18 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
           />
         </template>
         <template v-else>
-          <span :class="['size-8 shrink-0', { 'max-sm:hidden': isCreatingGroup }]"><PiLogo /></span>
+          <Button
+            v-if="isProjectPage"
+            variant="ghost"
+            icon="lucide-arrow-left"
+            aria-label="All sessions"
+            @click="emit('back')"
+          />
+          <span v-else :class="['size-8 shrink-0', { 'max-sm:hidden': isCreatingGroup }]"><PiLogo /></span>
           <div :class="['min-w-0 flex-1', { 'max-sm:hidden': isCreatingGroup }]">
-            <h1 class="text-base font-medium leading-tight text-ink-gray-9">pi remote</h1>
+            <h1 class="text-base font-medium leading-tight text-ink-gray-9">
+              {{ isProjectPage ? getProjectName(projectPath!) : "pi remote" }}
+            </h1>
             <p class="text-p-xs text-ink-gray-5">{{ statusLabels[status] }}</p>
           </div>
           <NewGroupForm
@@ -211,7 +234,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
             @submit="(name) => $emit('createGroup', name)"
             @cancel="isCreatingGroup = false"
           />
-          <template v-else>
+          <template v-else-if="!isProjectPage">
             <Button
               v-if="canCreateGroups"
               variant="ghost"
@@ -231,7 +254,14 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
         <section v-for="project in orderedProjects" :key="project.path" :aria-label="getProjectName(project.path)">
           <div class="mb-2 flex items-center gap-1">
             <h2 class="min-w-0 flex-1">
+              <span
+                v-if="isProjectPage"
+                class="flex max-w-full items-center gap-1 py-1 text-left text-p-sm font-medium text-ink-gray-5"
+              >
+                <span class="truncate">{{ getProjectName(project.path) }}</span>
+              </span>
               <button
+                v-else
                 type="button"
                 class="flex max-w-full items-center gap-1 rounded-3 py-1 pr-2 text-left text-p-sm font-medium text-ink-gray-5 hover:text-ink-gray-7"
                 :aria-expanded="!collapsed.has(project.path)"
@@ -263,10 +293,10 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
             />
           </div>
           <ul
-            v-if="!collapsed.has(project.path)"
+            v-if="isProjectPage || !collapsed.has(project.path)"
             class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
           >
-            <li v-for="session in project.sessions" :key="session.id">
+            <li v-for="session in shownSessions(project)" :key="session.id">
               <Popover
                 trigger="manual"
                 side="bottom"
@@ -333,6 +363,18 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
                   </button>
                 </div>
               </Popover>
+            </li>
+            <li v-if="!isProjectPage && project.sessions.length > 3 && !selected">
+              <button
+                type="button"
+                class="flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left text-base text-ink-gray-7 hover:bg-surface-gray-2 active:bg-surface-gray-3"
+                aria-label="View all sessions"
+                @click="emit('openProject', project.path)"
+              >
+                <span class="lucide-list size-5 shrink-0 text-ink-gray-5" aria-hidden="true" />
+                <span class="min-w-0 flex-1 truncate">View all sessions</span>
+                <span class="lucide-chevron-right size-5 shrink-0 text-ink-gray-4" aria-hidden="true" />
+              </button>
             </li>
             <li v-if="!project.sessions.length" class="px-4 py-3 text-p-sm text-ink-gray-5">No sessions yet.</li>
           </ul>

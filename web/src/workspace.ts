@@ -5,6 +5,7 @@ import type {
   SessionSettings,
 } from "../../server/src/protocol.ts";
 import { Connection, NOT_CONNECTED_MESSAGE } from "./connection.ts";
+import { projectPathFromHash } from "./protocol.ts";
 import type {
   ConnectionStatus,
   EventMessage,
@@ -421,8 +422,8 @@ export class Workspace {
   }
 
   private getHashSessionId(): string {
-    const value = location.hash.slice(1);
-    return value === "settings" ? "" : value;
+    const value = location.hash;
+    return value === "#settings" || projectPathFromHash(value) !== undefined ? "" : value.slice(1);
   }
 
   // A send that struck a closed socket is not an error once the socket is open again.

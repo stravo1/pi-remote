@@ -5,6 +5,15 @@ import { chromium, type Page } from "playwright";
 
 const projects = [
   {
+    path: "/code/many",
+    sessions: [
+      { id: "many-new", firstMessage: "Newest chat", modified: 1300, lastUserMessage: 1300, isRunning: false },
+      { id: "many-second", firstMessage: "Second chat", modified: 1200, lastUserMessage: 1200, isRunning: false },
+      { id: "many-third", firstMessage: "Third chat", modified: 1100, lastUserMessage: 1100, isRunning: false },
+      { id: "many-old", firstMessage: "Oldest chat", modified: 1000, lastUserMessage: 1000, isRunning: false },
+    ],
+  },
+  {
     path: "/code/running",
     sessions: [{ id: "running", firstMessage: "Running chat", modified: 1000, lastUserMessage: 100, isRunning: true }],
   },
@@ -31,6 +40,7 @@ const projects = [
 ];
 
 const desktopOrder = [
+  { project: "many", sessions: ["Newest chat", "Second chat", "Third chat"] },
   { project: "prompted", sessions: ["Last active chat", "Older prompted chat"] },
   { project: "running", sessions: ["Running chat"] },
   { project: "empty", sessions: [] },
@@ -77,6 +87,19 @@ test("desktop puts the chat with the last user message first", { timeout: 30_000
   assert.deepEqual(await readOrder(page), desktopOrder);
 });
 
+test("opens a project page for sessions beyond the first three", { timeout: 30_000 }, async (context) => {
+  const page = await openList(context, 1280);
+  const allSessions = page.getByRole("button", { name: "View all sessions" });
+  await allSessions.click();
+  await page.getByRole("region", { name: "many" }).getByRole("heading", { name: "many" }).waitFor();
+  assert.equal(await page.getByRole("button", { name: /Oldest chat/ }).count(), 1);
+  assert.equal(await page.getByRole("button", { name: "View all sessions" }).count(), 0);
+  assert.equal(await page.evaluate(() => location.hash), "#project:%2Fcode%2Fmany");
+
+  await page.getByRole("button", { name: "All sessions" }).click();
+  await allSessions.waitFor();
+});
+
 test("a phone puts the chat with the last user message last", { timeout: 30_000 }, async (context) => {
   const page = await openList(context, 375);
   assert.deepEqual(
@@ -91,10 +114,10 @@ test("a phone puts the chat with the last user message last", { timeout: 30_000 
   );
 
   const list = await page.getByRole("main", { name: "Sessions" }).boundingBox();
-  const lastChat = await page.getByRole("button", { name: /Last active chat/ }).boundingBox();
-  assert.ok(list && lastChat);
+  const lastItem = await page.getByRole("button", { name: "View all sessions" }).boundingBox();
+  assert.ok(list && lastItem);
   assert.ok(
-    list.y + list.height - (lastChat.y + lastChat.height) < 32,
-    "The last active chat sits at the bottom of the list",
+    list.y + list.height - (lastItem.y + lastItem.height) < 32,
+    "The last project item sits at the bottom of the list",
   );
 });

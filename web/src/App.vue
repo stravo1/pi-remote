@@ -8,7 +8,7 @@ import SessionList from "./components/SessionList.vue";
 import NotificationSettings from "./components/NotificationSettings.vue";
 import ProviderSettings from "./components/ProviderSettings.vue";
 import { buttonSize } from "./button-size.ts";
-import { getSessionTitle } from "./protocol.ts";
+import { getSessionTitle, projectHash, projectPathFromHash } from "./protocol.ts";
 import { ownCommands } from "./slash-commands.ts";
 import { Workspace } from "./workspace.ts";
 import { applyBrowserTheme } from "./browser-theme.ts";
@@ -31,6 +31,7 @@ let isFollowing = true;
 // Shows the scroll button while the transcript is scrolled away from the bottom.
 const isScrolledUp = ref(false);
 const isProviderSettingsOpen = ref(location.hash === "#settings");
+const projectPath = ref(projectPathFromHash(location.hash));
 // Long sessions render their last messages first and add earlier ones as the reader scrolls up.
 const renderBatch = 60;
 const renderedCount = ref(renderBatch);
@@ -38,16 +39,19 @@ const firstRendered = computed(() => Math.max(0, workspace.transcript.messages.l
 
 onMounted(() => {
   workspace.start();
-  window.addEventListener("hashchange", () => {
-    isProviderSettingsOpen.value = location.hash === "#settings";
-    if (isProviderSettingsOpen.value) openSettings();
-  });
+  window.addEventListener("hashchange", handleHashChange);
   if (isProviderSettingsOpen.value) openSettings();
   // A tap on a notification asks an open window to show its session.
   navigator.serviceWorker?.addEventListener("message", (event) => {
     if (event.data?.type === "open_session") location.hash = event.data.sessionId;
   });
 });
+
+function handleHashChange(): void {
+  isProviderSettingsOpen.value = location.hash === "#settings";
+  projectPath.value = projectPathFromHash(location.hash);
+  if (isProviderSettingsOpen.value) openSettings();
+}
 
 function openSettings(): void {
   workspace.listProviders();
@@ -114,6 +118,14 @@ function openProviderSettings(): void {
 function closeProviderSettings(): void {
   location.hash = "";
 }
+
+function openProject(path: string): void {
+  location.hash = projectHash(path);
+}
+
+function closeProject(): void {
+  location.hash = "";
+}
 </script>
 
 <template>
@@ -158,12 +170,15 @@ function closeProviderSettings(): void {
       :status="workspace.status"
       :can-create-groups="!!workspace.groupsRoot"
       :error="workspace.error"
+      :project-path="projectPath"
       @select="(id) => workspace.select(id)"
       @create="(project) => workspace.createSession(project)"
       @create-group="(name) => workspace.createGroup(name)"
       @remove-group="(project, isDeletingFolder) => workspace.removeGroup(project, isDeletingFolder)"
       @delete-sessions="(sessionIds) => workspace.deleteSessions(sessionIds)"
       @settings="openProviderSettings"
+      @open-project="openProject"
+      @back="closeProject"
     />
     <template v-else>
       <header class="shrink-0 border-b border-outline-gray-1 max-sm:order-2 max-sm:border-b-0 max-sm:border-t">
