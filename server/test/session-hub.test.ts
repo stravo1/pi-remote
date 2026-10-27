@@ -54,6 +54,42 @@ test("lists sessions by the last user message, and merges open unsaved sessions"
   assert.equal(projects[0].sessions[0].lastUserMessage, 2000);
 });
 
+test("reuses one new session per project", async (context) => {
+  const { hub, source } = setup();
+  context.after(() => hub.close());
+  const first = await hub.createSession("/p/two");
+  await hub.rename(first, "Draft");
+  assert.equal(await hub.createSession("/p/two"), first);
+  const [one, two] = await Promise.all([hub.createSession("/p/one"), hub.createSession("/p/one")]);
+  assert.equal(one, two);
+  assert.equal(source.count, 2);
+});
+
+test("replaces the draft after its first run starts", async (context) => {
+  const { hub, source } = setup();
+  context.after(() => hub.close());
+  const draft = await hub.createSession("/p/two");
+  const run = hub.prompt(draft, "Go");
+  for (let attempt = 0; attempt < 100 && !source.sessions.get(draft)!.is_running; attempt++)
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  assert.equal(source.sessions.get(draft)!.is_running, true);
+  assert.notEqual(await hub.createSession("/p/two"), draft);
+  source.sessions.get(draft)!.finish();
+  await run;
+});
+
+test("drops the draft when it is deleted or disposed", async (context) => {
+  const { hub, source } = setup(0.0005);
+  context.after(() => hub.close());
+  const deleted = await hub.createSession("/p/two");
+  await hub.deleteSessions([deleted]);
+  assert.notEqual(await hub.createSession("/p/two"), deleted);
+  const disposed = await hub.createSession("/p/one");
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(source.sessions.get(disposed)!.closed, true);
+  assert.notEqual(await hub.createSession("/p/one"), disposed);
+});
+
 test("rejects a project that is not configured", async (context) => {
   const { hub } = setup();
   context.after(() => hub.close());

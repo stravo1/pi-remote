@@ -21,6 +21,9 @@ export class SessionHub {
   private readonly notifier?: Pick<PushNotifier, "notify">;
   private readonly sessions = new Map<string, OpenSession>();
   private readonly opening = new Map<string, Promise<OpenSession>>();
+  // One draft session per project. A draft has no messages and is reused by the next New session click.
+  private readonly drafts = new Map<string, string>();
+  private readonly creating = new Map<string, Promise<string>>();
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly clients = new Set<HubClient>();
   private listBroadcast?: ReturnType<typeof setTimeout>;
@@ -74,7 +77,25 @@ export class SessionHub {
 
   async createSession(project: string): Promise<string> {
     if (!(await this.getProjects()).includes(project)) throw new Error("Unknown project.");
-    return this.register(project, await this.source.create(project)).id;
+    const pending = this.creating.get(project);
+    if (pending) return pending;
+    const draftId = this.drafts.get(project);
+    if (draftId) {
+      const draft = this.sessions.get(draftId);
+      if (draft?.project === project && !draft.session.is_running && !draft.session.snapshot.messages.length)
+        return draftId;
+      this.drafts.delete(project);
+    }
+    const created = this.source
+      .create(project)
+      .then((session) => {
+        const entry = this.register(project, session);
+        this.drafts.set(project, entry.id);
+        return entry.id;
+      })
+      .finally(() => this.creating.delete(project));
+    this.creating.set(project, created);
+    return created;
   }
 
   async subscribe(client: HubClient, sessionId: string): Promise<void> {
@@ -143,6 +164,7 @@ export class SessionHub {
   async close(): Promise<void> {
     clearTimeout(this.listBroadcast);
     this.listBroadcast = undefined;
+    this.drafts.clear();
     for (const timer of this.timers.values()) clearTimeout(timer);
     this.timers.clear();
     await Promise.all([...this.sessions.values()].map((entry) => entry.close()));
@@ -212,7 +234,10 @@ export class SessionHub {
         this.scheduleDisposal(entry);
         this.notifier?.notify(notice).catch((error: unknown) => console.error("Push notification failed", error));
       },
-      () => this.scheduleListBroadcast(),
+      (event) => {
+        if (event.type === "agent_start") this.clearDraft(entry);
+        this.scheduleListBroadcast();
+      },
     );
     this.sessions.set(entry.id, entry);
     this.scheduleDisposal(entry);
@@ -246,7 +271,12 @@ export class SessionHub {
     clearTimeout(this.timers.get(entry.id));
     this.timers.delete(entry.id);
     this.sessions.delete(entry.id);
+    this.clearDraft(entry);
     await entry.close();
+  }
+
+  private clearDraft(entry: OpenSession): void {
+    if (this.drafts.get(entry.project) === entry.id) this.drafts.delete(entry.project);
   }
 
   private async disposeIfIdle(entry: OpenSession): Promise<void> {

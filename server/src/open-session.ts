@@ -39,7 +39,7 @@ export class OpenSession {
   private readonly unsubscribe: () => void;
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly onSettled: (notice: RunNotice) => void;
-  private readonly onChange: () => void;
+  private readonly onChange: (event: AgentSessionEvent) => void;
   private runEvents: AgentSessionEvent[] = [];
   private sequence = 0;
   private eventCount = 0;
@@ -50,7 +50,7 @@ export class OpenSession {
     session: HubSession,
     logRun: (metrics: RunMetrics) => void,
     onSettled: (notice: RunNotice) => void,
-    onChange: () => void = () => {},
+    onChange: (event: AgentSessionEvent) => void = () => {},
   ) {
     this.project = project;
     this.session = session;
@@ -88,7 +88,7 @@ export class OpenSession {
     }
     this.record(event);
     // Run state and names show on the session list, so the list needs a refresh.
-    if (["agent_start", "agent_settled", "session_info_changed"].includes(event.type)) this.onChange();
+    if (["agent_start", "agent_settled", "session_info_changed"].includes(event.type)) this.onChange(event);
   }
 
   sendSnapshot(clients: Iterable<HubClient> = this.subscribers): void {

@@ -62,7 +62,7 @@ One person runs pi on one machine and uses it from any device through a browser.
 
 ### Client views
 
-- Session list: sessions grouped by project. Order follows the chat where the user last sent a message. That project comes first on desktop and last on a phone, so on a phone that chat sits at the bottom, next to the header. Each project lists its most recent user message first on desktop and last on a phone. A running reply does not move a chat. A button starts a new session in a project. The list is a full page. Picking a session opens the chat page, with a back button to the list. Both pages have a maximum width on desktop.
+- Session list: sessions grouped by project. Order follows the chat where the user last sent a message. That project comes first on desktop and last on a phone, so on a phone that chat sits at the bottom, next to the header. Each project lists its most recent user message first on desktop and last on a phone. A running reply does not move a chat. A button starts a new session in a project. A project keeps at most one session with no messages. Pressing the button again reuses that empty session. When its first run starts, the next press starts a new session. The list is a full page. Picking a session opens the chat page, with a back button to the list. Both pages have a maximum width on desktop.
 - Session names: after a run changes the conversation, the idle session summarizes its last six user and assistant messages. A short delay combines changes without polling. The selected model returns a title of three to eight words. The server saves that title as the pi session name. It discards a result if the conversation changes during the request.
 - Session view: the transcript, live output, tool calls, and an input box. While a run is active, the input box sends a follow-up by default and offers "steer" as a second action. A stop button aborts the run.
 - Session settings: a settings button beside the send button opens a native frappe-ui bottom sheet on a phone and a popover on desktop. Both show the same content. The sheet lists the current and the most recently used models (up to four, saved in the browser), an Effort row, and a More models row with search.
@@ -72,19 +72,19 @@ One person runs pi on one machine and uses it from any device through a browser.
 
 ## Functional requirements
 
-| ID  | Requirement                                                                                |
-| --- | ------------------------------------------------------------------------------------------ |
-| F1  | The client lists sessions for each configured project.                                     |
-| F2  | The client starts a new session in a configured project.                                   |
-| F3  | The client opens a session and shows its full transcript.                                  |
-| F4  | The client streams assistant text, thinking, and tool calls as pi emits them.              |
-| F5  | The client sends a prompt. During a run, it sends a steer or a follow-up.                  |
-| F6  | The client aborts the active run.                                                          |
-| F7  | A run continues when all clients disconnect.                                               |
-| F8  | A client that connects during a run sees the run state, then live events.                  |
-| F9  | Two clients on one session see the same events. Input from either one goes to the session. |
-| F10 | The server only starts sessions in projects created under `projectsRoot`.                  |
-| F11 | The client creates a project: a new folder directly inside `projectsRoot`.                 |
+| ID  | Requirement                                                                                                                                  |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | The client lists sessions for each configured project.                                                                                       |
+| F2  | The client starts a new session in a configured project. A project has at most one session with no messages, and a repeated start reuses it. |
+| F3  | The client opens a session and shows its full transcript.                                                                                    |
+| F4  | The client streams assistant text, thinking, and tool calls as pi emits them.                                                                |
+| F5  | The client sends a prompt. During a run, it sends a steer or a follow-up.                                                                    |
+| F6  | The client aborts the active run.                                                                                                            |
+| F7  | A run continues when all clients disconnect.                                                                                                 |
+| F8  | A client that connects during a run sees the run state, then live events.                                                                    |
+| F9  | Two clients on one session see the same events. Input from either one goes to the session.                                                   |
+| F10 | The server only starts sessions in projects created under `projectsRoot`.                                                                    |
+| F11 | The client creates a project: a new folder directly inside `projectsRoot`.                                                                   |
 
 ## Non-functional requirements
 
@@ -189,27 +189,27 @@ All messages are JSON over one WebSocket at `/ws`. Every message has a `type`.
 
 Client to server:
 
-| type                    | Fields                             | Effect                                                                                                     |
-| ----------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `list_sessions`         |                                    | Server replies with `sessions`.                                                                            |
-| `new_group`             | `name`                             | Creates the folder `<projectsRoot>/<name>` and lists it as a project. Server replies with `group_created`. |
-| `new_session`           | `project`                          | Creates a session. Server replies with `session_created`.                                                  |
-| `subscribe`             | `sessionId`                        | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages.                  |
-| `unsubscribe`           | `sessionId`                        | Stops events for this client.                                                                              |
-| `prompt`                | `sessionId`, `text`                | Starts a run. Rejected during a run.                                                                       |
-| `steer`                 | `sessionId`, `text`                | Adds a message after the current turn. Starts a prompt if the run has ended.                               |
-| `follow_up`             | `sessionId`, `text`                | Adds a message after the current run. Starts a prompt if the run has ended.                                |
-| `abort`                 | `sessionId`                        | Stops the active run.                                                                                      |
-| `set_model`             | `sessionId`, `provider`, `modelId` | Selects an available model while idle. Sends a fresh snapshot to all subscribers.                          |
-| `set_thinking_level`    | `sessionId`, `level`               | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers.                  |
-| `list_providers`        |                                    | Lists AI-provider authentication status. It never includes credentials.                                    |
-| `get_default_model`     |                                    | Lists the models of the active providers and the stored default model.                                     |
-| `set_default_model`     | `provider`, `modelId`              | Stores the default model for new sessions. Empty `provider` and `modelId` reset it to automatic.           |
-| `set_provider_key`      | `provider`, `apiKey`               | Stores an API key for a provider on the host.                                                              |
-| `start_provider_login`  | `provider`, `authType`             | Starts a provider API-key or OAuth login.                                                                  |
-| `submit_provider_login` | `loginId`, `value`                 | Answers the current provider login prompt.                                                                 |
-| `cancel_provider_login` | `loginId`                          | Cancels a pending provider login.                                                                          |
-| `logout_provider`       | `provider`                         | Removes the saved credential for a provider.                                                               |
+| type                    | Fields                             | Effect                                                                                                       |
+| ----------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `list_sessions`         |                                    | Server replies with `sessions`.                                                                              |
+| `new_group`             | `name`                             | Creates the folder `<projectsRoot>/<name>` and lists it as a project. Server replies with `group_created`.   |
+| `new_session`           | `project`                          | Returns the project's empty session, or creates one when it has none. Server replies with `session_created`. |
+| `subscribe`             | `sessionId`                        | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages.                    |
+| `unsubscribe`           | `sessionId`                        | Stops events for this client.                                                                                |
+| `prompt`                | `sessionId`, `text`                | Starts a run. Rejected during a run.                                                                         |
+| `steer`                 | `sessionId`, `text`                | Adds a message after the current turn. Starts a prompt if the run has ended.                                 |
+| `follow_up`             | `sessionId`, `text`                | Adds a message after the current run. Starts a prompt if the run has ended.                                  |
+| `abort`                 | `sessionId`                        | Stops the active run.                                                                                        |
+| `set_model`             | `sessionId`, `provider`, `modelId` | Selects an available model while idle. Sends a fresh snapshot to all subscribers.                            |
+| `set_thinking_level`    | `sessionId`, `level`               | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers.                    |
+| `list_providers`        |                                    | Lists AI-provider authentication status. It never includes credentials.                                      |
+| `get_default_model`     |                                    | Lists the models of the active providers and the stored default model.                                       |
+| `set_default_model`     | `provider`, `modelId`              | Stores the default model for new sessions. Empty `provider` and `modelId` reset it to automatic.             |
+| `set_provider_key`      | `provider`, `apiKey`               | Stores an API key for a provider on the host.                                                                |
+| `start_provider_login`  | `provider`, `authType`             | Starts a provider API-key or OAuth login.                                                                    |
+| `submit_provider_login` | `loginId`, `value`                 | Answers the current provider login prompt.                                                                   |
+| `cancel_provider_login` | `loginId`                          | Cancels a pending provider login.                                                                            |
+| `logout_provider`       | `provider`                         | Removes the saved credential for a provider.                                                                 |
 
 Server to client:
 
@@ -217,7 +217,7 @@ Server to client:
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sessions`               | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, lastUserMessage, isRunning }] }]`, optional `groupsRoot` | Session list. `lastUserMessage` is absent when the user has not sent a message. `groupsRoot` is present only when the client can create groups. |
 | `group_created`          | `project`                                                                                                                   | The new group is ready.                                                                                                                         |
-| `session_created`        | `sessionId`                                                                                                                 | The new session is ready.                                                                                                                       |
+| `session_created`        | `sessionId`                                                                                                                 | The new or reused empty session is ready.                                                                                                       |
 | `snapshot`               | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings`                     | Full state at subscribe time or after a settings change.                                                                                        |
 | `event`                  | `sessionId`, `seq`, `event`                                                                                                 | One pi event, unchanged.                                                                                                                        |
 | `error`                  | `message`, optional `sessionId`                                                                                             | A command failed.                                                                                                                               |

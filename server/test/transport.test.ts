@@ -95,6 +95,10 @@ test("lists, creates, and rejects an unknown project", { timeout: 5000 }, async 
   assert.equal(list.projects[0].sessions[0].id, "stored");
   const created = await request(socket, { type: "new_session", project: directory });
   assert.equal(created.type, "session_created");
+  const second = await connect(url);
+  const reused = await request(second, { type: "new_session", project: directory });
+  assert.equal(reused.sessionId, created.sessionId);
+  second.close();
   const rejected = await request(socket, { type: "new_session", project: "/elsewhere" });
   assert.match(rejected.message, /Unknown project/);
 });
