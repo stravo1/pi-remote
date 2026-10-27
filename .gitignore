@@ -1,6 +1,7 @@
 node_modules/
 __pycache__/
 web/dist/
-config.local.json
+config.local.json*
+*.bak*
 spikes/*/out/
 .env
