@@ -1,6 +1,11 @@
-# pi remote
+# <img src="web/public/favicon.svg" height="30" align="top" /> pi remote
 
 A web client for the [pi coding agent](https://pi.dev). The server runs pi on one machine. You open the client in a browser on any of your devices and work with the same sessions.
+
+<p align="center">
+  <img src="docs/images/home-light.png" alt="The session list in a light color scheme" width="47%">
+  <img src="docs/images/home-dark.png" alt="The session list in a dark color scheme" width="47%">
+</p>
 
 The stack is self-hosted. Caddy serves HTTPS on your domain. Authelia asks for a password and a second factor before a request reaches the server.
 
