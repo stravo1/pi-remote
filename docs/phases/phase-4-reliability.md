@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-10-26 (default model row label shortened; remaining work and push follow-ups listed)
+Last updated: 2026-10-27 (repo made public; history rewritten; remaining work and push follow-ups listed)
 
 ## Goal
 
@@ -94,6 +94,8 @@ Later out-of-scope requests from the user, all on `main`:
 The settings screen now has a Providers section. It lists connected providers only. A `+` button opens a searchable list of provider and sign-in method pairs, such as OpenAI with ChatGPT or an API key. The UI uses gray tokens. Red marks errors only.
 
 ## Handoff
+
+The repository is public at `github-user/pi-remote` as of 2026-10-27. Before the flip, one history rewrite removed personal strings from git history: a fresh clone of origin gained a `git filter-repo --invert-paths --path docs/phases --path docs/deployment.md` rewrite that pruned 5 docs-only commits, and one commit re-added the scrubbed phase docs and deployment guide (domain, public IP, usernames, paths, PEM name, and AWS instance ID replaced with placeholders; old commit hashes in the docs remapped to their new values). All code history survived with identical author, date, and blame. The old 130-commit chain exists only under the old local clone and must never be pushed again. `the first client commit is now `1589356` (`feat: add basic pi-remote web client`); `.git-blame-ignore-revs` still points at a valid hash. Commit 8032a66 added the MIT LICENSE and ignores `config.local.json*` and `*.bak*`. Note: the host checkout cannot run the husky pre-commit hook because `npm ci --omit=dev` removes prettier; local commits here need `--no-verify` or a full dev install. Working-tree commits pending at the time (scroll-button fixes, default model, SearXNG, list broadcast) were all already pushed before the rewrite.
 
 What remains, in order:
 
