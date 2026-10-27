@@ -6,7 +6,7 @@ import type {
 } from "../../server/src/pi-adapter.ts";
 import { Connection } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
-import { DevicePush } from "./push.ts";
+import { DevicePush, readPushChoice, writePushChoice } from "./push.ts";
 import { formatSessionInfo } from "./session-info.ts";
 import { Transcript } from "./transcript.ts";
 
@@ -33,6 +33,9 @@ export class Workspace {
   // null means the server has no push settings. undefined means it has not answered yet.
   pushKey?: string | null;
   isPushOn = false;
+  // The browser forgets its push subscription between iOS web app launches, so the
+  // stored choice says whether a missing subscription should be subscribed again.
+  isPushWanted = readPushChoice();
   isUpdatingPush = false;
   private lastSequence = 0;
   private connection?: Connection;
@@ -167,12 +170,16 @@ export class Workspace {
   async enablePush(): Promise<void> {
     await this.updatePush(async () => {
       const subscription = await this.devicePush.subscribe(this.pushKey!);
+      this.isPushWanted = true;
+      writePushChoice(true);
       this.run({ type: "push_subscribe", subscription: subscription.toJSON() });
     });
   }
 
   async disablePush(): Promise<void> {
     await this.updatePush(async () => {
+      this.isPushWanted = false;
+      writePushChoice(false);
       const endpoint = await this.devicePush.unsubscribe(this.pushKey!);
       if (endpoint) this.run({ type: "push_unsubscribe", endpoint });
       else this.isUpdatingPush = this.isPushOn = false;
@@ -307,10 +314,12 @@ export class Workspace {
   }
 
   // The server may have lost this device, so a device that has a subscription sends it again.
+  // iOS reports no subscription after each web app launch, so a wanted one subscribes again.
   private async applyPushKey(publicKey: string | null): Promise<void> {
     this.pushKey = publicKey;
     if (!publicKey || !this.devicePush.is_supported || this.devicePush.permission !== "granted") return;
-    const subscription = await this.devicePush.getSubscription(publicKey);
+    let subscription = await this.devicePush.getSubscription(publicKey);
+    if (!subscription && this.isPushWanted) subscription = await this.devicePush.subscribe(publicKey);
     this.isPushOn = !!subscription;
     if (subscription) this.run({ type: "push_subscribe", subscription: subscription.toJSON() });
   }

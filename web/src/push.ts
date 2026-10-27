@@ -53,6 +53,28 @@ function hasKey(subscription: PushSubscription, publicKey: string): boolean {
   return !key || new Uint8Array(key).join() === decodeKey(publicKey).join();
 }
 
+/**
+ * Remembers the toggle choice. iOS drops the browser's own push subscription at each
+ * home-screen web app launch, so a missing subscription alone cannot mean "off".
+ */
+const pushChoiceKey = "pi-remote.push";
+
+export function readPushChoice(): boolean {
+  try {
+    return localStorage.getItem(pushChoiceKey) !== "off";
+  } catch {
+    return false;
+  }
+}
+
+export function writePushChoice(isOn: boolean): void {
+  try {
+    localStorage.setItem(pushChoiceKey, isOn ? "on" : "off");
+  } catch {
+    // Storage can be unavailable, and then each launch just re-checks the subscription.
+  }
+}
+
 export function decodeKey(value: string): Uint8Array<ArrayBuffer> {
   const binary = atob(
     value
