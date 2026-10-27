@@ -94,6 +94,27 @@ test("a snapshot rebuilds the transcript, including the partial message of the r
   assert.equal(workspace.transcript.is_running, true);
 });
 
+test("reports a final provider error for the shell toast", () => {
+  const { workspace } = setup();
+  workspace.handle(snapshot);
+  const failed: AssistantMessage = { ...assistant, stopReason: "error", errorMessage: "Quota exceeded." };
+  workspace.handle({
+    type: "event",
+    sessionId: "one",
+    seq: 5,
+    event: { type: "agent_end", messages: [failed], willRetry: false },
+  });
+  assert.deepEqual(workspace.runErrorToast, { id: 1, message: "Quota exceeded." });
+
+  workspace.handle({
+    type: "event",
+    sessionId: "one",
+    seq: 6,
+    event: { type: "agent_end", messages: [failed], willRetry: true },
+  });
+  assert.deepEqual(workspace.runErrorToast, { id: 1, message: "Quota exceeded." });
+});
+
 test("applies the next event in order and subscribes again on a seq gap", () => {
   const { workspace, sent } = setup();
   workspace.handle(snapshot);

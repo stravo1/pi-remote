@@ -31,6 +31,8 @@ export class Workspace {
   private pendingName?: string;
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
+  /** A provider run error that the shell should show as a toast. */
+  runErrorToast?: { id: number; message: string };
   providerKey?: { provider: string; apiKey: string };
   defaultModel?: DefaultModelSettings;
   isUpdatingDefaultModel = false;
@@ -44,6 +46,7 @@ export class Workspace {
   isPushWanted = readPushChoice();
   isUpdatingPush = false;
   private lastSequence = 0;
+  private nextToastId = 0;
   private connection?: Connection;
 
   get activeSession(): SessionItem | undefined {
@@ -363,11 +366,24 @@ export class Workspace {
     this.lastSequence = message.seq;
     this.isSending = false;
     this.transcript.apply(message.event);
+    this.reportProviderError(message.event);
     if (message.event.type === "session_info_changed" && message.event.name === this.pendingName) {
       this.transcript.addNotice(`Renamed this session to “${this.pendingName}”.`);
       this.pendingName = undefined;
     }
     if (["agent_settled", "agent_start", "session_info_changed"].includes(message.event.type)) this.refreshList();
+  }
+
+  private reportProviderError(event: EventMessage["event"]): void {
+    if (event.type !== "agent_end" || event.willRetry) return;
+    const message = [...event.messages]
+      .reverse()
+      .find((item) => item.role === "assistant" && item.stopReason === "error");
+    if (!message || message.role !== "assistant") return;
+    this.runErrorToast = {
+      id: ++this.nextToastId,
+      message: message.errorMessage || "The provider could not complete the request.",
+    };
   }
 
   private subscribe(): void {

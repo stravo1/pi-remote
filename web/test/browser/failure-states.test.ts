@@ -107,6 +107,34 @@ test(
   },
 );
 
+test("shows a provider quota error in a toast", { timeout: 30_000 }, async (context) => {
+  const { page } = await startApp(context, (socket, command) => {
+    if (command.type !== "prompt") return;
+    socket.send(
+      JSON.stringify({
+        type: "event",
+        sessionId: "one",
+        seq: 1,
+        event: {
+          type: "agent_end",
+          willRetry: false,
+          messages: [
+            {
+              role: "assistant",
+              content: [],
+              stopReason: "error",
+              errorMessage: "Quota exceeded. Try again later.",
+            },
+          ],
+        },
+      }),
+    );
+  });
+  await page.getByRole("textbox", { name: "Message" }).fill("Start work");
+  await page.getByRole("button", { name: "Send prompt" }).click();
+  await page.getByText("Quota exceeded. Try again later.", { exact: true }).waitFor();
+});
+
 test("the composer keeps the draft when a send cannot go out", { timeout: 30_000 }, async (context) => {
   const { page } = await startApp(context);
   const message = page.getByRole("textbox", { name: "Message" });

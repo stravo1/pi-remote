@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
-import { Button, Dialogs, Spinner, ToastProvider, useColorScheme } from "frappe-ui";
+import { Button, Dialogs, Spinner, ToastProvider, toast, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
@@ -19,6 +19,12 @@ const transcriptElement = ref<HTMLElement>();
 const { resolvedColorScheme } = useColorScheme();
 // Keep the installed app's status bar color and text in step with the scheme.
 watch(resolvedColorScheme, applyBrowserTheme, { immediate: true });
+watch(
+  () => workspace.runErrorToast,
+  (notification) => {
+    if (notification) toast.error(notification.message);
+  },
+);
 const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-right" : "top-center";
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;
