@@ -160,7 +160,7 @@ test("a queued message arriving after a run starts a new prompt", async (context
   assert.match(JSON.stringify(session.snapshot.messages), /A late follow-up/);
 });
 
-test("updates the summary after the conversation changes without polling", async (context) => {
+test("summarizes after the first response without polling", async (context) => {
   const { directory, adapter, faux } = await setup(
     context,
     [fauxAssistantMessage("Done."), fauxAssistantMessage("Update session summaries")],
@@ -213,6 +213,31 @@ test("summary uses only recent text and discards a result when the conversation 
   await job.update();
   assert.equal(session.session.sessionName, "Current task summary");
   assert.equal(faux.state.callCount, 3);
+});
+
+test("periodic summaries keep the original title unless the task changes substantially", async (context) => {
+  const { directory, adapter, faux } = await setup(context, [
+    fauxAssistantMessage("Done."),
+    fauxAssistantMessage("Build the mobile app"),
+    fauxAssistantMessage("UNCHANGED"),
+    fauxAssistantMessage("Deploy the production service"),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Build the mobile app");
+  const job = new SessionSummaryJob(session.session, () => session.is_running);
+  context.after(() => job.close());
+  await job.update();
+  assert.equal(session.session.sessionName, "Build the mobile app");
+
+  session.session.agent.state.messages.push({ role: "user", content: "Fix a mobile app screen", timestamp: 1 });
+  await job.update();
+  assert.equal(session.session.sessionName, "Build the mobile app");
+
+  session.session.agent.state.messages.push({ role: "user", content: "Deploy the production service", timestamp: 2 });
+  await job.update();
+  assert.equal(session.session.sessionName, "Deploy the production service");
+  assert.equal(faux.state.callCount, 4);
 });
 
 test("summary requests carry the session ID for providers that route by it", async (context) => {

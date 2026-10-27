@@ -61,9 +61,14 @@ export class PiSession {
   private isChanging = false;
   private readonly summaryJob: SessionSummaryJob;
 
-  constructor(session: AgentSession, summaryDelay?: number) {
+  constructor(session: AgentSession, summaryDelay?: number, summaryInterval?: number) {
     this.session = session;
-    this.summaryJob = new SessionSummaryJob(session, () => this.is_running || this.isChanging, summaryDelay);
+    this.summaryJob = new SessionSummaryJob(
+      session,
+      () => this.is_running || this.isChanging,
+      summaryDelay,
+      summaryInterval,
+    );
   }
 
   get id(): string {
@@ -205,16 +210,23 @@ export class PiAdapter {
   private readonly options: CreateAgentSessionOptions;
   private readonly sessionDirectory?: string;
   private readonly summaryDelay?: number;
+  private readonly summaryInterval?: number;
   private readonly modelRuntime?: ModelRuntime;
   private readonly activity = new SessionActivity();
   private readonly logins = new Map<string, PendingLogin>();
   private settingsManager?: SettingsManager;
 
-  constructor(options: CreateAgentSessionOptions = {}, sessionDirectory?: string, summaryDelay?: number) {
+  constructor(
+    options: CreateAgentSessionOptions = {},
+    sessionDirectory?: string,
+    summaryDelay?: number,
+    summaryInterval?: number,
+  ) {
     this.options = options;
     this.modelRuntime = options.modelRuntime as ModelRuntime | undefined;
     this.sessionDirectory = sessionDirectory;
     this.summaryDelay = summaryDelay;
+    this.summaryInterval = summaryInterval;
   }
 
   async list(project: string): Promise<SessionSummary[]> {
@@ -401,7 +413,7 @@ export class PiAdapter {
     const { session } = await createAgentSession({ ...this.options, model, cwd: project, sessionManager });
     try {
       await session.modelRuntime.getAvailable();
-      return new PiSession(session, this.summaryDelay);
+      return new PiSession(session, this.summaryDelay, this.summaryInterval);
     } catch (error) {
       session.dispose();
       throw error;

@@ -66,7 +66,7 @@ The user requested an out-of-scope provider-settings feature during Phase 4. The
 
 The user also requested root-based projects during Phase 4. `projectsRoot` is now required and is the only project source. The old `projects` array is rejected. The client labels the existing group flow as New project and Create project. Local `config.local.json` uses `/Users/you/Code` and registers `/Users/you/Code/pi-web`. EC2 uses `/home/ubuntu` and registers `/home/ubuntu/pi-remote`. The first deployment failed because EC2 still had the legacy `projects` array. Removing it restored the service, and the failed deployment rerun passed.
 
-Commit `cdccbd1` removed the repeating session-summary timer. Summaries now run only after a conversation changes.
+The summary behavior now matches the requested lifecycle. `SessionSummaryJob` makes one initial title attempt after the first response, then checks periodically. Periodic requests return `UNCHANGED` unless the conversation has moved to a substantially different task or project. Tests cover the initial title, unchanged periodic checks, accepted replacement titles, stale results, busy sessions, and retries. `npm test -w server` passes with 100 tests.
 
 The client already has reconnect and expired-login behavior. Phase 4 must verify all required failure states together.
 
@@ -104,6 +104,8 @@ The session list now orders by the last message the user sent, not the last acti
 The session list now shows the first three sessions in each project. A View all item opens a project page with every session in that group. The page uses a hash route, has a back button, and keeps session ordering on desktop and phone. Protocol and browser tests cover the route and page.
 
 ## Handoff
+
+The current working tree includes the uncommitted session summary change in `server/src/session-summary-job.ts`, `server/src/pi-adapter.ts`, `server/test/pi-adapter.test.ts`, and `docs/spec.md`. The server test suite passes with 100 tests. Do not commit or push without asking the user.
 
 The repository is public at `github-user/pi-remote` as of 2026-10-27. Before the flip, one history rewrite removed personal strings from git history: a fresh clone of origin gained a `git filter-repo --invert-paths --path docs/phases --path docs/deployment.md` rewrite that pruned 5 docs-only commits, and one commit re-added the scrubbed phase docs and deployment guide (domain, public IP, usernames, paths, PEM name, and AWS instance ID replaced with placeholders; old commit hashes in the docs remapped to their new values). All code history survived with identical author, date, and blame. The old 130-commit chain exists only under the old local clone and must never be pushed again. `the first client commit is now `1589356` (`feat: add basic pi-remote web client`); `.git-blame-ignore-revs`still points at a valid hash. Commit 8032a66 added the MIT LICENSE and ignores`config.local.json*`and`_.bak_`. Note: the host checkout cannot run the husky pre-commit hook because `npm ci --omit=dev`removes prettier; local commits here need`--no-verify` or a full dev install. Working-tree commits pending at the time (scroll-button fixes, default model, SearXNG, list broadcast) were all already pushed before the rewrite.
 
