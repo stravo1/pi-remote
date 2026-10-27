@@ -1,6 +1,6 @@
 # Tool-call fixture
 
-`tool-call.jsonl` comes from `spikes/phase-0/out/tool-call.jsonl`.
+`tool-call.jsonl` was distilled from a Phase 0 spike log. The spike scripts are gone.
 The fixture keeps message boundaries, text deltas, thinking deltas, and run boundaries.
 It removes timestamps, model metadata, system sections, and duplicate partial messages.
 This lets tests run without the ignored spike output or a provider key.

@@ -1,16 +1,12 @@
 # pi events
 
-Observed behavior of `@earendil-works/pi-coding-agent` 1.4.0 through the SDK. Every claim here comes from a log in `spikes/phase-0/out/` or from a script in `spikes/phase-0/`. The logs are not in git. Run the script again to make a log.
-
-Model: `openrouter` / `deepseek/deepseek-v4-flash`, thinking level `high`. Run a script with `node <script>.ts` in `spikes/phase-0/`. `python3 summarize.py out/<case>.jsonl` prints a log as one line per event, without deltas.
+Observed behavior of `@earendil-works/pi-coding-agent` 1.4.0 through the SDK. Phase 0 recorded these with throwaway event-logger scripts against `openrouter` / `deepseek/deepseek-v4-flash`, thinking level `high`. The scripts were removed after the phase. The app now holds this behavior: `web/test/fixtures/tool-call.jsonl` keeps one distilled log, and the transcript tests check the client against it.
 
 ## Notation
 
 `message_update:<x>` is a `message_update` event with `assistantMessageEvent.type` equal to `<x>`. `message_start:<role>` and `message_end:<role>` show `message.role`. `(deltas)` stands for one or more `*_delta` updates.
 
 ## Prompt with a tool call
-
-Script: `p03-tool-call.ts`. Log: `out/tool-call.jsonl`.
 
 ```
 agent_start
@@ -45,14 +41,14 @@ Notes:
 - Each run starts with a `system` message. It also stays in `session.messages` (see P0.6). Its content is empty, and its prompt text is in `sections`. The client must skip it or show it on purpose.
 - The `user` message has no `message_update` events.
 - Content blocks can overlap. `thinking_end` came after `toolcall_start` and after `text_start`. The client must place each delta by `contentIndex`, not by arrival order.
-- `tool_execution_update.partialResult` holds all output so far, not only the new part. In `out/abort.jsonl`, the text grows from `1\n` to `1\n2\n3\n4\n`. The client can replace the shown output with each update.
-- Each `message_update` holds the full partial message twice: in `message` and in `assistantMessageEvent.partial`. Bytes per event grow with message length. `out/snapshot.jsonl` holds 101 events in 176 KB, for replies of about one line.
-- Parallel tool calls: both `tool_execution_end` events came before both `toolResult` messages (`out/snapshot.jsonl`).
+- `tool_execution_update.partialResult` holds all output so far, not only the new part. In the abort log, the text grew from `1\n` to `1\n2\n3\n4\n`. The client can replace the shown output with each update.
+- Each `message_update` holds the full partial message twice: in `message` and in `assistantMessageEvent.partial`. Bytes per event grow with message length. One logged run held 101 events in 176 KB, for replies of about one line.
+- Parallel tool calls: both `tool_execution_end` events came before both `toolResult` messages.
 - No `agent_before_settle`, `auto_retry_*`, or `compaction_*` event occurred in any log.
 
 ## Abort
 
-Script: `p04-abort.ts`. Log: `out/abort.jsonl`. The script calls `session.abort()` 3.5 seconds into a 10-second bash command.
+A prompt ran a 10-second bash command and `session.abort()` was called 3.5 seconds in.
 
 ```
   tool_execution_update ...          output so far
@@ -73,7 +69,7 @@ agent_settled                        aborted true
 
 ## Steer
 
-Script: `p05-queue.ts steer`. Log: `out/steer.jsonl`. The script calls `session.steer()` at `tool_execution_start`.
+A prompt was steered with `session.steer()` at `tool_execution_start`.
 
 ```
   message_end:assistant              stopReason "toolUse"
@@ -96,8 +92,6 @@ The steer message enters at the start of the next turn, after the tool results a
 
 ## Follow-up
 
-Script: `p05-queue.ts followUp`. Log: `out/follow-up.jsonl`.
-
 ```
   tool_execution_start
   queue_update                       steering [], followUp ["..."]
@@ -117,15 +111,13 @@ The follow-up enters only after the model stops with no tool call. It starts a n
 
 ## Session storage
 
-Script: `p06-storage.ts`. It writes to `out/sessions/`, not to `~/.pi/agent/sessions/`.
-
 - `SessionManager.list(cwd, dir)` found the session after `dispose()`. It returned `path`, `id`, `cwd`, `created`, `modified`, `messageCount`, and `firstMessage`.
 - `SessionManager.open(path, dir)` reopened it. The reopened `session.messages` was deep-equal to the original: `system`, `user`, `assistant`.
 - `modified` was 52 ms after `created`, but the reply took seconds. Do not use `modified` as the last-activity time before you check what it records.
 
 ## Snapshot check (spec D2)
 
-Script: `p07-snapshot.ts`. Log: `out/snapshot.jsonl`. The run has two parallel tool calls and one follow-up. A listener that subscribes before all others checks three things at each of the 101 events.
+The run had two parallel tool calls and one follow-up. A listener that subscribes before all others checks three things at each of the 101 events.
 
 | Check                                                                                          | Result                                                                                                                |
 | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
@@ -136,8 +128,6 @@ Script: `p07-snapshot.ts`. Log: `out/snapshot.jsonl`. The run has two parallel t
 Result: `session.messages` plus the events since the last `message_end` rebuild the transcript, the partial assistant message, and running tools. They do not rebuild the queue. The snapshot must also carry `session.getSteeringMessages()` and `session.getFollowUpMessages()`.
 
 ## Fake model (spec open question 1)
-
-Script: `p08-faux.ts`. Log: `out/faux.jsonl`.
 
 Yes. pi has a scripted provider that drives `createAgentSession` with no network and no key:
 

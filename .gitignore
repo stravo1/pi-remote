@@ -3,5 +3,4 @@ __pycache__/
 web/dist/
 config.local.json*
 *.bak*
-spikes/*/out/
 .env

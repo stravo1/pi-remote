@@ -78,4 +78,4 @@ The docs and `spikes/phase-0/` are in the first commit on `main`. Nothing is pus
 
 Next step: create `docs/phases/phase-1-basic-app.md` from the template, based on roadmap Phase 1.
 Blockers: none.
-How to check the current state: `cat docs/pi-events.md`. To make the logs again, run `npm install` in `spikes/phase-0/`, then `node p03-tool-call.ts` (and the other scripts). Each run costs a few cents on OpenRouter, except `p08-faux.ts`, which is free.
+How to check the current state: `cat docs/pi-events.md`. The spike scripts were removed after Phase 4; the findings live in that doc, and `web/test/fixtures/tool-call.jsonl` keeps one distilled log.

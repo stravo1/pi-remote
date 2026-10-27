@@ -1,9 +1,0 @@
-{
-  "name": "pi-remote-spike-phase-0",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@earendil-works/pi-ai": "1.4.0",
-    "@earendil-works/pi-coding-agent": "1.4.0"
-  }
-}
