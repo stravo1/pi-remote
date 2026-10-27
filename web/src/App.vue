@@ -12,11 +12,14 @@ import { buttonSize } from "./button-size.ts";
 import { getSessionTitle } from "./protocol.ts";
 import { ownCommands } from "./slash-commands.ts";
 import { Workspace } from "./workspace.ts";
+import { applyBrowserTheme } from "./browser-theme.ts";
 
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
 // Restores the saved light, dark, or system scheme and follows the OS setting.
-useColorScheme();
+const { resolvedColorScheme } = useColorScheme();
+// Keep the installed app's status bar color and text in step with the scheme.
+watch(resolvedColorScheme, applyBrowserTheme, { immediate: true });
 const toastPosition = window.matchMedia("(min-width: 640px)").matches ? "bottom-right" : "top-center";
 // New content scrolls the transcript only while the reader is at the bottom.
 let isFollowing = true;

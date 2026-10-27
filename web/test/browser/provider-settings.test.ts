@@ -188,11 +188,23 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "detached" });
   const getTheme = () => page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+  const getThemeColor = () =>
+    page.evaluate(() => document.querySelector('meta[name="theme-color"]')?.getAttribute("content"));
+  const getColorScheme = () =>
+    page.evaluate(() => document.querySelector('meta[name="color-scheme"]')?.getAttribute("content"));
   assert.equal(await getTheme(), "light");
+  assert.equal(await getThemeColor(), "#ffffff");
+  assert.equal(await getColorScheme(), "light");
   await page.getByRole("combobox", { name: "Theme" }).click();
   await page.getByRole("option", { name: "Dark" }).click();
   assert.equal(await getTheme(), "dark");
   assert.equal(await page.evaluate(() => localStorage.getItem("theme")), "dark");
+  // The status bar is painted from theme-color, so it must follow the scheme.
+  await page.waitForFunction(
+    () =>
+      document.querySelector('meta[name="theme-color"]')?.getAttribute("content") === "#171717" &&
+      document.querySelector('meta[name="color-scheme"]')?.getAttribute("content") === "dark",
+  );
   // The inline script in index.html applies the saved scheme before the app loads.
   await page.addInitScript(() => {
     document.addEventListener("DOMContentLoaded", () => {
@@ -201,8 +213,18 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   });
   await page.reload();
   assert.equal(await page.evaluate(() => (window as any).themeBeforeApp), "dark");
+  assert.equal(await getThemeColor(), "#171717");
+  assert.equal(await getColorScheme(), "dark");
   const systemDark = await browser.newPage({ colorScheme: "dark" });
   await systemDark.goto(page.url());
   assert.equal(await systemDark.evaluate(() => document.documentElement.getAttribute("data-theme")), "dark");
+  assert.equal(
+    await systemDark.evaluate(() => document.querySelector('meta[name="theme-color"]')?.getAttribute("content")),
+    "#171717",
+  );
+  assert.equal(
+    await systemDark.evaluate(() => document.querySelector('meta[name="color-scheme"]')?.getAttribute("content")),
+    "dark",
+  );
   await systemDark.close();
 });

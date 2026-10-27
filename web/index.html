@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
     <title>pi remote</title>
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
     <script>
       // Paint the saved color scheme before the app loads, so a dark page does not flash light.
+      // The installed app also paints its status bar from these two meta tags.
       try {
         const scheme = localStorage.getItem("theme");
         const isDark = scheme === "dark" || (scheme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#171717" : "#ffffff");
+        document.querySelector('meta[name="color-scheme"]').setAttribute("content", isDark ? "dark" : "light");
       } catch {}
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
