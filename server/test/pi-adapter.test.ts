@@ -58,6 +58,8 @@ test("lists a stored session and reopens it with the same messages", async (cont
   const [summary] = await adapter.list(directory);
   assert.equal(summary.id, session.id);
   assert.equal(summary.firstMessage, "Say hi.");
+  const userMessage = messages.find((message) => message.role === "user");
+  assert.equal(summary.lastUserMessage, userMessage?.timestamp);
   const reopened = await adapter.open(directory, summary.path);
   context.after(() => reopened.close());
   assert.deepEqual(reopened.snapshot.messages, messages);

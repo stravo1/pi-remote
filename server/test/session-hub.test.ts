@@ -12,8 +12,15 @@ import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 function setup(idleMinutes = 30) {
   const source = new FakeSource();
   source.stored.push(
-    { id: "old", path: "/s/old", project: "/p/one", firstMessage: "Old task", modified: 1000 },
-    { id: "newer", path: "/s/newer", project: "/p/one", firstMessage: "Newer task", modified: 2000 },
+    { id: "old", path: "/s/old", project: "/p/one", firstMessage: "Old task", modified: 3000, lastUserMessage: 1000 },
+    {
+      id: "newer",
+      path: "/s/newer",
+      project: "/p/one",
+      firstMessage: "Newer task",
+      modified: 2000,
+      lastUserMessage: 2000,
+    },
   );
   const metrics: RunMetrics[] = [];
   const removed: string[] = [];
@@ -34,7 +41,7 @@ function setup(idleMinutes = 30) {
   return { source, hub, metrics, client, removed, notices };
 }
 
-test("lists sessions by project, newest first, and merges open unsaved sessions", async (context) => {
+test("lists sessions by the last user message, and merges open unsaved sessions", async (context) => {
   const { hub } = setup();
   context.after(() => hub.close());
   const id = await hub.createSession("/p/two");
@@ -44,6 +51,7 @@ test("lists sessions by project, newest first, and merges open unsaved sessions"
     [["newer", "old"], [id]],
   );
   assert.equal(projects[0].sessions[0].isRunning, false);
+  assert.equal(projects[0].sessions[0].lastUserMessage, 2000);
 });
 
 test("rejects a project that is not configured", async (context) => {

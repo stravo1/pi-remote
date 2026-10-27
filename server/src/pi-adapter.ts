@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
 import type { AuthEvent, AuthPrompt, AuthType } from "@earendil-works/pi-ai";
 import type { Configuration } from "./config.ts";
+import { SessionActivity } from "./session-activity.ts";
 import { SessionSummaryJob } from "./session-summary-job.ts";
 
 export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
@@ -26,6 +27,7 @@ export interface SessionSummary {
   name?: string;
   firstMessage: string;
   modified: number;
+  lastUserMessage?: number;
 }
 
 export interface Snapshot {
@@ -255,6 +257,7 @@ export class PiAdapter {
   private readonly sessionDirectory?: string;
   private readonly summaryDelay?: number;
   private readonly modelRuntime?: ModelRuntime;
+  private readonly activity = new SessionActivity();
   private readonly logins = new Map<string, PendingLogin>();
   private settingsManager?: SettingsManager;
 
@@ -271,13 +274,16 @@ export class PiAdapter {
 
   async list(project: string): Promise<SessionSummary[]> {
     const sessions = await SessionManager.list(project, this.sessionDirectory);
-    return sessions.map((info) => ({
-      id: info.id,
-      path: info.path,
-      name: info.name,
-      firstMessage: info.firstMessage,
-      modified: info.modified.getTime(),
-    }));
+    return Promise.all(
+      sessions.map(async (info) => ({
+        id: info.id,
+        path: info.path,
+        name: info.name,
+        firstMessage: info.firstMessage,
+        modified: info.modified.getTime(),
+        lastUserMessage: await this.activity.lastUserMessage(info.path),
+      })),
+    );
   }
 
   async delete(project: string, sessionId: string): Promise<void> {

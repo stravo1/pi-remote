@@ -158,14 +158,31 @@ export class SessionHub {
     const open = [...this.sessions.values()].filter((entry) => entry.project === project);
     const storedIds = new Set(stored.map((summary) => summary.id));
     const summaries = [
-      ...stored.map(({ id, name, firstMessage, modified }) => ({ id, name, firstMessage, modified })),
+      ...stored.map(({ id, name, firstMessage, modified, lastUserMessage }) => ({
+        id,
+        name,
+        firstMessage,
+        modified,
+        lastUserMessage,
+      })),
       ...open
         .filter((entry) => !storedIds.has(entry.id))
-        .map((entry) => ({ id: entry.id, name: undefined, firstMessage: "", modified: entry.openedAt })),
+        .map((entry) => ({
+          id: entry.id,
+          name: undefined,
+          firstMessage: "",
+          modified: entry.openedAt,
+          lastUserMessage: undefined,
+        })),
     ];
     return summaries
-      .sort((a, b) => b.modified - a.modified)
+      .sort((a, b) => this.lastUserActivity(b) - this.lastUserActivity(a))
       .map((summary) => ({ ...summary, isRunning: this.sessions.get(summary.id)?.session.is_running ?? false }));
+  }
+
+  /** A running reply changes modified, so the list follows the last message the user sent. */
+  private lastUserActivity(summary: { modified: number; lastUserMessage?: number }): number {
+    return summary.lastUserMessage ?? summary.modified;
   }
 
   private getSession(sessionId: string): Promise<OpenSession> {

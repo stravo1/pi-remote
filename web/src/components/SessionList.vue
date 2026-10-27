@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Button, dialog, Popover, Skeleton, toast } from "frappe-ui";
 import NewGroupForm from "./NewGroupForm.vue";
 import PiLogo from "./PiLogo.vue";
-import { getProjectName, getSessionTitle, type ConnectionStatus, type ProjectGroup } from "../protocol.ts";
+import {
+  getProjectName,
+  getSessionTitle,
+  orderProjects,
+  type ConnectionStatus,
+  type ProjectGroup,
+} from "../protocol.ts";
 
 const props = defineProps<{
   projects: ProjectGroup[];
@@ -22,13 +28,31 @@ const emit = defineEmits<{
 }>();
 const isCreatingGroup = ref(false);
 const listElement = ref<HTMLElement>();
-// On phones the header sits at the bottom, so the list opens at its bottom too.
-const isPhone = !window.matchMedia("(min-width: 640px)").matches;
+const desktopQuery = window.matchMedia("(min-width: 640px)");
+// On phones the header sits at the bottom, so the last active chat goes to the list's bottom.
+const isPhone = ref(!desktopQuery.matches);
+const orderedProjects = computed(() => orderProjects(props.projects, !isPhone.value));
+
+desktopQuery.addEventListener("change", handleViewportChange);
+onBeforeUnmount(() => desktopQuery.removeEventListener("change", handleViewportChange));
+
+function handleViewportChange(event: MediaQueryListEvent): void {
+  isPhone.value = !event.matches;
+  scrollToBottom();
+}
 
 async function scrollToBottom(): Promise<void> {
-  if (!isPhone || props.isLoading) return;
+  if (!isPhone.value || props.isLoading) return;
   await nextTick();
   listElement.value?.scrollTo({ top: listElement.value.scrollHeight });
+}
+
+// A list that arrives while the reader waits at the bottom keeps the last active chat in view.
+function followBottom(): void {
+  const element = listElement.value;
+  if (!isPhone.value || props.isLoading || !element) return;
+  if (element.scrollHeight - element.scrollTop - element.clientHeight >= 32) return;
+  nextTick(() => element.scrollTo({ top: element.scrollHeight }));
 }
 
 onMounted(scrollToBottom);
@@ -68,6 +92,7 @@ watch(
   () => props.projects,
   () => {
     isRemoving.value = false;
+    followBottom();
   },
 );
 watch(
@@ -205,7 +230,7 @@ const timeFormat = new Intl.DateTimeFormat(undefined, {
       <div
         class="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-6 px-4 py-4 sm:gap-3 sm:py-3 max-sm:justify-end"
       >
-        <section v-for="project in projects" :key="project.path" :aria-label="getProjectName(project.path)">
+        <section v-for="project in orderedProjects" :key="project.path" :aria-label="getProjectName(project.path)">
           <div class="mb-2 flex items-center gap-1">
             <h2 class="min-w-0 flex-1">
               <button

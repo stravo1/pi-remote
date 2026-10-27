@@ -429,6 +429,8 @@ for (const width of [375, 1280]) {
     if (width === 375) {
       // A real finger lift sends pointerup and then a click on the row.
       const longPress = async (target: Locator) => {
+        // Putting a project back on the list can leave the newest chat below the fold.
+        await target.scrollIntoViewIfNeeded();
         const handle = (await target.elementHandle())!;
         const touch = { pointerType: "touch", isPrimary: true, button: 0 };
         await handle.dispatchEvent("pointerdown", touch);
@@ -436,20 +438,21 @@ for (const width of [375, 1280]) {
         await handle.dispatchEvent("pointerup", touch);
         await handle.dispatchEvent("click");
       };
-      const expectMenuBelow = async (target: Locator) => {
+      const expectMenuNextTo = async (target: Locator, side: "below" | "above") => {
         await page.getByRole("menu").waitFor();
         assert.equal(await page.getByRole("menu").count(), 1, "Only one menu is open");
         const rowBox = (await target.boundingBox())!;
         const menuBox = (await page.getByRole("menu").boundingBox())!;
         assert.ok(Math.abs(menuBox.x - rowBox.x) < 12, "The menu lines up with the row's left edge");
-        assert.ok(Math.abs(menuBox.y - (rowBox.y + rowBox.height)) < 24, "The menu opens below the row");
+        const gap = side === "below" ? menuBox.y - (rowBox.y + rowBox.height) : rowBox.y - (menuBox.y + menuBox.height);
+        assert.ok(Math.abs(gap) < 24, `The menu opens ${side} the row`);
       };
-      const older = page.getByRole("button", { name: /Older task 0/ });
-      await longPress(row);
-      await expectMenuBelow(row);
-      assert.equal(await page.getByText("1 selected").count(), 0, "The release click does not open the session");
+      const older = page.getByRole("button", { name: /Older task 5/ });
       await longPress(older);
-      await expectMenuBelow(older);
+      await expectMenuNextTo(older, "below");
+      assert.equal(await page.getByText("1 selected").count(), 0, "The release click does not open the session");
+      await longPress(row);
+      await expectMenuNextTo(row, "above");
       await page.keyboard.press("Escape");
       await page.getByRole("menu").waitFor({ state: "detached" });
       await longPress(row);

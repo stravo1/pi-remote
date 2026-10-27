@@ -119,7 +119,14 @@ export class FakeSession implements HubSession {
 
 export class FakeSource implements SessionSource {
   readonly sessions = new Map<string, FakeSession>();
-  readonly stored: { id: string; path: string; project: string; firstMessage: string; modified: number }[] = [];
+  readonly stored: {
+    id: string;
+    path: string;
+    project: string;
+    firstMessage: string;
+    modified: number;
+    lastUserMessage?: number;
+  }[] = [];
   count = 0;
 
   async list(project: string) {
