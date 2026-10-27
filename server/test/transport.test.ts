@@ -308,6 +308,7 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
 
 test("lists provider status and keeps login prompts separate from credentials", async (context) => {
   const received: string[] = [];
+  let storedDefault: { provider: string; id: string; name: string } | undefined;
   const providers = {
     getProviderSettings: async () => [
       {
@@ -336,6 +337,14 @@ test("lists provider status and keeps login prompts separate from credentials", 
     cancelProviderLogin: (loginId: string) => {
       received.push(`cancel:${loginId}`);
     },
+    getDefaultModel: () => ({
+      models: [{ provider: "faux", id: "first", name: "First" }],
+      model: storedDefault,
+    }),
+    setDefaultModel: async (provider: string, modelId: string) => {
+      received.push(`default:${provider}:${modelId}`);
+      storedDefault = provider ? { provider, id: modelId, name: "First" } : undefined;
+    },
   } as unknown as ProviderManager;
   const { url } = await setup(context, 10_000, providers);
   const socket = await connect(url);
@@ -354,7 +363,24 @@ test("lists provider status and keeps login prompts separate from credentials", 
     ],
   });
   await request(socket, { type: "set_provider_key", provider: "faux", apiKey: "secret" });
+  // Provider changes also refresh the default model.
+  assert.deepEqual(await nextReply(socket), {
+    type: "default_model",
+    models: [{ provider: "faux", id: "first", name: "First" }],
+  });
   assert.deepEqual(received, ["faux:secret"]);
+  assert.deepEqual(await request(socket, { type: "get_default_model" }), {
+    type: "default_model",
+    models: [{ provider: "faux", id: "first", name: "First" }],
+  });
+  const chosen = await request(socket, { type: "set_default_model", provider: "faux", modelId: "first" });
+  assert.deepEqual(chosen, {
+    type: "default_model",
+    models: [{ provider: "faux", id: "first", name: "First" }],
+    model: { provider: "faux", id: "first", name: "First" },
+  });
+  assert.deepEqual(received, ["faux:secret", "default:faux:first"]);
+  assert.match((await request(socket, { type: "set_default_model", provider: "faux" })).message, /together/);
   assert.deepEqual(await request(socket, { type: "get_provider_key", provider: "faux" }), {
     type: "provider_key",
     provider: "faux",
@@ -375,8 +401,8 @@ test("lists provider status and keeps login prompts separate from credentials", 
     },
   ]);
   socket.send(JSON.stringify({ type: "submit_provider_login", loginId: "login-one", value: "secret" }));
-  await waitFor(() => received.length >= 2);
-  assert.deepEqual(received, ["faux:secret", "login-one:secret"]);
+  await waitFor(() => received.length >= 3);
+  assert.deepEqual(received, ["faux:secret", "default:faux:first", "login-one:secret"]);
 });
 
 test("renames, reports info, and compacts a session", { timeout: 5000 }, async (context) => {

@@ -162,6 +162,30 @@ test("uses server settings and ignores errors from another session", () => {
   assert.equal(workspace.isUpdatingSettings, false);
 });
 
+test("loads and changes the default model for new sessions", () => {
+  const { workspace, sent } = setup();
+  workspace.loadDefaultModel();
+  workspace.handle({ type: "default_model", models: [{ provider: "openai", id: "gpt-5", name: "GPT-5" }] });
+  assert.equal(workspace.defaultModel?.model, undefined);
+  workspace.setDefaultModel(JSON.stringify(["openai", "gpt-5"]));
+  assert.deepEqual(sent, [
+    { type: "get_default_model" },
+    { type: "set_default_model", provider: "openai", modelId: "gpt-5" },
+  ]);
+});
+
+test("shows the stored default model and resets it to automatic", () => {
+  const { workspace, sent } = setup();
+  workspace.handle({
+    type: "default_model",
+    models: [{ provider: "openai", id: "gpt-5", name: "GPT-5" }],
+    model: { provider: "openai", id: "gpt-5", name: "GPT-5" },
+  });
+  assert.equal(workspace.defaultModel?.model?.id, "gpt-5");
+  workspace.setDefaultModel("");
+  assert.deepEqual(sent, [{ type: "set_default_model", provider: "", modelId: "" }]);
+});
+
 test("manages provider credentials without storing them in client state", () => {
   const { workspace, sent } = setup();
   workspace.listProviders();

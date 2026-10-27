@@ -203,6 +203,8 @@ Client to server:
 | `set_model`             | `sessionId`, `provider`, `modelId` | Selects an available model while idle. Sends a fresh snapshot to all subscribers.                          |
 | `set_thinking_level`    | `sessionId`, `level`               | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers.                  |
 | `list_providers`        |                                    | Lists AI-provider authentication status. It never includes credentials.                                    |
+| `get_default_model`     |                                    | Lists the models of the active providers and the stored default model.                                     |
+| `set_default_model`     | `provider`, `modelId`              | Stores the default model for new sessions. Empty `provider` and `modelId` reset it to automatic.           |
 | `set_provider_key`      | `provider`, `apiKey`               | Stores an API key for a provider on the host.                                                              |
 | `start_provider_login`  | `provider`, `authType`             | Starts a provider API-key or OAuth login.                                                                  |
 | `submit_provider_login` | `loginId`, `value`                 | Answers the current provider login prompt.                                                                 |
@@ -211,23 +213,26 @@ Client to server:
 
 Server to client:
 
-| type                     | Fields                                                                                                     | Meaning                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `sessions`               | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]`, optional `groupsRoot` | Session list. `groupsRoot` is present only when the client can create groups. |
-| `group_created`          | `project`                                                                                                  | The new group is ready.                                                       |
-| `session_created`        | `sessionId`                                                                                                | The new session is ready.                                                     |
-| `snapshot`               | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings`    | Full state at subscribe time or after a settings change.                      |
-| `event`                  | `sessionId`, `seq`, `event`                                                                                | One pi event, unchanged.                                                      |
-| `error`                  | `message`, optional `sessionId`                                                                            | A command failed.                                                             |
-| `providers`              | `providers: [{ id, name, authTypes, isConfigured, source? }]`                                              | AI-provider status without credentials.                                       |
-| `provider_login_started` | `loginId`                                                                                                  | A provider login is ready for browser interaction.                            |
-| `provider_login_event`   | `loginId`, `event`                                                                                         | A provider URL, device code, progress notice, or input prompt.                |
+| type                     | Fields                                                                                                     | Meaning                                                                                   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `sessions`               | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, isRunning }] }]`, optional `groupsRoot` | Session list. `groupsRoot` is present only when the client can create groups.             |
+| `group_created`          | `project`                                                                                                  | The new group is ready.                                                                   |
+| `session_created`        | `sessionId`                                                                                                | The new session is ready.                                                                 |
+| `snapshot`               | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings`    | Full state at subscribe time or after a settings change.                                  |
+| `event`                  | `sessionId`, `seq`, `event`                                                                                | One pi event, unchanged.                                                                  |
+| `error`                  | `message`, optional `sessionId`                                                                            | A command failed.                                                                         |
+| `providers`              | `providers: [{ id, name, authTypes, isConfigured, source? }]`                                              | AI-provider status without credentials.                                                   |
+| `default_model`          | `models`, optional `model`                                                                                 | Models of the active providers, plus the stored default model when it is still available. |
+| `provider_login_started` | `loginId`                                                                                                  | A provider login is ready for browser interaction.                                        |
+| `provider_login_event`   | `loginId`, `event`                                                                                         | A provider URL, device code, progress notice, or input prompt.                            |
 
 `settings` contains `model`, `models`, `thinkingLevel`, and `thinkingLevels`.
 Each model contains only `provider`, `id`, and `name`. The server never sends credentials.
 The thinking levels come from the selected model's SDK capabilities.
 
 Provider settings are global to the host's pi auth store. The browser can submit a key or answer a provider prompt over the authenticated WebSocket, but the server never returns either the submitted value or a saved credential.
+
+The settings screen also holds a Default model section. It shows one row for the model that new sessions start with. The picker lists an Automatic entry and the models of the active providers. Automatic means pi picks a model from the active providers. A stored default model disappears from the pick when its provider is removed, and signing out of that provider clears the stored choice, so new sessions pick automatically again. Each open session keeps its own model.
 
 `seq` increases by one for each event in a session. A client that sees a gap sends `subscribe` again and gets a new snapshot.
 
@@ -254,9 +259,9 @@ The configuration path comes from the command line: `npm start -- /absolute/path
 }
 ```
 
-An optional `model` object selects a model: `{ "provider": "openrouter", "id": "deepseek/deepseek-v4-flash" }`.
-This selects the default for new sessions. Existing sessions restore their saved model.
-Without it, pi selects the model from its settings. Credentials stay in pi's auth file or the provider environment.
+The default model for new sessions is the one stored in pi's settings, chosen in the app's Settings screen.
+When it is unset, or its provider has no active login, pi picks a model from the active providers. Existing sessions restore their saved model.
+Credentials stay in pi's auth file or the provider environment.
 `projectsRoot` is an absolute path that holds every project. The client creates projects directly inside it.
 A project name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.
 The server keeps the project list in `<projectsRoot>/.pi-remote/projects.json`.

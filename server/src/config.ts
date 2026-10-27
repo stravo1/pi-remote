@@ -8,7 +8,6 @@ export interface Configuration {
   allowedUser: string;
   idleMinutes: number;
   projectsRoot: string;
-  model?: { provider: string; id: string };
   push?: { contact: string; file: string };
 }
 
@@ -37,7 +36,7 @@ export function getConfiguration(value: unknown): Configuration {
     "use an absolute path",
   );
   requireField(value.projects === undefined, "projects", "use projectsRoot instead");
-  if (value.model !== undefined) validateModel(value.model);
+  requireField(value.model === undefined, "model", "choose the default model in the app settings instead");
   if (value.push !== undefined) validatePush(value.push);
   return value as unknown as Configuration;
 }
@@ -60,13 +59,6 @@ function isOrigin(value: string): boolean {
     return ["http:", "https:"].includes(url.protocol) && url.origin === value;
   } catch {
     return false;
-  }
-}
-
-function validateModel(value: unknown): void {
-  requireField(isRecord(value), "model", "use an object with provider and id");
-  for (const field of ["provider", "id"]) {
-    requireField(isNonemptyString(value[field]), `model.${field}`, "use a nonempty string");
   }
 }
 

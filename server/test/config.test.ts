@@ -45,8 +45,11 @@ test("requires a configuration file on the command line", async () => {
   await assert.rejects(getConfigurationFile(undefined), /Usage:/);
 });
 
-test("validates explicit model selection", () => {
-  assert.throws(() => getConfiguration({ ...valid, model: { provider: "openrouter" } }), /model.id/);
+test("rejects the removed model field", () => {
+  assert.throws(
+    () => getConfiguration({ ...valid, model: { provider: "openrouter", id: "gpt-5" } }),
+    /choose the default model in the app settings/,
+  );
 });
 
 test("requires a projects root", () => {

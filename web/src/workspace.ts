@@ -1,4 +1,9 @@
-import type { ProviderLoginEvent, ProviderSettings, SessionSettings } from "../../server/src/pi-adapter.ts";
+import type {
+  DefaultModelSettings,
+  ProviderLoginEvent,
+  ProviderSettings,
+  SessionSettings,
+} from "../../server/src/pi-adapter.ts";
 import { Connection } from "./connection.ts";
 import type { ConnectionStatus, ProjectGroup, SessionItem } from "./protocol.ts";
 import { DevicePush } from "./push.ts";
@@ -21,6 +26,8 @@ export class Workspace {
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
   providerKey?: { provider: string; apiKey: string };
+  defaultModel?: DefaultModelSettings;
+  isUpdatingDefaultModel = false;
   isSyncing = false;
   devicePush = new DevicePush();
   // null means the server has no push settings. undefined means it has not answered yet.
@@ -142,6 +149,17 @@ export class Workspace {
     this.run({ type: "logout_provider", provider });
   }
 
+  loadDefaultModel(): void {
+    this.run({ type: "get_default_model" });
+  }
+
+  setDefaultModel(value: string): void {
+    const [provider, modelId] = value ? (JSON.parse(value) as [string, string]) : ["", ""];
+    this.isUpdatingDefaultModel = true;
+    this.error = "";
+    this.run({ type: "set_default_model", provider, modelId });
+  }
+
   loadPush(): void {
     this.run({ type: "get_push_key" });
   }
@@ -230,6 +248,10 @@ export class Workspace {
       case "provider_key":
         this.providerKey = { provider: message.provider, apiKey: message.apiKey };
         break;
+      case "default_model":
+        this.defaultModel = { models: message.models, model: message.model };
+        this.isUpdatingDefaultModel = false;
+        break;
       case "provider_login_started":
         this.providerLogin = { id: message.loginId };
         break;
@@ -266,6 +288,7 @@ export class Workspace {
         this.isSending = false;
         this.isUpdatingSettings = false;
         this.isUpdatingPush = false;
+        this.isUpdatingDefaultModel = false;
         this.error = message.message;
         break;
     }

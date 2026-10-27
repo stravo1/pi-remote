@@ -41,6 +41,7 @@ onMounted(() => {
 
 function openSettings(): void {
   workspace.listProviders();
+  workspace.loadDefaultModel();
   workspace.loadPush();
 }
 
@@ -109,10 +110,12 @@ function closeProviderSettings(): void {
       :login="workspace.providerLogin"
       :error="workspace.error"
       :provider-key="workspace.providerKey"
+      :default-model="workspace.defaultModel"
       @back="closeProviderSettings"
       @save-key="(provider, key) => workspace.setProviderKey(provider, key)"
       @load-key="(provider) => workspace.getProviderKey(provider)"
       @logout="(provider) => workspace.logoutProvider(provider)"
+      @set-default-model="(value) => workspace.setDefaultModel(value)"
       @login="(provider, type) => workspace.startProviderLogin(provider, type)"
       @answer="(value) => workspace.submitProviderLogin(value)"
       @cancel="() => workspace.cancelProviderLogin()"

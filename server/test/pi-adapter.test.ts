@@ -25,7 +25,7 @@ async function setup(
     join(directory, "sessions"),
     summaryDelay,
   );
-  return { directory, faux, adapter };
+  return { directory, faux, adapter, modelRuntime };
 }
 
 test("streams a scripted tool call through agent_settled and rejects overlapping prompts", async (context) => {
@@ -251,6 +251,41 @@ test("summary skips busy sessions and retries after a failed response", async (c
   assert.equal(session.session.sessionName, undefined);
   await job.update();
   assert.equal(session.session.sessionName, "New summary");
+});
+
+test("stores a default model that new sessions and restarts use", async (context) => {
+  const { directory, adapter, modelRuntime } = await setup(context, []);
+  assert.equal(adapter.getDefaultModel().model, undefined);
+  await assert.rejects(adapter.setDefaultModel("faux", "missing"), /unavailable/);
+  await adapter.setDefaultModel("faux", "second");
+  assert.equal(adapter.getDefaultModel().model?.id, "second");
+  const restarted = new PiAdapter({ agentDir: directory, modelRuntime }, join(directory, "sessions"));
+  assert.equal(restarted.getDefaultModel().model?.id, "second");
+  const session = await restarted.create(directory);
+  context.after(() => session.close());
+  assert.equal(session.settings.model?.id, "second");
+});
+
+test("falls back automatically when the stored default model is unavailable", async (context) => {
+  const { directory, faux, modelRuntime } = await setup(context, []);
+  await writeFile(
+    join(directory, "settings.json"),
+    JSON.stringify({ defaultProvider: "openai", defaultModel: "gpt-5" }),
+  );
+  const fallback = new PiAdapter(
+    { agentDir: directory, modelRuntime, model: faux.getModel() },
+    join(directory, "sessions"),
+  );
+  const session = await fallback.create(directory);
+  context.after(() => session.close());
+  assert.equal(session.settings.model?.provider, "faux");
+});
+
+test("signing out of the default model's provider clears the stored default", async (context) => {
+  const { directory, adapter } = await setup(context, []);
+  await adapter.setDefaultModel("faux", "second");
+  await adapter.logoutProvider("faux");
+  assert.equal(adapter.getDefaultModel().model, undefined);
 });
 
 test("provider settings mark providers that use an API key", async (context) => {

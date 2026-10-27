@@ -67,6 +67,19 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
       }
       if (command.type === "get_provider_key")
         socket.send(JSON.stringify({ type: "provider_key", provider: command.provider, apiKey: "not-a-real-key" }));
+      if (command.type === "get_default_model" || command.type === "set_default_model") {
+        const model =
+          command.type === "set_default_model" && command.provider
+            ? { provider: command.provider, id: command.modelId, name: "GPT-5" }
+            : undefined;
+        socket.send(
+          JSON.stringify({
+            type: "default_model",
+            models: [{ provider: "openai", id: "gpt-5", name: "GPT-5" }],
+            ...(model ? { model } : {}),
+          }),
+        );
+      }
       if (command.type === "start_provider_login" && command.provider === "groq") {
         socket.send(JSON.stringify({ type: "provider_login_started", loginId: "login-three" }));
         socket.send(
@@ -147,6 +160,14 @@ test("settings save keys and show OAuth device codes", { timeout: 30_000 }, asyn
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await page.getByRole("button", { name: "Confirm sign out of OpenAI" }).click();
   await page.getByText("No providers connected").waitFor();
+  await page.getByText("No providers connected").waitFor();
+  await page.getByRole("button", { name: /Model for new sessions/ }).click();
+  await page.getByRole("option", { name: /GPT-5/ }).click();
+  assert.ok(
+    commands.some(
+      (command) => command.type === "set_default_model" && command.provider === "openai" && command.modelId === "gpt-5",
+    ),
+  );
   assert.ok(commands.some((command) => command.type === "logout_provider" && command.provider === "openai"));
   await choose(page, "Sign in with ChatGPT");
   await page.getByText("ABCD-1234", { exact: true }).waitFor();

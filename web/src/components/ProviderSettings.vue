@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import { Button, Password, Select, toast, useColorScheme, type ColorScheme } from "frappe-ui";
-import type { ProviderLoginEvent, ProviderSettings as Provider } from "../../../server/src/pi-adapter.ts";
+import { Button, Password, Select, TextInput, toast, useColorScheme, type ColorScheme } from "frappe-ui";
+import type {
+  DefaultModelSettings,
+  ProviderLoginEvent,
+  ProviderSettings as Provider,
+} from "../../../server/src/pi-adapter.ts";
 import AddProviderWizard from "./AddProviderWizard.vue";
+import { getModelKey } from "../recent-models.ts";
 
 const { colorScheme, setColorScheme } = useColorScheme();
 const schemeOptions = [
@@ -13,6 +18,7 @@ const schemeOptions = [
 
 const props = defineProps<{
   providers: Provider[];
+  defaultModel?: DefaultModelSettings;
   error: string;
   providerKey?: { provider: string; apiKey: string };
   login?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
@@ -25,6 +31,7 @@ const emit = defineEmits<{
   login: [provider: string, type: "api_key" | "oauth"];
   answer: [value: string];
   cancel: [];
+  setDefaultModel: [value: string];
 }>();
 const isAdding = ref(false);
 const editingId = ref<string>();
@@ -74,6 +81,26 @@ function saveKey(): void {
   if (!key.value.trim()) return;
   emit("saveKey", editingId.value!, key.value.trim());
   editingId.value = undefined;
+}
+
+const isPickingModel = ref(false);
+const modelQuery = ref("");
+const chosenModelLabel = computed(() => props.defaultModel?.model?.name ?? "Automatic");
+const filteredModels = computed(() => {
+  const text = modelQuery.value.trim().toLowerCase();
+  return (props.defaultModel?.models ?? []).filter((model) =>
+    `${model.name} ${getModelKey(model)}`.toLowerCase().includes(text),
+  );
+});
+
+function openModelPicker(): void {
+  modelQuery.value = "";
+  isPickingModel.value = true;
+}
+
+function chooseDefaultModel(value: string): void {
+  isPickingModel.value = false;
+  emit("setDefaultModel", value);
 }
 </script>
 
@@ -159,6 +186,80 @@ function saveKey(): void {
               </template>
             </li>
           </ul>
+        </section>
+        <section v-if="defaultModel" aria-labelledby="default-model-heading">
+          <div class="mb-2 flex min-h-7 items-center gap-1">
+            <h2 id="default-model-heading" class="min-w-0 flex-1 py-1 text-p-sm font-medium text-ink-gray-5">
+              Default model
+            </h2>
+          </div>
+          <div
+            v-if="defaultModel.models.length"
+            class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1"
+          >
+            <button
+              v-if="!isPickingModel"
+              type="button"
+              class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left sm:min-h-12"
+              @click="openModelPicker"
+            >
+              <span class="min-w-0 flex-1 text-base text-ink-gray-9">Model for new sessions</span>
+              <span class="truncate text-p-sm text-ink-gray-5">{{ chosenModelLabel }}</span>
+              <span class="lucide-chevron-right size-5 shrink-0 text-ink-gray-4" aria-hidden="true" />
+            </button>
+            <template v-else>
+              <div class="p-2 pb-0">
+                <TextInput v-model="modelQuery" type="search" placeholder="Search models" aria-label="Search models" />
+              </div>
+              <div v-if="filteredModels.length" class="max-h-64 overflow-y-auto" role="listbox" aria-label="Models">
+                <button
+                  type="button"
+                  role="option"
+                  :aria-selected="!defaultModel.model"
+                  class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left"
+                  @click="chooseDefaultModel('')"
+                >
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-base text-ink-gray-9">Automatic</span>
+                    <span class="block truncate text-p-xs text-ink-gray-5"
+                      >Picks a model from the connected providers</span
+                    >
+                  </span>
+                  <span
+                    v-if="!defaultModel.model"
+                    class="lucide-check size-5 shrink-0 text-ink-gray-9"
+                    aria-hidden="true"
+                  />
+                </button>
+                <button
+                  v-for="model in filteredModels"
+                  :key="getModelKey(model)"
+                  type="button"
+                  role="option"
+                  :aria-selected="defaultModel.model && getModelKey(defaultModel.model) === getModelKey(model)"
+                  class="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left"
+                  @click="chooseDefaultModel(JSON.stringify([model.provider, model.id]))"
+                >
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-base text-ink-gray-9">{{ model.name }}</span>
+                    <span class="block truncate text-p-xs text-ink-gray-5">{{ getModelKey(model) }}</span>
+                  </span>
+                  <span
+                    v-if="defaultModel.model && getModelKey(defaultModel.model) === getModelKey(model)"
+                    class="lucide-check size-5 shrink-0 text-ink-gray-9"
+                    aria-hidden="true"
+                  />
+                </button>
+              </div>
+              <p v-else class="px-4 py-3 text-p-sm text-ink-gray-5">No matching models</p>
+            </template>
+          </div>
+          <p v-else class="rounded-4 bg-surface-gray-1 px-4 py-3 text-p-sm text-ink-gray-5">
+            Connect a provider to choose a default model.
+          </p>
+          <p class="mt-2 px-1 text-p-sm text-ink-gray-5">
+            New sessions start with this model. Each session keeps its own model.
+          </p>
         </section>
         <slot />
         <section aria-labelledby="appearance-heading">

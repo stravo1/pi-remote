@@ -36,6 +36,8 @@ export interface ProviderManager {
   startProviderLogin: PiAdapter["startProviderLogin"];
   submitProviderLogin: PiAdapter["submitProviderLogin"];
   cancelProviderLogin: PiAdapter["cancelProviderLogin"];
+  getDefaultModel: PiAdapter["getDefaultModel"];
+  setDefaultModel: PiAdapter["setDefaultModel"];
 }
 
 export class Transport {
@@ -155,6 +157,8 @@ export class Transport {
       compact: () => this.hub.compact(requireSessionId(command), optionalString(command.instructions)),
       abort: () => this.hub.abort(requireSessionId(command)),
       list_providers: () => this.listProviders(client),
+      get_default_model: () => this.sendDefaultModel(client),
+      set_default_model: () => this.setDefaultModel(client, command),
       set_provider_key: () => this.setProviderKey(client, command),
       get_provider_key: () => this.getProviderKey(client, command),
       logout_provider: () => this.logoutProvider(client, command),
@@ -178,9 +182,27 @@ export class Transport {
     client.send(JSON.stringify({ type: "providers", providers: await this.requireProviders().getProviderSettings() }));
   }
 
+  /** Provider changes can move the default model, so the settings page gets both replies. */
+  private async refreshProviders(client: HubClient): Promise<void> {
+    await this.listProviders(client);
+    await this.sendDefaultModel(client);
+  }
+
+  private async sendDefaultModel(client: HubClient): Promise<void> {
+    client.send(JSON.stringify({ type: "default_model", ...this.requireProviders().getDefaultModel() }));
+  }
+
+  private async setDefaultModel(client: HubClient, command: Command): Promise<void> {
+    const provider = typeof command.provider === "string" ? command.provider : "";
+    const modelId = typeof command.modelId === "string" ? command.modelId : "";
+    if (!!provider !== !!modelId) throw new Error("Send provider and modelId together, or neither to reset.");
+    await this.requireProviders().setDefaultModel(provider, modelId);
+    await this.sendDefaultModel(client);
+  }
+
   private async setProviderKey(client: HubClient, command: Command): Promise<void> {
     await this.requireProviders().setProviderApiKey(requireString(command.provider), requireString(command.apiKey));
-    await this.listProviders(client);
+    await this.refreshProviders(client);
   }
 
   private async getProviderKey(client: HubClient, command: Command): Promise<void> {
@@ -196,7 +218,7 @@ export class Transport {
 
   private async logoutProvider(client: HubClient, command: Command): Promise<void> {
     await this.requireProviders().logoutProvider(requireString(command.provider));
-    await this.listProviders(client);
+    await this.refreshProviders(client);
   }
 
   private startProviderLogin(client: HubClient, command: Command): void {
@@ -205,7 +227,7 @@ export class Transport {
     const sendEvent = (event: { type: string }) => {
       if (!loginId) return queuedEvents.push(event);
       client.send(JSON.stringify({ type: "provider_login_event", loginId, event }));
-      if (event.type === "complete") void this.listProviders(client);
+      if (event.type === "complete") void this.refreshProviders(client);
     };
     loginId = this.requireProviders().startProviderLogin(
       requireString(command.provider),

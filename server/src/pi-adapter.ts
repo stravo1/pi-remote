@@ -52,6 +52,10 @@ export interface PromptImage {
   mimeType: string;
 }
 
+function describeModel(model: { provider: string; id: string; name: string; input: string[] }): ModelChoice {
+  return { provider: model.provider, id: model.id, name: model.name, hasImageInput: model.input.includes("image") };
+}
+
 export interface CommandChoice {
   name: string;
   description?: string;
@@ -76,6 +80,13 @@ export interface ProviderSettings {
   hasStoredLogin: boolean;
   source?: string;
   accountLabel?: string;
+}
+
+/** The stored default model plus the models of the active providers, for the settings picker. */
+export interface DefaultModelSettings {
+  models: ModelChoice[];
+  /** The stored default model, when it is still available on an active provider. */
+  model?: ModelChoice;
 }
 
 export type ProviderLoginEvent =
@@ -135,15 +146,9 @@ export class PiSession {
   }
 
   get settings(): SessionSettings {
-    const describe = (model: { provider: string; id: string; name: string; input: string[] }): ModelChoice => ({
-      provider: model.provider,
-      id: model.id,
-      name: model.name,
-      hasImageInput: model.input.includes("image"),
-    });
     return {
-      model: this.session.model ? describe(this.session.model) : undefined,
-      models: this.session.modelRuntime.getAvailableSnapshot().map(describe),
+      model: this.session.model ? describeModel(this.session.model) : undefined,
+      models: this.session.modelRuntime.getAvailableSnapshot().map(describeModel),
       thinkingLevel: this.session.thinkingLevel,
       thinkingLevels: this.session.getAvailableThinkingLevels(),
       commands: this.commands,
@@ -260,13 +265,8 @@ export class PiAdapter {
     this.summaryDelay = summaryDelay;
   }
 
-  static async fromConfiguration(configuration: Configuration): Promise<PiAdapter> {
-    const modelRuntime = await ModelRuntime.create();
-    if (!configuration.model) return new PiAdapter({ modelRuntime });
-    const { provider, id } = configuration.model;
-    const model = modelRuntime.getModel(provider, id);
-    if (!model) throw new Error(`Model not found: ${provider}/${id}`);
-    return new PiAdapter({ modelRuntime, model });
+  static async fromConfiguration(_configuration: Configuration): Promise<PiAdapter> {
+    return new PiAdapter({ modelRuntime: await ModelRuntime.create() });
   }
 
   async list(project: string): Promise<SessionSummary[]> {
@@ -342,6 +342,43 @@ export class PiAdapter {
     }
     await runtime.logout(provider);
     await runtime.refresh({ providers: [provider], allowNetwork: false });
+    await this.clearDefaultModelFor(provider);
+  }
+
+  /** The default model for new sessions, with the models of the active providers for the picker. */
+  getDefaultModel(): DefaultModelSettings {
+    const models = this.getModelRuntime().getAvailableSnapshot().map(describeModel);
+    const settings = this.getSettingsManager();
+    const provider = settings.getDefaultProvider();
+    const id = settings.getDefaultModel();
+    const model =
+      provider && id ? models.find((choice) => choice.provider === provider && choice.id === id) : undefined;
+    return model ? { models, model } : { models };
+  }
+
+  /** Stores the default model for new sessions. An empty provider clears it, so sessions pick automatically. */
+  async setDefaultModel(provider: string, id: string): Promise<void> {
+    if (provider) {
+      const available = this.getModelRuntime().getAvailableSnapshot();
+      if (!available.some((model) => model.provider === provider && model.id === id)) {
+        throw new Error("Unknown or unavailable model.");
+      }
+    }
+    this.saveDefaultModel(provider || undefined, id || undefined);
+    await this.getSettingsManager().flush();
+  }
+
+  /** Writes the default model to pi's global settings. Assigning undefined clears the stored choice. */
+  private saveDefaultModel(provider: string | undefined, id: string | undefined): void {
+    this.getSettingsManager().setDefaultModelAndProvider(provider as string, id as string);
+  }
+
+  /** A removed provider clears its stored default model, so new sessions pick automatically again. */
+  private async clearDefaultModelFor(provider: string): Promise<void> {
+    const settings = this.getSettingsManager();
+    if (settings.getDefaultProvider() !== provider) return;
+    this.saveDefaultModel(undefined, undefined);
+    await settings.flush();
   }
 
   startProviderLogin(provider: string, type: AuthType, notify: (event: ProviderLoginEvent) => void): string {
@@ -409,7 +446,7 @@ export class PiAdapter {
   }
 
   private async start(project: string, sessionManager: SessionManager): Promise<PiSession> {
-    const model = sessionManager.buildSessionContext().model ? undefined : this.options.model;
+    const model = sessionManager.buildSessionContext().model ? undefined : this.resolveDefaultModel();
     const { session } = await createAgentSession({ ...this.options, model, cwd: project, sessionManager });
     try {
       await session.modelRuntime.getAvailable();
@@ -420,8 +457,22 @@ export class PiAdapter {
     }
   }
 
+  /** New sessions use the stored default model, then an explicitly provided model, then pi's automatic pick. */
+  private resolveDefaultModel(): CreateAgentSessionOptions["model"] {
+    const runtime = this.modelRuntime;
+    if (!runtime) return this.options.model;
+    const settings = this.getSettingsManager();
+    const provider = settings.getDefaultProvider();
+    const id = settings.getDefaultModel();
+    if (provider && id) {
+      const stored = runtime.getModel(provider, id);
+      if (stored && runtime.hasConfiguredAuth(provider)) return stored;
+    }
+    return this.options.model;
+  }
+
   private getSettingsManager(): SettingsManager {
-    this.settingsManager ??= SettingsManager.create(process.cwd());
+    this.settingsManager ??= SettingsManager.create(process.cwd(), this.options.agentDir);
     return this.settingsManager;
   }
 
