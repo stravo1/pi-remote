@@ -61,7 +61,7 @@ const statusLabels = {
       <pre
         class="max-h-96 overflow-y-auto border-t border-outline-gray-1 font-mono text-p-sm"
       ><code v-for="(line, index) in diff.split('\n')" :key="index"
-        :class="['block whitespace-pre-wrap break-all px-3', { 'bg-surface-gray-2 text-ink-gray-9': getDiffKind(line) === 'added', 'bg-surface-red-1 text-ink-red-4': getDiffKind(line) === 'removed' }]">{{ line || ' ' }}</code></pre>
+        :class="['block whitespace-pre-wrap break-all px-3', { 'bg-surface-green-1 text-ink-green-8': getDiffKind(line) === 'added', 'bg-surface-red-1 text-ink-red-8': getDiffKind(line) === 'removed' }]">{{ line || ' ' }}</code></pre>
     </details>
     <div v-if="isOutputOpen" class="max-h-96 overflow-y-auto border-t border-outline-gray-1 font-mono text-p-sm">
       <pre class="whitespace-pre-wrap break-all px-3 py-2 text-ink-gray-9">{{ getToolCommand(tool) }}</pre>

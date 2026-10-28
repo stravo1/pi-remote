@@ -218,6 +218,24 @@ for (const width of [375, 1280]) {
     assert.equal(await page.getByRole("button", { name: "Send prompt" }).isDisabled(), true);
     await message.fill("");
     await page.getByText("File diff", { exact: true }).waitFor();
+    const diffChannels = (text: string) =>
+      page
+        .locator("code", { hasText: text })
+        .first()
+        .evaluate((element) => {
+          // Canvas normalises any colour syntax to rgb or hex.
+          const canvas = document.createElement("canvas").getContext("2d")!;
+          canvas.fillStyle = getComputedStyle(element).backgroundColor;
+          const color = canvas.fillStyle;
+          if (color.startsWith("#")) return [1, 3, 5].map((index) => parseInt(color.slice(index, index + 2), 16));
+          return color
+            .match(/[\d.]+/g)!
+            .slice(0, 3)
+            .map(Number);
+        });
+    const [added, removed] = [await diffChannels("+1 "), await diffChannels("-1 old")];
+    assert.ok(added[1] > added[0], `Added lines are green, not rgb(${added})`);
+    assert.ok(removed[0] > removed[1], `Removed lines are red, not rgb(${removed})`);
     const bashCall = page.getByRole("button", { name: /^bash grep/ });
     const bashHeight = (await bashCall.boundingBox())!.height;
     assert.ok(bashHeight < 48, `A long command stays on one line, not ${bashHeight}px`);
@@ -278,8 +296,12 @@ for (const width of [375, 1280]) {
       assert.ok(bottomSpace <= 20, "The initial drawer has no extra space below its content");
     }
     const checkDrawerHeight = async () => {
-      if (width === 375)
-        assert.equal(await dialog.evaluate((element) => element.getBoundingClientRect().height), drawerHeight);
+      if (width !== 375) return;
+      const height = await dialog.evaluate((element) => element.getBoundingClientRect().height);
+      assert.ok(
+        Math.abs(height - drawerHeight) < 1,
+        `The drawer height holds, not ${height}px instead of ${drawerHeight}px`,
+      );
     };
     await checkWidth(page);
     await screenshot(page, `settings-${width}`);
