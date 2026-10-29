@@ -69,6 +69,31 @@ Vite prints a network URL, such as `http://192.168.1.5:8080`. With `--lan`, anyo
 
 Both commands take the same configuration path. Restart them after you change that file. Changes to Vue components and styles reload through Vite without a build.
 
+### Develop on a machine that already runs pi remote
+
+If the host already serves pi remote, use the sandbox script. It starts a second instance with its own ports, its own projects root, and its own pi agent directory. The live instance keeps its port, projects, sessions, and logins. Start it from the repository root:
+
+```sh
+bash dev/sandbox.sh
+```
+
+The script picks free ports and prints the app URL, normally `http://127.0.0.1:8080`. Press Ctrl+C to stop it. Vite still reloads changed components, so the usual edit loop works.
+
+The sandbox lives in `~/.local/state/pi-remote-dev`. Set `PI_REMOTE_DEV_DIR` to use another folder. The first run copies `auth.json` from `~/.pi/agent`, so models work without a new sign-in. Later sign-ins and all sessions stay in the sandbox. The two instances never share session files.
+
+Two flags change the defaults:
+
+- `--projects DIR` uses another projects folder. The script refuses a folder that a running instance already uses, because both instances would write the same `projects.json` file and could delete each other's folders.
+- `--lan` listens on all interfaces instead of loopback. Anyone on the network can then use the dev instance without a login.
+
+To open the dev instance from another machine, forward its port over SSH:
+
+```sh
+ssh -L 8080:127.0.0.1:8080 you@your-host
+```
+
+Then open `http://127.0.0.1:8080` in the browser on your machine. The SSH tunnel keeps the loopback origin that the dev server expects.
+
 Check your changes with:
 
 ```sh
