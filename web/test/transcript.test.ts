@@ -141,6 +141,76 @@ test("rebuilds tool output and diffs from history plus live events", () => {
   assert.equal(stored.tools["bash-1"].status, "interrupted");
 });
 
+test("records codemode nested calls live and from the session's result record", () => {
+  const assistant = {
+    role: "assistant",
+    content: [{ type: "toolCall", id: "mode-1", name: "codemode", arguments: { code: "return 1" } }],
+  };
+  const events = [
+    { type: "tool_execution_start", toolCallId: "mode-1", toolName: "codemode", args: { code: "return 1" } },
+    {
+      type: "tool_execution_start",
+      toolCallId: "mode-1/1",
+      toolName: "mcp__faux__ping",
+      args: {},
+      parentToolCallId: "mode-1",
+    },
+    {
+      type: "tool_execution_end",
+      toolCallId: "mode-1/1",
+      toolName: "mcp__faux__ping",
+      parentToolCallId: "mode-1",
+      isError: false,
+      result: { content: [{ type: "text", text: "Faux tool ran" }] },
+      durationMs: 42,
+    },
+    {
+      type: "tool_execution_start",
+      toolCallId: "mode-1/2",
+      toolName: "mcp__faux__slow",
+      args: {},
+      parentToolCallId: "mode-1",
+    },
+  ];
+  const transcript = new Transcript();
+  transcript.start(assistant);
+  transcript.end(assistant);
+  for (const event of events) transcript.apply(event as SessionEvent);
+  let nested = transcript.tools["mode-1"].nested;
+  assert.equal(nested?.length, 2);
+  assert.equal(nested![0].name, "mcp__faux__ping");
+  assert.equal(nested![0].status, "success");
+  assert.equal(nested![0].output, "Faux tool ran");
+  assert.equal(nested![0].durationMs, 42);
+  assert.equal(nested![1].status, "running");
+  // The result record fills in a call whose live events never arrived.
+  transcript.apply({
+    type: "message_end",
+    message: {
+      role: "toolResult",
+      toolCallId: "mode-1",
+      isError: false,
+      content: [{ type: "text", text: "Script completed" }],
+      nestedCalls: {
+        calls: [
+          { id: "mode-1/1", name: "mcp__faux__ping", status: "ok", durationMs: 42 },
+          { id: "mode-1/3", name: "mcp__faux__lost", status: "error", error: "boom" },
+        ],
+      },
+    },
+  } as unknown as SessionEvent);
+  nested = transcript.tools["mode-1"].nested;
+  assert.equal(nested?.length, 3);
+  assert.equal(nested![2].name, "mcp__faux__lost");
+  assert.equal(nested![2].status, "error");
+  assert.equal(nested![2].error, "boom");
+  // A settled run interrupts the call still running.
+  transcript.apply({ type: "agent_settled", aborted: false } as SessionEvent);
+  nested = transcript.tools["mode-1"].nested;
+  assert.equal(nested![1].status, "interrupted");
+  assert.equal(nested![0].status, "success");
+});
+
 function queued(text: string) {
   return { id: `id-${text}`, text, images: [] };
 }

@@ -1,6 +1,6 @@
 import type { SessionEvent, Snapshot } from "../../server/src/protocol.ts";
 
-import { getToolDiff, getToolOutput, type ToolCall } from "./tools.ts";
+import { getToolDiff, getToolOutput, type NestedToolCall, type ToolCall } from "./tools.ts";
 
 export interface TranscriptBlock {
   type: "text" | "thinking" | "toolCall" | "image";
@@ -24,6 +24,8 @@ interface SourceMessage {
   toolCallId?: string;
   isError?: boolean;
   details?: unknown;
+  /** Calls this tool made while it ran, recorded by the session on its tool result. */
+  nestedCalls?: { calls?: unknown[] };
 }
 
 export class Transcript {
@@ -128,6 +130,8 @@ export class Transcript {
     this.active!.content = getMessageBlocks(message);
     this.active!.timestamp = message.timestamp ?? this.active!.timestamp;
     this.registerTools(this.active!);
+    const tool = message.role === "toolResult" && message.toolCallId ? this.tools[message.toolCallId] : undefined;
+    if (tool) this.mergeNestedRecords(tool, message.nestedCalls);
     if (message.role === "toolResult" && message.toolCallId) {
       this.updateTool(message.toolCallId, message, message.isError ?? false);
     }
@@ -135,6 +139,10 @@ export class Transcript {
   }
 
   private applyTool(event: SessionEvent): void {
+    if ("parentToolCallId" in event && event.parentToolCallId) {
+      this.applyNestedTool(event);
+      return;
+    }
     switch (event.type) {
       case "tool_execution_start":
         this.startTool(event);
@@ -145,6 +153,79 @@ export class Transcript {
       case "tool_execution_end":
         this.updateTool(event.toolCallId, event.result, event.isError);
         break;
+    }
+  }
+
+  /** A script or another tool called into the pipeline; its result only reaches the caller. */
+  private applyNestedTool(
+    event:
+      | Extract<SessionEvent, { type: "tool_execution_start" }>
+      | Extract<SessionEvent, { type: "tool_execution_update" }>
+      | Extract<SessionEvent, { type: "tool_execution_end" }>,
+  ): void {
+    const toolCallId = event.parentToolCallId as string;
+    const parent = this.tools[toolCallId];
+    if (!parent) return;
+    let nested = parent.nested?.find((call) => call.id === event.toolCallId);
+    if (!nested && event.type === "tool_execution_start") {
+      nested = { id: event.toolCallId, name: event.toolName, arguments: event.args, status: "running" };
+      parent.nested ??= [];
+      parent.nested.push(nested);
+      return;
+    }
+    if (!nested) return;
+    if (event.type === "tool_execution_end") {
+      const text = getToolOutput(event.result);
+      if (text) nested.output = text;
+      nested.durationMs ??= event.durationMs;
+      nested.status = event.isError ? "error" : "success";
+      if (event.isError) nested.error ??= text || "Failed";
+    } else if (event.type === "tool_execution_update") {
+      const text = getToolOutput(event.partialResult);
+      if (text) nested.output = text;
+    }
+  }
+
+  /** Durable records from the session result fill gaps the live events may have missed. */
+  private mergeNestedRecords(tool: ToolCall, record?: { calls?: unknown[] }): void {
+    const calls = record?.calls;
+    if (!Array.isArray(calls)) return;
+    for (const call of calls) {
+      const spec = call as {
+        id?: unknown;
+        name?: unknown;
+        arguments?: unknown;
+        status?: unknown;
+        durationMs?: unknown;
+        error?: unknown;
+      };
+      if (typeof spec.id !== "string" || typeof spec.name !== "string") continue;
+      const status =
+        spec.status === "ok"
+          ? "success"
+          : spec.status === "error"
+            ? "error"
+            : spec.status === "unfinished"
+              ? "running"
+              : undefined;
+      if (!status) continue;
+      const existing = tool.nested?.find((nested) => nested.id === spec.id);
+      if (existing) {
+        existing.arguments ??= (spec.arguments ?? undefined) as Record<string, unknown> | undefined;
+        existing.durationMs ??= typeof spec.durationMs === "number" ? spec.durationMs : undefined;
+        existing.status = status;
+        if (status === "error" && typeof spec.error === "string") existing.error ??= spec.error;
+        continue;
+      }
+      tool.nested ??= [];
+      tool.nested.push({
+        id: spec.id,
+        name: spec.name,
+        arguments: (spec.arguments ?? undefined) as Record<string, unknown> | undefined,
+        status,
+        durationMs: typeof spec.durationMs === "number" ? spec.durationMs : undefined,
+        error: status === "error" && typeof spec.error === "string" ? spec.error : undefined,
+      });
     }
   }
 
@@ -179,6 +260,9 @@ export class Transcript {
     this.is_running = false;
     for (const tool of Object.values(this.tools)) {
       if (tool.status === "running" || tool.status === "pending") tool.status = "interrupted";
+      for (const nested of tool.nested ?? []) {
+        if (nested.status === "running" || nested.status === "pending") nested.status = "interrupted";
+      }
     }
   }
 }
