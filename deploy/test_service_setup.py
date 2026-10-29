@@ -21,6 +21,12 @@ class ServiceSetupTests(unittest.TestCase):
             self.assertIn("WantedBy=default.target", unit)
             self.assertIn(f'"$directory/deploy/{name}.service"', installer)
 
+        # easy-install.sh links npm and npx in ~/.local/bin. Stdio MCP servers start
+        # through npx or uvx, so the app unit must carry them on PATH.
+        app_unit = (ROOT / "pi-remote.service").read_text()
+        self.assertIn("Environment=PATH=", app_unit)
+        self.assertIn("%h/.local/bin", app_unit)
+
         self.assertIn("systemctl --user enable", installer)
         self.assertIn("systemctl --user start", installer)
 

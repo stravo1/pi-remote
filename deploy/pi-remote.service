@@ -4,6 +4,9 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=__DIRECTORY__
+# easy-install.sh links node, npm, and npx in ~/.local/bin, which a systemd user service
+# does not include. Stdio MCP servers start through npx or uvx and need the same PATH.
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=__NODE__ server/src/main.ts __DIRECTORY__/config.local.json
 Restart=on-failure
 RestartSec=3
