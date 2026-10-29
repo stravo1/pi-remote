@@ -63,7 +63,11 @@ async function onFilesChosen(event: Event): Promise<void> {
   // and clearing the value empties it.
   const files = Array.from((event.target as HTMLInputElement).files ?? []);
   (event.target as HTMLInputElement).value = "";
-  if (!files.length) return;
+  await addFiles(files);
+}
+
+async function addFiles(files: File[]): Promise<void> {
+  if (!props.canSendImages) return;
   for (const file of files) {
     if (images.value.length >= maxImages) break;
     try {
@@ -72,6 +76,28 @@ async function onFilesChosen(event: Event): Promise<void> {
       // A file the browser cannot decode as an image is simply not attached.
     }
   }
+}
+
+function onPaste(event: ClipboardEvent): void {
+  if (!props.canSendImages) return;
+  const files = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith("image/"));
+  if (!files.length) return;
+  event.preventDefault();
+  void addFiles(files);
+}
+
+// The depth counter keeps the highlight steady while the pointer crosses
+// child elements, which fires dragleave for each of them.
+const dragDepth = ref(0);
+const isDragging = computed(() => dragDepth.value > 0);
+
+function onDrop(event: DragEvent): void {
+  dragDepth.value = 0;
+  const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.type.startsWith("image/"));
+  if (!files.length) return;
+  event.preventDefault();
+  event.stopPropagation();
+  void addFiles(files);
 }
 
 function removeImage(image: AttachedImage): void {
@@ -118,8 +144,15 @@ function onMenuKey(event: KeyboardEvent): void {
 <template>
   <form
     ref="root"
-    class="mx-auto w-full shrink-0 border-t border-outline-gray-1 sm:max-w-2xl sm:border-t-0 sm:px-4"
+    :class="[
+      'mx-auto w-full shrink-0 border-t border-outline-gray-1 sm:max-w-2xl sm:border-t-0 sm:px-4',
+      isDragging && 'sm:rounded-t-6 sm:outline sm:outline-2 sm:-outline-offset-2 sm:outline-outline-gray-3',
+    ]"
     @submit.prevent="submit"
+    @dragenter.prevent="dragDepth++"
+    @dragover.prevent
+    @dragleave.prevent="dragDepth = Math.max(0, dragDepth - 1)"
+    @drop="onDrop"
   >
     <div class="sm:rounded-t-6 sm:border sm:border-b-0 sm:border-outline-gray-2 sm:bg-surface-base">
       <div
@@ -233,6 +266,7 @@ function onMenuKey(event: KeyboardEvent): void {
           :aria-controls="matches.length ? 'command-matches' : undefined"
           @keydown.enter="onEnter"
           @keydown="onMenuKey"
+          @paste="onPaste"
         />
         <Button
           v-if="isRunning"
