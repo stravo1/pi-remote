@@ -271,7 +271,7 @@ function onMenuKey(event: KeyboardEvent): void {
         <Button
           v-if="isRunning"
           type="button"
-          variant="solid"
+          variant="subtle"
           :size="buttonSize"
           class="shrink-0"
           icon="lucide-square"

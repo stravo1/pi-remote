@@ -391,6 +391,19 @@ for (const width of [375, 1280]) {
     await page.getByRole("list", { name: "Attached images" }).waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Stop run" }).waitFor();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Next task");
+    // Wait for the draft to enable the send button, so both fills are the enabled ones.
+    await waitFor(() =>
+      page
+        .getByRole("button", { name: "Send follow-up" })
+        .evaluate((button) => !(button as HTMLButtonElement).disabled),
+    );
+    // Only the send button is a primary action; stop is secondary.
+    const [stopFill, sendFill] = await Promise.all(
+      ["Stop run", "Send follow-up"].map((name) =>
+        page.getByRole("button", { name }).evaluate((button) => getComputedStyle(button).backgroundColor),
+      ),
+    );
+    assert.notEqual(stopFill, sendFill, "The stop button is not a second primary button");
     await page.getByRole("button", { name: "Send follow-up" }).click();
     await page.getByLabel("Queued messages").waitFor();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Change direction");
