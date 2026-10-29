@@ -10,7 +10,21 @@ import {
   fauxThinking,
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import {
+  ModelRuntime,
+  type LoadedMcpConfig,
+  type McpExtensionOptions,
+  type McpServerConfig,
+  type McpServerEntry,
+} from "@earendil-works/pi-coding-agent";
+import { createInMemoryTransportPair, InMemoryTransport } from "@earendil-works/pi-mcp/testing";
+import {
+  isJsonRpcRequest,
+  LATEST_PROTOCOL_VERSION,
+  type JsonRpcMessage,
+  type JsonRpcRequest,
+  type McpTransport,
+} from "@earendil-works/pi-mcp";
 import { PiAdapter } from "../src/pi-adapter.ts";
 import { SessionSummaryJob } from "../src/session-summary-job.ts";
 
@@ -18,6 +32,7 @@ async function setup(
   context: TestContext,
   responses: Parameters<ReturnType<typeof fauxProvider>["setResponses"]>[0],
   summaryDelay = 60_000,
+  mcpOptions?: McpExtensionOptions,
 ) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-adapter-"));
   context.after(() => rm(directory, { recursive: true, force: true }));
@@ -30,8 +45,97 @@ async function setup(
     { agentDir: directory, modelRuntime, model: faux.getModel() },
     join(directory, "sessions"),
     summaryDelay,
+    undefined,
+    mcpOptions,
   );
   return { directory, faux, adapter, modelRuntime };
+}
+
+function mcpEntry(name: string, source: string, config: McpServerConfig): McpServerEntry {
+  return { name, config, source, scope: "global" };
+}
+
+interface FauxMcpTool {
+  name: string;
+  description: string;
+  result: unknown;
+}
+
+/**
+ * A minimal, in-memory MCP server for the extension's transport factory. It answers the
+ * client's `initialize`, `ping`, `tools/list`, and `tools/call` requests and hides its own
+ * closing behind `isClosed`, so tests can assert the session released the server.
+ */
+class FauxMcpServer {
+  readonly calls: { name: string; args: unknown }[] = [];
+  isClosed = false;
+  private readonly client: InMemoryTransport;
+  private readonly server: InMemoryTransport;
+  private readonly name: string;
+  private readonly tools: FauxMcpTool[];
+
+  constructor(name: string, tools: FauxMcpTool[]) {
+    this.name = name;
+    this.tools = tools;
+    const pair = createInMemoryTransportPair();
+    void pair.client.start();
+    // The client end goes to the session and sends to `server`; replies leave from `server`.
+    pair.server.onMessage((message) => void this.handle(message));
+    pair.server.onClose(() => {
+      this.isClosed = true;
+    });
+    void pair.server.start();
+    this.client = pair.client;
+    this.server = pair.server;
+  }
+
+  connect(): McpTransport {
+    return this.client;
+  }
+
+  private reply(request: JsonRpcRequest, result: unknown): void {
+    void this.server.send({ jsonrpc: "2.0", id: request.id, result });
+  }
+
+  private error(request: JsonRpcRequest, message: string): void {
+    void this.server.send({ jsonrpc: "2.0", id: request.id, error: { code: -32601, message } });
+  }
+
+  private async handle(message: JsonRpcMessage): Promise<void> {
+    if (!isJsonRpcRequest(message)) return;
+    switch (message.method) {
+      case "initialize":
+        this.reply(message, {
+          protocolVersion: LATEST_PROTOCOL_VERSION,
+          capabilities: { tools: {} },
+          serverInfo: { name: this.name, version: "1.0.0" },
+          instructions: "Faux MCP tools for tests.",
+        });
+        return;
+      case "ping":
+        this.reply(message, {});
+        return;
+      case "tools/list":
+        this.reply(message, {
+          tools: this.tools.map(({ name, description }) => ({
+            name,
+            description,
+            inputSchema: { type: "object", properties: {} },
+          })),
+        });
+        return;
+      case "tools/call": {
+        const { name, arguments: args } = (message.params ?? {}) as { name?: string; arguments?: unknown };
+        this.calls.push({ name: name ?? "", args });
+        const tool = this.tools.find((candidate) => candidate.name === name);
+        if (tool) this.reply(message, structuredClone(tool.result));
+        else this.error(message, `Unknown tool ${name}`);
+        return;
+      }
+      default:
+        this.error(message, `FauxMcpServer has no handler for ${message.method}`);
+    }
+  }
 }
 
 test("streams a scripted tool call through agent_settled and rejects overlapping prompts", async (context) => {
@@ -491,4 +595,87 @@ test("lists prompt templates and skills as slash commands", async (context) => {
     commands.find((command) => command.name === "skill:notes"),
     { name: "skill:notes", description: "Keep notes" },
   );
+});
+
+test("binds the codemode, tool_search, and MCP extensions when a session opens", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage("Hi.")]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  const registered = session.session.extensionRunner
+    .getRegisteredCommands()
+    .map(({ invocationName }) => invocationName);
+  assert.ok(registered.includes("mcp"));
+  // /mcp opens an interactive manager pi remote cannot show yet, so the client does not offer it.
+  assert.ok(!session.settings.commands.some((command) => command.name === "mcp"));
+  // No servers are configured, so the discovery tools stay inactive.
+  const active = session.session.getActiveToolNames();
+  assert.ok(!active.includes("codemode"));
+  assert.ok(!active.includes("tool_search"));
+});
+
+test("activates codemode and tool_search from the configured server exposures", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage("Hi.")], 60_000, {
+    loadConfig: (): LoadedMcpConfig => ({
+      servers: [
+        mcpEntry("faux-tools", join(directory, "mcp.json"), { command: "faux", exposure: "codemode" }),
+        mcpEntry("deferred-tools", join(directory, "mcp.json"), { command: "faux", exposure: "deferred" }),
+      ],
+      errors: [],
+    }),
+    // The connection fails, and exposure already activated the discovery tools.
+    createTransport: () => {
+      throw new Error("No transport in this test.");
+    },
+  });
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  const active = session.session.getActiveToolNames();
+  assert.ok(active.includes("codemode"));
+  assert.ok(active.includes("tool_search"));
+});
+
+test("calls an MCP tool from a codemode script and closes the server on session close", async (context) => {
+  const server = new FauxMcpServer("faux", [
+    { name: "ping", description: "Return a hello", result: { content: [{ type: "text", text: "Faux tool ran" }] } },
+  ]);
+  const { directory, adapter } = await setup(
+    context,
+    [
+      fauxAssistantMessage(
+        [fauxToolCall("codemode", { code: "return (await tools.mcp__faux__ping({})).content[0].text" })],
+        { stopReason: "toolUse" },
+      ),
+      fauxAssistantMessage("Done."),
+    ],
+    60_000,
+    {
+      loadConfig: (): LoadedMcpConfig => ({
+        servers: [mcpEntry("faux", join(directory, "mcp.json"), { command: "faux" })],
+        errors: [],
+      }),
+      createTransport: () => server.connect(),
+    },
+  );
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Call the faux MCP server");
+  const result = session.snapshot.messages.find(
+    (message) => message.role === "toolResult" && (message as { toolName?: string }).toolName === "codemode",
+  );
+  assert.ok(result);
+  assert.match(JSON.stringify(result), /Faux tool ran/);
+  // Session tool results only record bounded metadata about the script's nested calls.
+  const nested = (result as { nestedCalls?: { calls: { name: string; status: string }[] } }).nestedCalls;
+  assert.ok(nested?.calls.some((call) => call.name === "mcp__faux__ping" && call.status === "ok"));
+  assert.equal(server.isClosed, false);
+  const events: string[] = [];
+  const runner = session.session.extensionRunner;
+  const emit = runner.emit.bind(runner);
+  runner.emit = ((event: unknown) => {
+    events.push(String((event as { type?: string }).type));
+    return emit(event as Parameters<typeof emit>[0]);
+  }) as typeof runner.emit;
+  await session.close();
+  assert.ok(events.includes("session_shutdown"));
+  assert.equal(server.isClosed, true);
 });

@@ -112,7 +112,7 @@ Each table lists the options, the recommendation, and what the recommendation gi
 
 Recommendation: the SDK in process, behind `PiAdapter`. A second session in the same process adds about 5 MB, which suits a small host. It gives up crash isolation. `PiAdapter` keeps a later move to RPC small.
 
-Note: SDK sessions do not load the `codemode`, `tool_search`, and MCP extensions that the CLI loads. If you need MCP, add those extension factories in `PiAdapter`.
+Note: SDK sessions do not load the `codemode`, `tool_search`, and MCP extensions that the CLI loads. `PiAdapter` adds all three as extension factories to a `DefaultResourceLoader` and calls `session.bindExtensions({})`, so `session_start` fires and MCP servers from `~/.pi/agent/mcp.json` and the project's `.pi/mcp.json` connect. Sessions with an explicit `agentDir`, such as tests, start with an empty server list. `PiSession.close()` emits `session_shutdown` before disposing, which closes stdio MCP servers, because `dispose()` alone does not emit it. The `/mcp` manager command is hidden from the client: it needs an interactive UI pi remote does not offer yet. Settings for MCP servers are managed with the `pi mcp` shell commands on the host.
 
 ### D2. Who owns the session history
 

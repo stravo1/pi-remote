@@ -1,11 +1,18 @@
 import {
   createAgentSession,
+  createCodemodeExtension,
+  createMcpExtension,
+  createToolSearchExtension,
+  DefaultResourceLoader,
+  getAgentDir,
   ModelRuntime,
   SessionManager,
   SettingsManager,
   type AgentSession,
   type AgentSessionEvent,
   type CreateAgentSessionOptions,
+  type LoadedMcpConfig,
+  type McpExtensionOptions,
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
@@ -28,6 +35,27 @@ export type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 
 function toImageContent(image: PromptImage): { type: "image"; data: string; mimeType: string } {
   return { type: "image", data: image.data, mimeType: image.mimeType };
+}
+
+/**
+ * Extensions clean up on `session_shutdown`; `dispose()` alone does not emit it. The MCP
+ * extension closes its stdio servers here, so they die with the session.
+ */
+async function shutdownExtensions(session: AgentSession): Promise<void> {
+  try {
+    await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
+  } catch (error) {
+    console.error("Session shutdown handlers failed", error);
+  }
+}
+
+/**
+ * Sessions that opt out of the user's agent directory (tests and sandboxes set `agentDir`)
+ * start with an empty MCP server list. The extension reads its own configuration with
+ * `getAgentDir()`, so without this it would connect the user's real servers in tests.
+ */
+function emptyMcpConfig(): LoadedMcpConfig {
+  return { servers: [], errors: [] };
 }
 
 export interface SessionSummary {
@@ -115,6 +143,9 @@ export class PiSession {
   get commands(): CommandChoice[] {
     const extensions = this.session.extensionRunner
       .getRegisteredCommands()
+      // /mcp runs an interactive server manager (menus, OAuth sign-in) that needs a UI
+      // bridge pi remote does not offer yet. Hide it until that exists.
+      .filter(({ invocationName }) => invocationName !== "mcp")
       .map(({ invocationName, description }) => ({ name: invocationName, description }));
     const templates = this.session.promptTemplates.map(({ name, description, argumentHint }) => ({
       name,
@@ -202,6 +233,7 @@ export class PiSession {
   async close(): Promise<void> {
     await this.summaryJob.close();
     await this.session.abort();
+    await shutdownExtensions(this.session);
     this.session.dispose();
   }
 }
@@ -211,6 +243,7 @@ export class PiAdapter {
   private readonly sessionDirectory?: string;
   private readonly summaryDelay?: number;
   private readonly summaryInterval?: number;
+  private readonly mcpOptions?: McpExtensionOptions;
   private readonly modelRuntime?: ModelRuntime;
   private readonly activity = new SessionActivity();
   private readonly logins = new Map<string, PendingLogin>();
@@ -221,12 +254,15 @@ export class PiAdapter {
     sessionDirectory?: string,
     summaryDelay?: number,
     summaryInterval?: number,
+    // Overrides the MCP extension wiring, for tests that inject a fake server.
+    mcpOptions?: McpExtensionOptions,
   ) {
     this.options = options;
     this.modelRuntime = options.modelRuntime as ModelRuntime | undefined;
     this.sessionDirectory = sessionDirectory;
     this.summaryDelay = summaryDelay;
     this.summaryInterval = summaryInterval;
+    this.mcpOptions = mcpOptions;
   }
 
   async list(project: string): Promise<SessionSummary[]> {
@@ -410,14 +446,55 @@ export class PiAdapter {
 
   private async start(project: string, sessionManager: SessionManager): Promise<PiSession> {
     const model = sessionManager.buildSessionContext().model ? undefined : this.resolveDefaultModel();
-    const { session } = await createAgentSession({ ...this.options, model, cwd: project, sessionManager });
+    // The session manager must be the one the resource loader used, or settings overrides
+    // (`defaultTools`, `defaultProvider`) do not reach the loadout.
+    const settingsManager = SettingsManager.create(project, this.options.agentDir);
+    const { session } = await createAgentSession({
+      ...this.options,
+      resourceLoader: this.options.resourceLoader ?? (await this.createResourceLoader(project, settingsManager)),
+      settingsManager,
+      model,
+      cwd: project,
+      sessionManager,
+    });
     try {
+      // Fires `session_start`, which connects the MCP servers and binds extension tools and
+      // commands. Sessions created without client bindings use pi's default print-mode UI,
+      // where `ctx.ui` notifications are no-ops.
+      await session.bindExtensions({});
       await session.modelRuntime.getAvailable();
       return new PiSession(session, this.summaryDelay, this.summaryInterval);
     } catch (error) {
+      await shutdownExtensions(session);
       session.dispose();
       throw error;
     }
+  }
+
+  /**
+   * Loads the codemode, tool_search, and MCP extensions that pi's CLI loads and SDK sessions
+   * leave out. MCP servers come from `~/.pi/agent/mcp.json` and the project's `.pi/mcp.json`.
+   */
+  private async createResourceLoader(
+    project: string,
+    settingsManager: SettingsManager,
+  ): Promise<DefaultResourceLoader> {
+    const agentDir = this.options.agentDir ?? getAgentDir();
+    const loader = new DefaultResourceLoader({
+      cwd: project,
+      agentDir,
+      settingsManager,
+      extensionFactories: [
+        createCodemodeExtension(),
+        createToolSearchExtension(),
+        createMcpExtension({
+          ...(this.options.agentDir ? { loadConfig: emptyMcpConfig } : {}),
+          ...this.mcpOptions,
+        }),
+      ],
+    });
+    await loader.reload();
+    return loader;
   }
 
   /** New sessions use the stored default model, then an explicitly provided model, then pi's automatic pick. */

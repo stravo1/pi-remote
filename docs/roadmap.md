@@ -77,8 +77,8 @@ Pick these as needed. Each one is independent.
 - Tool approval: a pi extension blocks risky tool calls until a client answers (D6).
 - A file browser for the project.
 - A terminal tab (xterm.js).
-- Image attachments in prompts.
-- MCP: load pi's `codemode`, `tool_search`, and MCP extensions in `PiAdapter`.
+- Image attachments in prompts. Done. Pulled forward in Phase 4.
+- MCP: done. Pulled forward in Phase 4. `PiAdapter` loads the `codemode`, `tool_search`, and MCP extensions and calls `bindExtensions`. What may still be wanted: a settings screen for MCP servers and a UI for OAuth sign-in and for extension prompts (`docs/rpc-extension-ui.md`).
 
 ### Gaps compared with the pi terminal app
 
@@ -91,7 +91,7 @@ The pi terminal app has these features, and pi remote does not have them yet. Th
 | `/import <path>`: resume a JSONL session                    | An import action.                                        |
 | `/reload`: reload extensions, skills, templates, and themes | A reload action. A server restart works today.           |
 | `/scoped-models`                                            | pi remote keeps its own recent models list instead.      |
-| MCP servers, `codemode`, and `tool_search`                  | SDK sessions do not load them. See the MCP item above.   |
+| MCP servers, `codemode`, and `tool_search`                  | Done in Phase 4. See the MCP item above.                 |
 | Image input                                                 | See the image attachments item above.                    |
 | Extension prompts that ask the user a question              | A UI for extension prompts (`docs/rpc-extension-ui.md`). |
 
