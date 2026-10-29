@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Alert, Button, Textarea } from "frappe-ui";
 
 import { buttonSize } from "../button-size.ts";
@@ -19,7 +19,7 @@ const props = defineProps<{
   send: (text: string, images: { data: string; mimeType: string }[]) => boolean;
 }>();
 const emit = defineEmits<{
-  steer: [text: string];
+  steer: [id: string];
   abort: [];
 }>();
 const text = ref("");
@@ -27,12 +27,7 @@ const root = ref<HTMLElement>();
 const queueList = ref<HTMLElement>();
 const fileInput = ref<HTMLInputElement>();
 const images = ref<AttachedImage[]>([]);
-const canSend = computed(
-  () =>
-    !props.disabled &&
-    (text.value.trim() !== "" || images.value.length > 0) &&
-    !(props.isRunning && images.value.length > 0),
-);
+const canSend = computed(() => !props.disabled && (text.value.trim() !== "" || images.value.length > 0));
 const hasKeyboard = window.matchMedia("(pointer: fine)").matches;
 const maxHeight = 160;
 const highlighted = ref(0);
@@ -91,18 +86,64 @@ function onPaste(event: ClipboardEvent): void {
 const dragDepth = ref(0);
 const isDragging = computed(() => dragDepth.value > 0);
 
+function hasFileDrag(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+}
+
+// The whole window takes files, so a drop on the transcript or the header
+// still attaches to this input, which is the only place an image can go.
+function onDragEnter(event: DragEvent): void {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  if (props.canSendImages) dragDepth.value++;
+}
+
+function onDragOver(event: DragEvent): void {
+  if (!hasFileDrag(event)) return;
+  event.preventDefault();
+  if (event.dataTransfer) event.dataTransfer.dropEffect = props.canSendImages ? "copy" : "none";
+}
+
+function onDragLeave(event: DragEvent): void {
+  if (!hasFileDrag(event)) return;
+  dragDepth.value = Math.max(0, dragDepth.value - 1);
+}
+
 function onDrop(event: DragEvent): void {
+  if (!hasFileDrag(event)) return;
+  // Stop the browser from opening the dropped file, even when it is not an image.
+  event.preventDefault();
   dragDepth.value = 0;
+  if (!props.canSendImages) return;
   const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.type.startsWith("image/"));
   if (!files.length) return;
-  event.preventDefault();
-  event.stopPropagation();
   void addFiles(files);
+  root.value?.querySelector("textarea")?.focus();
 }
+
+onMounted(() => {
+  window.addEventListener("dragenter", onDragEnter);
+  window.addEventListener("dragover", onDragOver);
+  window.addEventListener("dragleave", onDragLeave);
+  window.addEventListener("drop", onDrop);
+  window.addEventListener("paste", onPaste);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("dragenter", onDragEnter);
+  window.removeEventListener("dragover", onDragOver);
+  window.removeEventListener("dragleave", onDragLeave);
+  window.removeEventListener("drop", onDrop);
+  window.removeEventListener("paste", onPaste);
+});
 
 function removeImage(image: AttachedImage): void {
   URL.revokeObjectURL(image.preview);
   images.value = images.value.filter((item) => item !== image);
+}
+
+function imageUrl(image: { data: string; mimeType: string }): string {
+  return `data:${image.mimeType};base64,${image.data}`;
 }
 
 function submit(): void {
@@ -149,10 +190,6 @@ function onMenuKey(event: KeyboardEvent): void {
       isDragging && 'sm:rounded-t-6 sm:outline sm:outline-2 sm:-outline-offset-2 sm:outline-outline-gray-3',
     ]"
     @submit.prevent="submit"
-    @dragenter.prevent="dragDepth++"
-    @dragover.prevent
-    @dragleave.prevent="dragDepth = Math.max(0, dragDepth - 1)"
-    @drop="onDrop"
   >
     <div class="sm:rounded-t-6 sm:border sm:border-b-0 sm:border-outline-gray-2 sm:bg-surface-base">
       <div
@@ -192,31 +229,46 @@ function onMenuKey(event: KeyboardEvent): void {
           class="max-h-[7.625rem] divide-y divide-outline-gray-1 overflow-y-auto rounded-4 bg-surface-gray-1 text-p-sm"
           aria-label="Queued messages"
         >
-          <li
-            v-for="(message, index) in queue.steering"
-            :key="`steer-${index}`"
-            class="flex min-h-10 items-start gap-2 px-3 py-2"
-          >
+          <li v-for="message in queue.steering" :key="message.id" class="flex min-h-10 items-start gap-2 px-3 py-2">
             <span
               class="lucide-corner-down-right mt-0.5 size-4 shrink-0 text-ink-gray-5"
               role="img"
               aria-label="After the current turn"
             />
-            <p class="min-w-0 flex-1 whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
+            <div class="min-w-0 flex-1 space-y-1">
+              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">{{ message.text }}</p>
+              <div v-if="message.images.length" class="flex flex-wrap gap-1" role="list" aria-label="Queued images">
+                <img
+                  v-for="(image, index) in message.images"
+                  :key="index"
+                  :src="imageUrl(image)"
+                  :alt="`Queued image ${index + 1}`"
+                  class="size-8 rounded-3 border border-outline-gray-2 object-cover"
+                />
+              </div>
+            </div>
           </li>
-          <li
-            v-for="(message, index) in queue.followUp"
-            :key="`follow-${index}`"
-            class="flex min-h-10 items-start gap-2 px-3 py-1.5"
-          >
-            <span class="lucide-clock mt-1 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
-            <p class="min-w-0 flex-1 self-center whitespace-pre-wrap break-words text-ink-gray-8">{{ message }}</p>
+          <li v-for="message in queue.followUp" :key="message.id" class="flex min-h-10 items-start gap-2 px-3 py-1.5">
+            <span class="lucide-clock mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
+            <div class="min-w-0 flex-1 space-y-1">
+              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">{{ message.text }}</p>
+              <div v-if="message.images.length" class="flex flex-wrap gap-1" role="list" aria-label="Queued images">
+                <img
+                  v-for="(image, index) in message.images"
+                  :key="index"
+                  :src="imageUrl(image)"
+                  :alt="`Queued image ${index + 1}`"
+                  class="size-8 rounded-3 border border-outline-gray-2 object-cover"
+                />
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="sm"
+              class="shrink-0 self-center"
               icon="lucide-arrow-up"
               aria-label="Send now"
-              @click="emit('steer', message)"
+              @click="emit('steer', message.id)"
             />
           </li>
         </ul>
@@ -266,7 +318,6 @@ function onMenuKey(event: KeyboardEvent): void {
           :aria-controls="matches.length ? 'command-matches' : undefined"
           @keydown.enter="onEnter"
           @keydown="onMenuKey"
-          @paste="onPaste"
         />
         <Button
           v-if="isRunning"

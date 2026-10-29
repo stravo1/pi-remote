@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import type { AgentSessionEvent } from "../../server/src/protocol.ts";
+import type { SessionEvent } from "../../server/src/protocol.ts";
 import { Transcript } from "../src/transcript.ts";
 
 test("replays the spike tool-call log and skips system messages", async () => {
@@ -43,7 +43,7 @@ test("places overlapping thinking and text deltas by contentIndex before message
     },
     { type: "message_update", assistantMessageEvent: { type: "text_delta", contentIndex: 1, delta: " world." } },
   ];
-  for (const event of events) transcript.apply(event as AgentSessionEvent);
+  for (const event of events) transcript.apply(event as SessionEvent);
   assert.deepEqual(transcript.messages[0].content, [
     { type: "thinking", text: "First thought. Last thought." },
     { type: "text", text: "Hello world." },
@@ -104,20 +104,20 @@ test("rebuilds tool output and diffs from history plus live events", () => {
   const live = new Transcript();
   live.start(assistant);
   live.end(assistant);
-  for (const event of events) live.apply(event as AgentSessionEvent);
+  for (const event of events) live.apply(event as SessionEvent);
   const resumed = new Transcript();
   resumed.load({
     messages: [assistant],
     runEvents: events,
     isStreaming: true,
     isCompacting: false,
-    queue: { steering: [], followUp: ["Next"] },
+    queue: { steering: [], followUp: [queued("Next")] },
   } as unknown as Parameters<Transcript["load"]>[0]);
   assert.deepEqual(resumed.tools, live.tools);
   assert.equal(resumed.tools["edit-1"].diff, "-1 old\n+1 new");
   assert.equal(resumed.tools["bash-1"].status, "error");
   assert.equal(resumed.tools["bash-1"].output, "aborted");
-  assert.deepEqual(resumed.queue.followUp, ["Next"]);
+  assert.deepEqual(resumed.queue.followUp, [queued("Next")]);
 
   const stored = new Transcript();
   stored.load({
@@ -141,6 +141,10 @@ test("rebuilds tool output and diffs from history plus live events", () => {
   assert.equal(stored.tools["bash-1"].status, "interrupted");
 });
 
+function queued(text: string) {
+  return { id: `id-${text}`, text, images: [] };
+}
+
 test("replaces cumulative tool output and keeps queue state from events", () => {
   const transcript = new Transcript();
   transcript.apply({
@@ -148,16 +152,16 @@ test("replaces cumulative tool output and keeps queue state from events", () => 
     toolCallId: "one",
     toolName: "bash",
     args: { command: "echo" },
-  } as AgentSessionEvent);
+  } as SessionEvent);
   for (const text of ["a", "ab"])
     transcript.apply({
       type: "tool_execution_update",
       toolCallId: "one",
       partialResult: { content: [{ type: "text", text }] },
-    } as AgentSessionEvent);
+    } as SessionEvent);
   assert.equal(transcript.tools.one.output, "ab");
-  transcript.apply({ type: "queue_update", steering: ["Change"], followUp: ["Next"] });
-  assert.deepEqual(transcript.queue, { steering: ["Change"], followUp: ["Next"] });
+  transcript.apply({ type: "queue_update", steering: [queued("Change")], followUp: [queued("Next")] });
+  assert.deepEqual(transcript.queue, { steering: [queued("Change")], followUp: [queued("Next")] });
   transcript.apply({ type: "agent_settled", aborted: true });
   assert.equal(transcript.tools.one.status, "interrupted");
   transcript.apply({ type: "queue_update", steering: [], followUp: [] });

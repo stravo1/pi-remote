@@ -1,4 +1,3 @@
-import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
   lastUserActivity,
   type DefaultModelSettings,
@@ -6,6 +5,7 @@ import {
   type ProjectGroup,
   type ProviderLoginEvent,
   type ProviderSettings,
+  type SessionEvent,
   type SessionInfo,
   type SessionListItem,
   type Snapshot,
@@ -43,14 +43,14 @@ export interface EventMessage {
   type: "event";
   sessionId: string;
   seq: number;
-  event: AgentSessionEvent;
+  event: SessionEvent;
 }
 
 /** A session's state, sent on subscribe and after a missed event forces a re-subscribe. */
 export interface SnapshotMessage extends Snapshot {
   type: "snapshot";
   sessionId: string;
-  runEvents: AgentSessionEvent[];
+  runEvents: SessionEvent[];
   seq: number;
 }
 

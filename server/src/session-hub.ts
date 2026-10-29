@@ -128,12 +128,12 @@ export class SessionHub {
     await (await this.getSession(sessionId)).session.abort();
   }
 
-  async queue(sessionId: string, text: string, mode: "steer" | "follow_up"): Promise<void> {
-    await (await this.getSession(sessionId)).session.queue(text, mode);
+  async queue(sessionId: string, text: string, mode: "steer" | "follow_up", images?: PromptImage[]): Promise<void> {
+    await (await this.getSession(sessionId)).session.queue(text, mode, images);
   }
 
-  async steerFollowUp(sessionId: string, text: string): Promise<void> {
-    (await this.getSession(sessionId)).session.steerFollowUp(text);
+  async steerFollowUp(sessionId: string, id: string): Promise<void> {
+    (await this.getSession(sessionId)).session.steerFollowUp(id);
   }
 
   async setModel(sessionId: string, provider: string, id: string): Promise<void> {

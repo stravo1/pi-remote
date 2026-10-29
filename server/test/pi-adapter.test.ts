@@ -26,6 +26,8 @@ import {
   type McpTransport,
 } from "@earendil-works/pi-mcp";
 import { PiAdapter } from "../src/pi-adapter.ts";
+
+const pixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 import { SessionSummaryJob } from "../src/session-summary-job.ts";
 
 async function setup(
@@ -176,7 +178,7 @@ test("lists a stored session and reopens it with the same messages", async (cont
 });
 
 for (const mode of ["steer", "follow_up"] as const) {
-  test(`delivers ${mode} through the SDK and exposes the pending queue`, async (context) => {
+  test(`delivers ${mode} with an image through the SDK and exposes the pending queue`, async (context) => {
     const { directory, adapter } = await setup(context, [
       fauxAssistantMessage([fauxToolCall("bash", { command: "sleep 0.05" })], { stopReason: "toolUse" }),
       fauxAssistantMessage("First result."),
@@ -184,23 +186,32 @@ for (const mode of ["steer", "follow_up"] as const) {
     ]);
     const session = await adapter.create(directory);
     context.after(() => session.close());
+    const image = { data: pixelPng, mimeType: "image/png" };
     const queues: string[][] = [];
+    const withImages: number[] = [];
     let queued: Promise<void> | undefined;
     session.subscribe((event) => {
-      if (event.type === "tool_execution_start") queued = session.queue("Queued instruction", mode);
-      if (event.type === "queue_update") queues.push([...event.steering, ...event.followUp]);
+      if (event.type === "tool_execution_start") queued = session.queue("Queued instruction", mode, [image]);
+      if (event.type === "queue_update") {
+        queues.push([...event.steering, ...event.followUp].map((entry) => entry.text));
+        withImages.push(
+          [...event.steering, ...event.followUp].reduce((count, entry) => count + entry.images.length, 0),
+        );
+      }
     });
     await session.prompt("Work");
     await queued;
     assert.ok(queues.some((messages) => messages.includes("Queued instruction")));
+    assert.ok(withImages.includes(1), "the queue update carries the queued image");
     assert.deepEqual(session.snapshot.queue, { steering: [], followUp: [] });
     const users = session.snapshot.messages.filter((message) => message.role === "user");
     assert.equal(users.length, 2);
     assert.match(JSON.stringify(users[1]), /Queued instruction/);
+    assert.match(JSON.stringify(users[1]), /"type":"image"/);
   });
 }
 
-test("steers a queued follow-up once and keeps the other follow-ups", async (context) => {
+test("steers a queued follow-up with its image once and keeps the other follow-ups", async (context) => {
   const { directory, adapter } = await setup(context, [
     fauxAssistantMessage([fauxToolCall("bash", { command: "sleep 0.05" })], { stopReason: "toolUse" }),
     fauxAssistantMessage("Steered result."),
@@ -208,15 +219,25 @@ test("steers a queued follow-up once and keeps the other follow-ups", async (con
   ]);
   const session = await adapter.create(directory);
   context.after(() => session.close());
+  const image = { data: pixelPng, mimeType: "image/png" };
   let queued: Promise<void> | undefined;
   session.subscribe((event) => {
     if (event.type !== "tool_execution_start") return;
     queued = (async () => {
-      await session.queue("Steer this", "follow_up");
+      await session.queue("Steer this", "follow_up", [image]);
       await session.queue("Keep this", "follow_up");
-      session.steerFollowUp("Steer this");
-      assert.deepEqual(session.snapshot.queue, { steering: ["Steer this"], followUp: ["Keep this"] });
-      assert.throws(() => session.steerFollowUp("Missing"), /no longer queued/);
+      const [steered] = session.snapshot.queue.followUp;
+      assert.deepEqual(steered.images, [image]);
+      session.steerFollowUp(steered.id);
+      const queue = session.snapshot.queue;
+      assert.deepEqual(
+        {
+          steering: queue.steering.map((entry) => [entry.text, entry.images.length]),
+          followUp: queue.followUp.map((entry) => [entry.text, entry.images.length]),
+        },
+        { steering: [["Steer this", 1]], followUp: [["Keep this", 0]] },
+      );
+      assert.throws(() => session.steerFollowUp("missing"), /no longer queued/);
     })();
   });
   await session.prompt("Work");
@@ -226,6 +247,7 @@ test("steers a queued follow-up once and keeps the other follow-ups", async (con
     .map((message) => JSON.stringify(message.content));
   assert.equal(users.length, 3);
   assert.match(users[1], /Steer this/);
+  assert.match(users[1], /"type":"image"/);
   assert.match(users[2], /Keep this/);
 });
 

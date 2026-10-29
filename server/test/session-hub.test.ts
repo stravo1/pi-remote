@@ -5,7 +5,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ProjectStore } from "../src/project-store.ts";
-import type { AgentSessionEvent, Snapshot } from "../src/protocol.ts";
+import type { SessionEvent, Snapshot } from "../src/protocol.ts";
 import type { RunNotice } from "../src/push-notifier.ts";
 import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
 
@@ -170,7 +170,7 @@ test("delivers image data in snapshots and events", async (context) => {
     timestamp: 1,
   };
   session.messages = [message as Snapshot["messages"][number]];
-  session.listener({ type: "message_end", message } as AgentSessionEvent);
+  session.listener({ type: "message_end", message } as SessionEvent);
   const second = client();
   await hub.subscribe(second, "old");
   // The client renders images, so the data travels with the message.

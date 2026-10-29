@@ -1,5 +1,5 @@
 import type { PiSession } from "./pi-adapter.ts";
-import type { AgentSessionEvent, Snapshot } from "./protocol.ts";
+import type { SessionEvent, Snapshot } from "./protocol.ts";
 import type { RunNotice } from "./push-notifier.ts";
 
 export interface HubClient {
@@ -40,8 +40,8 @@ export class OpenSession {
   private readonly unsubscribe: () => void;
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly onSettled: (notice: RunNotice) => void;
-  private readonly onChange: (event: AgentSessionEvent) => void;
-  private runEvents: AgentSessionEvent[] = [];
+  private readonly onChange: (event: SessionEvent) => void;
+  private runEvents: SessionEvent[] = [];
   private sequence = 0;
   private eventCount = 0;
   private bytes = 0;
@@ -51,7 +51,7 @@ export class OpenSession {
     session: HubSession,
     logRun: (metrics: RunMetrics) => void,
     onSettled: (notice: RunNotice) => void,
-    onChange: (event: AgentSessionEvent) => void = () => {},
+    onChange: (event: SessionEvent) => void = () => {},
   ) {
     this.project = project;
     this.session = session;
@@ -69,7 +69,7 @@ export class OpenSession {
     return !this.session.is_running && this.subscribers.size === 0;
   }
 
-  get snapshot(): { type: "snapshot"; sessionId: string; runEvents: AgentSessionEvent[]; seq: number } & Snapshot {
+  get snapshot(): { type: "snapshot"; sessionId: string; runEvents: SessionEvent[]; seq: number } & Snapshot {
     return {
       type: "snapshot",
       sessionId: this.id,
@@ -79,7 +79,7 @@ export class OpenSession {
     };
   }
 
-  broadcast(event: AgentSessionEvent): void {
+  broadcast(event: SessionEvent): void {
     if (event.type === "agent_start") this.eventCount = this.bytes = 0;
     const message = JSON.stringify({ type: "event", sessionId: this.id, seq: ++this.sequence, event });
     this.eventCount++;
@@ -103,7 +103,7 @@ export class OpenSession {
     await this.session.close();
   }
 
-  private record(event: AgentSessionEvent): void {
+  private record(event: SessionEvent): void {
     this.runEvents.push(event);
     if (event.type === "message_end" || event.type === "compaction_end") this.runEvents = [];
     if (event.type !== "agent_settled") return;

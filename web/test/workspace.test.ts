@@ -187,23 +187,24 @@ test("returning to the home page refreshes the session list", () => {
   assert.deepEqual(sent, [{ type: "unsubscribe", sessionId: "one" }, { type: "list_sessions" }]);
 });
 
-test("queues input during a run as a follow-up and steers a queued follow-up", () => {
+test("queues input with its images during a run and steers a queued follow-up", () => {
   const { workspace, sent } = setup();
   workspace.status = "connected";
   workspace.transcript.is_running = true;
   assert.equal(workspace.is_disabled, false);
-  workspace.sendPrompt("Next");
+  const image = { data: "aGVsbG8=", mimeType: "image/png" };
+  workspace.sendPrompt("Next", [image]);
   workspace.handle({
     type: "event",
     sessionId: "one",
     seq: 1,
-    event: { type: "queue_update", steering: [], followUp: ["Next"] },
+    event: { type: "queue_update", steering: [], followUp: [{ id: "queued-1", text: "Next", images: [image] }] },
   });
   assert.equal(workspace.isSending, false);
-  workspace.steerFollowUp("Next");
+  workspace.steerFollowUp("queued-1");
   assert.deepEqual(sent, [
-    { type: "follow_up", sessionId: "one", text: "Next" },
-    { type: "steer_follow_up", sessionId: "one", text: "Next" },
+    { type: "follow_up", sessionId: "one", text: "Next", images: [image] },
+    { type: "steer_follow_up", sessionId: "one", id: "queued-1" },
   ]);
 });
 

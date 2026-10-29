@@ -306,7 +306,7 @@ function closeProject(): void {
         :queue="workspace.transcript.queue"
         :commands="[...ownCommands, ...(workspace.settings?.commands ?? [])]"
         :send="(text, images) => workspace.sendPrompt(text, images)"
-        @steer="(text) => workspace.steerFollowUp(text)"
+        @steer="(id) => workspace.steerFollowUp(id)"
         @abort="workspace.abort()"
       />
     </template>

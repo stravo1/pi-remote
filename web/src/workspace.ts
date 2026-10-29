@@ -59,9 +59,9 @@ export class Workspace {
     return (project ?? this.projects[0])?.path;
   }
 
-  /** Only a model that accepts images shows the attach button, and only while idle. */
+  /** Only a model that accepts images shows the attach button, idle or running. */
   get canSendImages(): boolean {
-    return !!this.settings?.model?.hasImageInput && !this.transcript.is_running;
+    return !!this.settings?.model?.hasImageInput;
   }
 
   get is_disabled(): boolean {
@@ -209,16 +209,15 @@ export class Workspace {
     }
     this.isSending = true;
     this.error = "";
-    // Queued messages are text-only, so a send during a run leaves images out.
     const command = this.transcript.is_running
-      ? { type: "follow_up", sessionId: this.sessionId, text }
+      ? { type: "follow_up", sessionId: this.sessionId, text, images }
       : { type: "prompt", sessionId: this.sessionId, text, images };
     return this.run(command);
   }
 
-  steerFollowUp(text: string): void {
+  steerFollowUp(id: string): void {
     this.error = "";
-    this.run({ type: "steer_follow_up", sessionId: this.sessionId, text });
+    this.run({ type: "steer_follow_up", sessionId: this.sessionId, id });
   }
 
   setModel(value: string): void {

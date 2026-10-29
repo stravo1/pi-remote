@@ -277,17 +277,41 @@ test("shares queues and settings with two clients and a reconnect", { timeout: 5
   const started = nextReply(second);
   await request(first, { type: "prompt", sessionId: "stored", text: "Work" });
   await started;
+  const data = Buffer.from("Queued image bytes.").toString("base64");
+  const image = { data, mimeType: "image/png" };
+  let followUpId = "";
   for (const type of ["steer", "follow_up"]) {
     const other = nextReply(second);
-    const reply = await request(first, { type, sessionId: "stored", text: type });
+    const reply = await request(first, {
+      type,
+      sessionId: "stored",
+      text: type,
+      images: type === "follow_up" ? [image] : undefined,
+    });
     assert.equal(reply.event.type, "queue_update");
     assert.deepEqual(reply, await other);
+    if (type === "follow_up") followUpId = reply.event.followUp[0].id;
   }
-  const steered = await request(first, { type: "steer_follow_up", sessionId: "stored", text: "follow_up" });
-  assert.deepEqual(steered.event, { type: "queue_update", steering: ["steer", "follow_up"], followUp: [] });
+  const steered = await request(first, { type: "steer_follow_up", sessionId: "stored", id: followUpId });
+  assert.deepEqual(
+    {
+      steering: steered.event.steering.map((entry: { text: string }) => entry.text),
+      followUp: steered.event.followUp.map((entry: { text: string }) => entry.text),
+    },
+    { steering: ["steer", "follow_up"], followUp: [] },
+  );
+  // The promoted message keeps the image it was queued with.
+  assert.deepEqual(steered.event.steering[1].images, [image]);
   const third = await connect(url);
   const restored = await request(third, { type: "subscribe", sessionId: "stored" });
-  assert.deepEqual(restored.queue, { steering: ["steer", "follow_up"], followUp: [] });
+  assert.deepEqual(
+    {
+      steering: restored.queue.steering.map((entry: { text: string }) => entry.text),
+      followUp: restored.queue.followUp.map((entry: { text: string }) => entry.text),
+    },
+    { steering: ["steer", "follow_up"], followUp: [] },
+  );
+  assert.deepEqual(restored.queue.steering[1].images, [image]);
   assert.match(
     (await request(first, { type: "set_model", sessionId: "stored", provider: "faux", modelId: "first" })).message,
     /idle/,
@@ -295,7 +319,7 @@ test("shares queues and settings with two clients and a reconnect", { timeout: 5
   await request(first, { type: "abort", sessionId: "stored" });
 });
 
-test("rejects invalid settings and empty queued messages", { timeout: 5000 }, async (context) => {
+test("rejects invalid settings, empty queued messages, and bad queued images", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const socket = await connect(url);
   for (const command of [
@@ -305,6 +329,9 @@ test("rejects invalid settings and empty queued messages", { timeout: 5000 }, as
     { type: "set_thinking_level", level: 1 },
     { type: "steer", text: " " },
     { type: "follow_up", text: "" },
+    { type: "steer", images: [{ data: "aGVsbG8=", mimeType: "image/png" }] },
+    { type: "follow_up", text: "Bad image", images: [{ data: "aGVsbG8=", mimeType: "text/plain" }] },
+    { type: "steer_follow_up", id: "missing" },
   ]) {
     assert.equal((await request(socket, { ...command, sessionId: "stored" })).type, "error");
   }

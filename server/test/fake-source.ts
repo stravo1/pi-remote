@@ -1,4 +1,11 @@
-import type { AgentSessionEvent, PromptImage, SessionInfo, SessionSettings, Snapshot } from "../src/protocol.ts";
+import type {
+  PromptImage,
+  QueuedMessage,
+  SessionEvent,
+  SessionInfo,
+  SessionSettings,
+  Snapshot,
+} from "../src/protocol.ts";
 import type { HubSession, SessionSource } from "../src/session-hub.ts";
 
 export class FakeSession implements HubSession {
@@ -7,7 +14,7 @@ export class FakeSession implements HubSession {
   name: string | undefined;
   compactions: (string | undefined)[] = [];
   messages: Snapshot["messages"] = [];
-  pending = { steering: [] as string[], followUp: [] as string[] };
+  pending: { steering: QueuedMessage[]; followUp: QueuedMessage[] } = { steering: [], followUp: [] };
   prompts: { text: string; images?: PromptImage[] }[] = [];
   settings: SessionSettings = {
     model: { provider: "faux", id: "first", name: "First" },
@@ -19,7 +26,8 @@ export class FakeSession implements HubSession {
     thinkingLevels: ["off", "high"],
     commands: [{ name: "review", description: "Review the diff" }],
   };
-  listener: (event: AgentSessionEvent) => void = () => {};
+  listener: (event: SessionEvent) => void = () => {};
+  private nextQueuedId = 0;
   finish: () => void = () => {};
 
   readonly id: string;
@@ -38,7 +46,7 @@ export class FakeSession implements HubSession {
     };
   }
 
-  subscribe(listener: (event: AgentSessionEvent) => void): () => void {
+  subscribe(listener: (event: SessionEvent) => void): () => void {
     this.listener = listener;
     return () => {
       this.listener = () => {};
@@ -57,17 +65,18 @@ export class FakeSession implements HubSession {
     this.listener({ type: "agent_settled", aborted: false });
   }
 
-  async queue(text: string, mode: "steer" | "follow_up"): Promise<void> {
-    if (!this.is_running) return this.prompt();
-    this.pending[mode === "steer" ? "steering" : "followUp"].push(text);
+  async queue(text: string, mode: "steer" | "follow_up", images: PromptImage[] = []): Promise<void> {
+    if (!this.is_running) return this.prompt(text, images);
+    const entry = { id: `queued-${++this.nextQueuedId}`, text, images };
+    this.pending[mode === "steer" ? "steering" : "followUp"].push(entry);
     this.listener({ type: "queue_update", ...this.pending });
   }
 
-  steerFollowUp(text: string): void {
-    const index = this.pending.followUp.indexOf(text);
+  steerFollowUp(id: string): void {
+    const index = this.pending.followUp.findIndex((entry) => entry.id === id);
     if (index === -1) throw new Error("This message is no longer queued.");
-    this.pending.followUp.splice(index, 1);
-    this.pending.steering.push(text);
+    const [entry] = this.pending.followUp.splice(index, 1);
+    this.pending.steering.push(entry);
     this.listener({ type: "queue_update", ...this.pending });
   }
 

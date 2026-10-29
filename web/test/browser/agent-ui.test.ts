@@ -69,6 +69,16 @@ for (const width of [375, 1280]) {
       })),
     );
     const commands: any[] = [];
+    const queuedEntries = new Map<string, { id: string; text: string; images: { data: string; mimeType: string }[] }>();
+    let queuedCount = 0;
+    // The server echoes a queued message back with the images it carries.
+    const queued = (text: string, images: { data: string; mimeType: string }[] = []) => {
+      const existing = queuedEntries.get(text);
+      if (existing) return existing;
+      const entry = { id: `queued-${++queuedCount}`, text, images };
+      queuedEntries.set(text, entry);
+      return entry;
+    };
     let isRunning = false;
     const snapshot = () =>
       socket.send(
@@ -177,13 +187,27 @@ for (const width of [375, 1280]) {
           event({ type: "agent_start" });
         }
         if (command.type === "follow_up" && !["Change direction", "Fourth"].includes(command.text))
-          event({ type: "queue_update", steering: [], followUp: [command.text] });
+          event({ type: "queue_update", steering: [], followUp: [queued(command.text, command.images)] });
         if (command.type === "follow_up" && command.text === "Change direction")
-          event({ type: "queue_update", steering: [], followUp: ["Next task", command.text] });
-        if (command.type === "steer_follow_up")
-          event({ type: "queue_update", steering: [command.text], followUp: ["Next task", "Third"] });
+          event({
+            type: "queue_update",
+            steering: [],
+            followUp: [queued("Next task"), queued(command.text, command.images)],
+          });
+        if (command.type === "steer_follow_up") {
+          const promoted = [...queuedEntries.values()].find((entry) => entry.id === command.id) ?? {
+            id: command.id,
+            text: "Unknown message",
+            images: [],
+          };
+          event({ type: "queue_update", steering: [promoted], followUp: [queued("Next task"), queued("Third")] });
+        }
         if (command.type === "follow_up" && command.text === "Fourth")
-          event({ type: "queue_update", steering: ["Change direction"], followUp: ["Next task", "Third", "Fourth"] });
+          event({
+            type: "queue_update",
+            steering: [queued("Change direction")],
+            followUp: [queued("Next task"), queued("Third"), queued("Fourth")],
+          });
         if (command.type === "new_group" && command.name === "taken")
           route.send(JSON.stringify({ type: "error", message: "Folder exists." }));
         if (command.type === "delete_sessions")
@@ -383,13 +407,18 @@ for (const width of [375, 1280]) {
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
       "base64",
     );
-    await page.locator('input[type="file"]').setInputFiles({ name: "photo.png", mimeType: "image/png", buffer: png });
-    await page.getByRole("list", { name: "Attached images" }).getByRole("listitem").waitFor();
+    const attach = async (name: string) => {
+      await page.locator('input[type="file"]').setInputFiles({ name, mimeType: "image/png", buffer: png });
+      await page.getByRole("list", { name: "Attached images" }).getByRole("listitem").waitFor();
+    };
+    await attach("photo.png");
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Start work");
     await page.getByRole("button", { name: "Send prompt" }).click();
     await waitFor(async () => commands.some((c) => c.type === "prompt" && c.images?.length === 1));
     await page.getByRole("list", { name: "Attached images" }).waitFor({ state: "detached" });
     await page.getByRole("button", { name: "Stop run" }).waitFor();
+    // The attach button stays while a run is active, and the image rides with the follow-up.
+    await attach("queued.png");
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Next task");
     // Wait for the draft to enable the send button, so both fills are the enabled ones.
     await waitFor(() =>
@@ -405,18 +434,28 @@ for (const width of [375, 1280]) {
     );
     assert.notEqual(stopFill, sendFill, "The stop button is not a second primary button");
     await page.getByRole("button", { name: "Send follow-up" }).click();
+    await waitFor(async () =>
+      commands.some(
+        (command) => command.type === "follow_up" && command.text === "Next task" && command.images?.length === 1,
+      ),
+    );
     await page.getByLabel("Queued messages").waitFor();
+    const queuedRow = (text: string) => page.getByRole("listitem").filter({ hasText: text });
+    await queuedRow("Next task").getByRole("img", { name: "Queued image 1" }).waitFor();
+    await attach("steered.png");
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Change direction");
     await page.getByRole("button", { name: "Send follow-up" }).click();
-    await page
-      .getByRole("listitem")
-      .filter({ hasText: "Change direction" })
-      .getByRole("button", { name: "Send now" })
-      .click();
     await waitFor(async () =>
-      commands.some((command) => command.type === "steer_follow_up" && command.text === "Change direction"),
+      commands.some(
+        (command) =>
+          command.type === "follow_up" && command.text === "Change direction" && command.images?.length === 1,
+      ),
     );
-    await page.getByRole("img", { name: "After the current turn" }).waitFor();
+    await queuedRow("Change direction").getByRole("button", { name: "Send now" }).click();
+    await waitFor(async () => commands.some((command) => command.type === "steer_follow_up"));
+    // The promoted message keeps its text and its image.
+    await queuedRow("Change direction").getByRole("img", { name: "After the current turn" }).waitFor();
+    await queuedRow("Change direction").getByRole("img", { name: "Queued image 1" }).waitFor();
     await page.getByRole("textbox", { name: "Message", exact: true }).fill("Fourth");
     await page.getByRole("button", { name: "Send follow-up" }).click();
     await page.getByText("Fourth", { exact: true }).waitFor();
@@ -427,18 +466,50 @@ for (const width of [375, 1280]) {
     );
     const queueSize = await page.getByLabel("Queued messages").evaluate((list) => ({
       visible: list.clientHeight,
-      rows: Array.from(list.children)
-        .slice(0, 3)
-        .reduce((sum, row) => sum + row.getBoundingClientRect().height, 0),
+      content: list.scrollHeight,
     }));
     assert.ok(
-      Math.abs(queueSize.visible - queueSize.rows) <= 2,
-      `The queue shows ${queueSize.visible}px for three rows of ${queueSize.rows}px.`,
+      queueSize.content > queueSize.visible,
+      `The queue caps its height: ${queueSize.content}px of messages in ${queueSize.visible}px.`,
     );
     await checkWidth(page);
     await screenshot(page, `agent-${width}`);
     await page.getByRole("button", { name: "Stop run" }).click();
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
+    // Files dropped or pasted anywhere in the session attach to the composer.
+    const dispatchImages = async (type: "drop" | "paste", fileName: string) =>
+      page.evaluate(
+        ({ type, fileName, bytes }) => {
+          const file = new File([Uint8Array.from(atob(bytes), (character) => character.charCodeAt(0))], fileName, {
+            type: "image/png",
+          });
+          const transfer = new DataTransfer();
+          transfer.items.add(file);
+          if (type === "drop") {
+            for (const eventName of ["dragenter", "dragover", "drop"])
+              document.body.dispatchEvent(
+                new DragEvent(eventName, { bubbles: true, cancelable: true, dataTransfer: transfer }),
+              );
+            return;
+          }
+          const event = new Event("paste", { bubbles: true, cancelable: true });
+          Object.defineProperty(event, "clipboardData", { value: transfer });
+          document.body.dispatchEvent(event);
+        },
+        { type, fileName, bytes: png.toString("base64") },
+      );
+    const attached = page.getByRole("list", { name: "Attached images" }).getByRole("listitem");
+    await dispatchImages("drop", "dropped.png");
+    await attached.nth(0).waitFor();
+    assert.equal(
+      await page
+        .getByRole("textbox", { name: "Message", exact: true })
+        .evaluate((input) => input === document.activeElement),
+      true,
+      "A drop focuses the composer",
+    );
+    await dispatchImages("paste", "pasted.png");
+    await waitFor(async () => (await attached.count()) === 2);
     await page.getByRole("button", { name: "All sessions" }).click();
     await page.getByRole("button", { name: /Example/ }).waitFor();
     if (width === 375) {

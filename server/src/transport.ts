@@ -14,6 +14,7 @@ interface Command {
   project?: unknown;
   name?: unknown;
   text?: unknown;
+  id?: unknown;
   provider?: unknown;
   modelId?: unknown;
   level?: unknown;
@@ -147,9 +148,15 @@ export class Transport {
         const images = requireImages(command.images);
         return this.hub.prompt(requireSessionId(command), requireText(command, !!images), images);
       },
-      steer: () => this.hub.queue(requireSessionId(command), requireText(command), "steer"),
-      follow_up: () => this.hub.queue(requireSessionId(command), requireText(command), "follow_up"),
-      steer_follow_up: () => this.hub.steerFollowUp(requireSessionId(command), requireText(command)),
+      steer: () => {
+        const images = requireImages(command.images);
+        return this.hub.queue(requireSessionId(command), requireText(command, !!images), "steer", images);
+      },
+      follow_up: () => {
+        const images = requireImages(command.images);
+        return this.hub.queue(requireSessionId(command), requireText(command, !!images), "follow_up", images);
+      },
+      steer_follow_up: () => this.hub.steerFollowUp(requireSessionId(command), requireString(command.id, "id")),
       set_model: () =>
         this.hub.setModel(
           requireSessionId(command),

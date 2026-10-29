@@ -1,4 +1,4 @@
-import type { AgentSessionEvent, Snapshot } from "../../server/src/protocol.ts";
+import type { SessionEvent, Snapshot } from "../../server/src/protocol.ts";
 
 import { getToolDiff, getToolOutput, type ToolCall } from "./tools.ts";
 
@@ -36,7 +36,7 @@ export class Transcript {
   notices: TranscriptMessage[] = [];
   active: TranscriptMessage | undefined;
 
-  apply(event: AgentSessionEvent): void {
+  apply(event: SessionEvent): void {
     if (event.type.startsWith("tool_execution_")) return this.applyTool(event);
     switch (event.type) {
       case "agent_start":
@@ -76,7 +76,7 @@ export class Transcript {
     return !previous || getSender(previous.role) !== getSender(current.role);
   }
 
-  load(snapshot: Snapshot & { runEvents: AgentSessionEvent[] }): void {
+  load(snapshot: Snapshot & { runEvents: SessionEvent[] }): void {
     this.messages = [];
     this.tools = {};
     this.queue = { steering: [...snapshot.queue.steering], followUp: [...snapshot.queue.followUp] };
@@ -107,7 +107,7 @@ export class Transcript {
     this.messages.push(this.active);
   }
 
-  update(event: Extract<AgentSessionEvent, { type: "message_update" }>): void {
+  update(event: Extract<SessionEvent, { type: "message_update" }>): void {
     if (!this.active) return;
     const update = event.assistantMessageEvent;
     if (update.type.startsWith("toolcall_") && "partial" in update) {
@@ -134,7 +134,7 @@ export class Transcript {
     this.active = undefined;
   }
 
-  private applyTool(event: AgentSessionEvent): void {
+  private applyTool(event: SessionEvent): void {
     switch (event.type) {
       case "tool_execution_start":
         this.startTool(event);
@@ -157,7 +157,7 @@ export class Transcript {
     }
   }
 
-  private startTool(event: Extract<AgentSessionEvent, { type: "tool_execution_start" }>): void {
+  private startTool(event: Extract<SessionEvent, { type: "tool_execution_start" }>): void {
     this.tools[event.toolCallId] = {
       id: event.toolCallId,
       name: event.toolName,
