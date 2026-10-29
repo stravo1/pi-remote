@@ -122,6 +122,29 @@ It enables the engines that ship disabled and weights `brave` and `google cse` a
 `install.sh` writes the settings only when the file is missing, so it never overwrites a host's own edits.
 An existing host that wants these tweaks copies the file by hand, sets `secret_key`, and restarts `searxng`.
 
+## MCP servers
+
+Sessions connect the MCP servers in `~/.pi/agent/mcp.json` and, for trusted projects, `.pi/mcp.json`.
+Configure them with pi's shell commands on the host, for example:
+
+```bash
+pi mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem .
+pi mcp list
+```
+
+`pi mcp list` connects to every enabled server and prints its state, tools, and errors. It exits 1
+when a server fails, so run it after changing a configuration. Tools are exposed through `codemode`
+by default, which keeps them out of every request's tool declarations and activates the `codemode`
+tool. `pi mcp add --exposure` changes that.
+
+The app unit sets `Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin`, because
+`easy-install.sh` links `npm` and `npx` there and a systemd user service does not use that directory.
+Stdio servers started through `npx` or `uvx` fail to spawn without it. Each open session connects its
+own copy of every server, so keep the server list short on a small instance, and prefer servers with
+`codemode` or `deferred` exposure. MCP writes its server log to `~/.pi/agent/mcp.log` and rotates it
+at 5 MB. OAuth credentials are in `~/.pi/agent/mcp-auth.json`. Sign in over SSH:
+`pi mcp login <server>` opens the authorization page there and accepts a pasted redirect URL.
+
 ## Caddy
 
 Use normal Caddy certificate challenges. Open ports 80 and 443 after Authelia passes its local health check.
