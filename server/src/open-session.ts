@@ -1,4 +1,4 @@
-import type { PiSession } from "./pi-adapter.ts";
+import type { PiSession } from "./pi-session.ts";
 import type { SessionEvent, Snapshot } from "./protocol.ts";
 import type { RunNotice } from "./push-notifier.ts";
 
