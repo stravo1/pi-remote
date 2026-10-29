@@ -3,7 +3,13 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
+import {
+  fauxAssistantMessage,
+  fauxProvider,
+  fauxText,
+  fauxThinking,
+  fauxToolCall,
+} from "@earendil-works/pi-ai/providers/faux";
 import { ModelRuntime } from "@earendil-works/pi-coding-agent";
 import { PiAdapter } from "../src/pi-adapter.ts";
 import { SessionSummaryJob } from "../src/session-summary-job.ts";
@@ -240,12 +246,14 @@ test("periodic summaries keep the original title unless the task changes substan
   assert.equal(faux.state.callCount, 4);
 });
 
-test("summary requests carry the session ID for providers that route by it", async (context) => {
+test("summary requests carry the session ID and leave room for reasoning", async (context) => {
   let sessionId: string | undefined;
+  let maxTokens: number | undefined;
   const { directory, adapter } = await setup(context, [
     fauxAssistantMessage("Done."),
     (_context, options) => {
       sessionId = options?.sessionId;
+      maxTokens = options?.maxTokens;
       return fauxAssistantMessage("Summary");
     },
   ]);
@@ -256,6 +264,29 @@ test("summary requests carry the session ID for providers that route by it", asy
   context.after(() => job.close());
   await job.update();
   assert.equal(sessionId, session.session.sessionId);
+  assert.equal((maxTokens ?? 0) > 1_000, true);
+});
+
+test("summaries keep the last line and skip reasoning text or quotes", async (context) => {
+  const { directory, adapter } = await setup(context, [
+    fauxAssistantMessage("Done."),
+    fauxAssistantMessage([
+      fauxThinking("The user is still working on the same task."),
+      fauxText('Looking through the conversation, a fitting title would be:\n"Fix login form errors"'),
+    ]),
+    fauxAssistantMessage([fauxText("UNCHANGED.")]),
+  ]);
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("Fix the login form");
+  const job = new SessionSummaryJob(session.session, () => session.is_running);
+  context.after(() => job.close());
+  await job.update();
+  assert.equal(session.session.sessionName, "Fix login form errors");
+
+  session.session.agent.state.messages.push({ role: "user", content: "Carry on", timestamp: 1 });
+  await job.update();
+  assert.equal(session.session.sessionName, "Fix login form errors");
 });
 
 test("summary skips busy sessions and retries after a failed response", async (context) => {

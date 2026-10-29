@@ -188,7 +188,9 @@ export class SessionSummaryJob {
         messages: [{ role: "user", content, timestamp: Date.now() }],
       },
       {
-        maxTokens: 80,
+        // Reasoning models spend the output budget on thinking before they write the title,
+        // so a tiny limit cuts the answer off mid-sentence.
+        maxTokens: 2_048,
         sessionId: this.session.sessionId,
         signal: AbortSignal.any([this.controller.signal, AbortSignal.timeout(30_000)]),
       },
@@ -196,15 +198,24 @@ export class SessionSummaryJob {
     if (response.stopReason === "error" || response.stopReason === "aborted") {
       throw new Error(response.errorMessage || "The session summary request failed.");
     }
-    const name = response.content
+    // Reasoning models can put their train of thought in plain text before the answer,
+    // so the title is the last nonempty line, not the whole text.
+    const title = response.content
       .filter((block) => block.type === "text")
       .map((block) => block.text)
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120);
-    if (!name) throw new Error("The session summary is empty.");
-    if (periodic && /^unchanged[.!]?$/i.test(name)) return undefined;
-    return name;
+      .join("\n")
+      .split("\n")
+      .map((line) => line.replace(/\s+/g, " ").trim())
+      .map((line) =>
+        line
+          .replace(/^([\"'`])(.*)\1$/, "$2")
+          .replace(/^[*_]+|[*_]+$/g, "")
+          .trim(),
+      )
+      .filter((line) => line)
+      .at(-1);
+    if (!title) throw new Error("The session summary is empty.");
+    if (periodic && /^unchanged[.!]?$/i.test(title)) return undefined;
+    return title.slice(0, 120);
   }
 }
