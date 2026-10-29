@@ -63,7 +63,7 @@ body {
   @apply rounded-3 bg-surface-gray-2 px-1 py-0.5 font-mono text-[0.9em];
 }
 .markdown pre {
-  @apply overflow-x-auto rounded-4 border border-outline-gray-1 bg-surface-gray-1 p-3 text-p-sm;
+  @apply overflow-x-auto whitespace-pre-wrap break-all rounded-4 border border-outline-gray-1 bg-surface-gray-1 p-3 text-p-sm;
 }
 .markdown pre code {
   @apply bg-transparent p-0 text-[1em];
@@ -100,7 +100,4 @@ body {
 .markdown .hljs-comment,
 .markdown .hljs-meta {
   @apply italic text-ink-gray-5;
-}
-.markdown pre {
-  @apply whitespace-pre-wrap break-all;
 }
