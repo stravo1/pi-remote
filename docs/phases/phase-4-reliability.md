@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-10-29 (tool runs fold into one row; MCP support still uncommitted)
+Last updated: 2026-10-29 (composer input and buttons share a center line)
 
 ## Goal
 
@@ -114,11 +114,15 @@ The session list now shows the first three sessions in each project. A View all 
 
 Tool runs fold into one row. When three or more tool calls run back to back, the transcript shows a single row that says "Ran N commands" with the status of the whole run; a tap expands the cards and their thinking blocks. A shorter run keeps its cards. `web/src/tool-runs.ts` builds the rows from the transcript and skips empty streaming messages and tool results that render inside a card, so a run survives a reply that is still streaming. `web/src/components/ToolRun.vue` renders a run, `ThinkingBlock.vue` is shared with `MessageItem.vue`, and `ToolCard` has a flat variant for the expanded rows. Unit tests in `web/test/tool-runs.test.ts` cover grouping, the minimum size, and the breaks on text, on thinking alone, and on output without a card. The browser check in `web/test/browser/tool-runs.test.ts` folds a three-call run at 375 and 1280 px, expands it, and leaves a two-call run open. `npm test` passes with 104 server and 60 web tests, and `npm run check` passes for both workspaces. The browser check is unverified on this Linux host: the cached headless shell cannot start because `libatk-1.0.so.0` and the other browser libraries are missing. Run it on a machine with a browser when one is available.
 
+The typed line in the composer sat above the attach and send buttons. The row aligns its items to the bottom, and the textarea kept a 40 px minimum height on a 32 px button row, so the first line started at the textarea top. The textarea now carries its own line height and padding instead of a minimum height: `leading-6` with `py-2` at 16 px type, and `leading-5` with `py-1.5` at 14 px type. Its height matches the button height at both breakpoints, so the line centers on the buttons, and a wrapped draft still grows upward from the bottom. The browser check in `web/test/browser/agent-ui.test.ts` asserts equal heights and a shared center line at 375 and 1280 px. It is unverified here for the same missing browser libraries.
+
 ## Handoff
 
 The user pulled the MCP extra forward and approved commit. Commit `0fcd7dd` (`feat(server): bind codemode, tool_search, and MCP extensions`) holds `server/src/pi-adapter.ts` and its tests: the extension factories, `bindExtensions`, `session_shutdown` on close, `/mcp` filtered from client commands, the spec D1 note, and the roadmap updates. Commit `32563da` (`fix(deploy): put easy-install links on the app service PATH`) holds the unit PATH line and its assertion. Note: `npx` is missing from this Mac login shell's PATH, so husky's pre-commit needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`; the hook then runs prettier, both workspaces' checks, and their full unit suites (104 server, 60 web), all green. The docs commit lands after this paragraph. The host steps stay as below: reinstall the service unit, then configure servers with `pi mcp add` and check with `pi mcp list`. UI follow-ups for MCP live in the roadmap and the deck in this doc's Progress: argument previews, nested-call rows, the extension UI bridge, then the `/mcp` manager and OAuth sign-in.
 
 This commit adds the web-only tool run change: `web/src/tool-runs.ts`, `web/src/components/ToolRun.vue`, `web/src/components/ThinkingBlock.vue`, the `isFlat` prop in `web/src/components/ToolCard.vue`, the folded render loop in `web/src/App.vue`, and the new unit and browser tests. It needs no server change, so it deploys with the client build. Its browser check has not run anywhere yet, because this Linux host has no browser libraries. Run `npm run test:browser -w web` on the Mac when one is available.
+
+The next commit covers the composer alignment: `web/src/components/Composer.vue` replaces the textarea minimum height with an explicit line height and padding, and `web/test/browser/agent-ui.test.ts` checks the shared center line. That browser check also waits for a machine with browser libraries. Images attached during a run stay a known gap: the attach button hides while a run is active because queued steering and follow-up messages are text-only in the protocol, the server, and `PiAdapter.queue`. pi's own `steer` and `followUp` accept images, so lifting the limit means carrying images on the queue frames and in the queue snapshot, and keeping a queued item's identity when an image rides with it. Ask the user before starting that change.
 
 When this deploys, the host checkout needs two things beyond the push: a full `npm ci` followed by reinstalling the service unit (`bash deploy/install-service.sh`), and, for MCP, servers configured with `pi mcp add` on the host and verified with `pi mcp list`.
 

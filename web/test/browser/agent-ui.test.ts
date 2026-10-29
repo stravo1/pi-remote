@@ -366,6 +366,18 @@ for (const width of [375, 1280]) {
       assert.equal(await rowHeight("header > div"), 56);
       assert.equal(await rowHeight("form > div > div:last-child"), 56);
     }
+    // The single line of the input shares a center line with the attach and send buttons.
+    const composerRow = page.locator("form > div > div:last-child").first();
+    const [inputBox, sendBox] = await Promise.all([
+      composerRow.locator("textarea").boundingBox(),
+      composerRow.locator('button[type="submit"]').boundingBox(),
+    ]);
+    assert.ok(inputBox && sendBox, "The composer shows the input and the send button");
+    assert.equal(inputBox.height, sendBox.height, "The input and the send button are the same height");
+    assert.ok(
+      Math.abs(inputBox.y + inputBox.height / 2 - (sendBox.y + sendBox.height / 2)) <= 1,
+      "The input text sits on the send button's center line",
+    );
     await page.getByRole("img", { name: "Image in the conversation" }).waitFor();
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
