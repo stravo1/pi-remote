@@ -5,11 +5,13 @@ import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
 import SessionSettingsMenu from "./components/SessionSettingsMenu.vue";
 import SessionList from "./components/SessionList.vue";
+import ToolRun from "./components/ToolRun.vue";
 import NotificationSettings from "./components/NotificationSettings.vue";
 import ProviderSettings from "./components/ProviderSettings.vue";
 import { buttonSize } from "./button-size.ts";
 import { getSessionTitle, projectHash, projectPathFromHash } from "./protocol.ts";
 import { ownCommands } from "./slash-commands.ts";
+import { getTranscriptItems } from "./tool-runs.ts";
 import { Workspace } from "./workspace.ts";
 import { applyBrowserTheme } from "./browser-theme.ts";
 
@@ -36,6 +38,14 @@ const projectPath = ref(projectPathFromHash(location.hash));
 const renderBatch = 60;
 const renderedCount = ref(renderBatch);
 const firstRendered = computed(() => Math.max(0, workspace.transcript.messages.length - renderedCount.value));
+// Runs of tool calls fold into one row, so a long agent turn stays short.
+const renderedItems = computed(() =>
+  getTranscriptItems(
+    workspace.transcript.messages.slice(firstRendered.value),
+    workspace.transcript.tools,
+    firstRendered.value,
+  ),
+);
 
 onMounted(() => {
   workspace.start();
@@ -242,13 +252,23 @@ function closeProject(): void {
               class="m-auto size-5 text-ink-gray-5"
               aria-label="Loading session"
             />
-            <MessageItem
-              v-for="(message, index) in workspace.transcript.messages.slice(firstRendered)"
-              :key="firstRendered + index"
-              :message="message"
-              :is-group-start="workspace.transcript.isGroupStart(firstRendered + index)"
-              :tools="workspace.transcript.tools"
-            />
+            <template
+              v-for="item in renderedItems"
+              :key="item.type === 'message' ? item.index : `tools-${item.toolCallIds[0]}`"
+            >
+              <MessageItem
+                v-if="item.type === 'message'"
+                :message="workspace.transcript.messages[item.index]"
+                :is-group-start="workspace.transcript.isGroupStart(item.index)"
+                :tools="workspace.transcript.tools"
+              />
+              <ToolRun
+                v-else
+                :steps="item.indexes.map((index) => workspace.transcript.messages[index])"
+                :tools="workspace.transcript.tools"
+                :is-group-start="workspace.transcript.isGroupStart(item.indexes[0])"
+              />
+            </template>
             <p
               v-if="workspace.transcript.is_compacting"
               class="mt-3 flex items-center gap-2 text-p-sm text-ink-gray-5"

@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-10-27 (provider quota error toast added; remaining work and push follow-ups listed)
+Last updated: 2026-10-29 (tool runs fold into one row; MCP support still uncommitted)
 
 ## Goal
 
@@ -104,9 +104,13 @@ The session list now orders by the last message the user sent, not the last acti
 
 The session list now shows the first three sessions in each project. A View all item opens a project page with every session in that group. The page uses a hash route, has a back button, and keeps session ordering on desktop and phone. Protocol and browser tests cover the route and page.
 
+Tool runs fold into one row. When three or more tool calls run back to back, the transcript shows a single row that says "Ran N commands" with the status of the whole run; a tap expands the cards and their thinking blocks. A shorter run keeps its cards. `web/src/tool-runs.ts` builds the rows from the transcript and skips empty streaming messages and tool results that render inside a card, so a run survives a reply that is still streaming. `web/src/components/ToolRun.vue` renders a run, `ThinkingBlock.vue` is shared with `MessageItem.vue`, and `ToolCard` has a flat variant for the expanded rows. Unit tests in `web/test/tool-runs.test.ts` cover grouping, the minimum size, and the breaks on text, on thinking alone, and on output without a card. The browser check in `web/test/browser/tool-runs.test.ts` folds a three-call run at 375 and 1280 px, expands it, and leaves a two-call run open. `npm test` passes with 104 server and 60 web tests, and `npm run check` passes for both workspaces. The browser check is unverified on this Linux host: the cached headless shell cannot start because `libatk-1.0.so.0` and the other browser libraries are missing. Run it on a machine with a browser when one is available.
+
 ## Handoff
 
 The current working tree includes an uncommitted fix for session summaries on OpenCode Go models in `server/src/session-summary-job.ts` and `server/test/pi-adapter.test.ts` (see the OpenCode Go bullet above). That change is committed in `6a43147` and pushed.
+
+This commit adds the web-only tool run change: `web/src/tool-runs.ts`, `web/src/components/ToolRun.vue`, `web/src/components/ThinkingBlock.vue`, the `isFlat` prop in `web/src/components/ToolCard.vue`, the folded render loop in `web/src/App.vue`, and the new unit and browser tests. It needs no server change, so it deploys with the client build. Its browser check has not run anywhere yet, because this Linux host has no browser libraries. Run `npm run test:browser -w web` on the Mac when one is available.
 
 The deploy job then failed with `receive.sh: line 20: npm: command not found`. The agent ran `easy-install.sh` on the host on Oct 28 19:17 to 19:19, and that setup links npm and node only in `~/.local/bin`. sshd gives a restricted command a minimal PATH, so the forced command could not run npm. A temporary diagnostic key confirmed the PATH. The uncommitted change adds `~/.local/bin` to `PATH` at the top of `deploy/receive.sh` and documents it in `docs/deployment.md`. CI never ships `receive.sh`, so pulling main in the host checkout brings the fix to the copy the forced command runs.
 

@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { getDiffKind, getRequestedDiff, getToolCommand, type ToolCall } from "../tools.ts";
 
-const props = defineProps<{ tool: ToolCall }>();
+const props = defineProps<{ tool: ToolCall; isFlat?: boolean }>();
 const diff = computed(() => props.tool.diff ?? getRequestedDiff(props.tool));
 const isOutputOpen = ref(false);
 const statusIcons = {
@@ -23,7 +23,7 @@ const statusLabels = {
 
 <template>
   <div
-    class="min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-p-sm"
+    :class="['min-w-0 overflow-hidden text-p-sm', { 'rounded-4 border border-outline-gray-2': !isFlat }]"
     :aria-label="`${tool.name}: ${statusLabels[tool.status]}`"
   >
     <button
