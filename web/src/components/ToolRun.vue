@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import ThinkingBlock from "./ThinkingBlock.vue";
-import ToolCard from "./ToolCard.vue";
+import ToolCard, { toolStatusIcons, toolStatusLabels } from "./ToolCard.vue";
 import type { ToolCall } from "../tools.ts";
 import type { TranscriptMessage } from "../transcript.ts";
 
@@ -11,21 +11,7 @@ const props = defineProps<{
   isGroupStart: boolean;
 }>();
 const isOutputOpen = ref(false);
-const statusIcons = {
-  pending: "lucide-clock text-ink-gray-5",
-  running: "lucide-loader-circle animate-spin text-ink-gray-6",
-  success: "lucide-check text-ink-gray-7",
-  error: "lucide-circle-x text-ink-red-4",
-  interrupted: "lucide-ban text-ink-gray-5",
-};
-const statusLabels = {
-  pending: "Pending",
-  running: "Running",
-  success: "Completed",
-  error: "Failed",
-  interrupted: "Interrupted",
-};
-type Status = keyof typeof statusIcons;
+type Status = keyof typeof toolStatusIcons;
 type RunEntity = { type: "thinking"; text: string } | { type: "tool"; tool: ToolCall };
 
 const entities = computed<RunEntity[]>(() =>
@@ -66,10 +52,10 @@ const status = computed<Status>(() => {
       <span class="lucide-terminal size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
       <span class="min-w-0 flex-1 truncate text-ink-gray-9">Ran {{ calls.length }} commands</span>
       <span
-        :class="['size-4 shrink-0', statusIcons[status]]"
+        :class="['size-4 shrink-0', toolStatusIcons[status]]"
         role="img"
-        :aria-label="statusLabels[status]"
-        :title="statusLabels[status]"
+        :aria-label="toolStatusLabels[status]"
+        :title="toolStatusLabels[status]"
       />
       <span
         :class="[

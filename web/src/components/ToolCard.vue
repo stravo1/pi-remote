@@ -1,18 +1,13 @@
-<script setup lang="ts">
-import { computed, ref } from "vue";
-import { getDiffKind, getRequestedDiff, getToolCommand, type ToolCall } from "../tools.ts";
-
-const props = defineProps<{ tool: ToolCall; isFlat?: boolean }>();
-const diff = computed(() => props.tool.diff ?? getRequestedDiff(props.tool));
-const isOutputOpen = ref(false);
-const statusIcons = {
+<script lang="ts">
+export const toolStatusIcons = {
   pending: "lucide-clock text-ink-gray-5",
   running: "lucide-loader-circle animate-spin text-ink-gray-6",
   success: "lucide-check text-ink-gray-7",
   error: "lucide-circle-x text-ink-red-4",
   interrupted: "lucide-ban text-ink-gray-5",
 };
-const statusLabels = {
+
+export const toolStatusLabels = {
   pending: "Pending",
   running: "Running",
   success: "Completed",
@@ -21,10 +16,19 @@ const statusLabels = {
 };
 </script>
 
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { getDiffKind, getRequestedDiff, getToolCommand, type ToolCall } from "../tools.ts";
+
+const props = defineProps<{ tool: ToolCall; isFlat?: boolean }>();
+const diff = computed(() => props.tool.diff ?? getRequestedDiff(props.tool));
+const isOutputOpen = ref(false);
+</script>
+
 <template>
   <div
     :class="['min-w-0 overflow-hidden text-p-sm', { 'rounded-4 border border-outline-gray-2': !isFlat }]"
-    :aria-label="`${tool.name}: ${statusLabels[tool.status]}`"
+    :aria-label="`${tool.name}: ${toolStatusLabels[tool.status]}`"
   >
     <button
       type="button"
@@ -36,10 +40,10 @@ const statusLabels = {
       <span class="shrink-0 font-medium text-ink-gray-9">{{ tool.name }}</span>
       <span class="min-w-0 flex-1 truncate font-mono text-ink-gray-6">{{ getToolCommand(tool) }}</span>
       <span
-        :class="['size-4 shrink-0', statusIcons[tool.status]]"
+        :class="['size-4 shrink-0', toolStatusIcons[tool.status]]"
         role="img"
-        :aria-label="statusLabels[tool.status]"
-        :title="statusLabels[tool.status]"
+        :aria-label="toolStatusLabels[tool.status]"
+        :title="toolStatusLabels[tool.status]"
       />
       <span
         :class="[
