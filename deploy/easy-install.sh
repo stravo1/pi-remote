@@ -28,6 +28,7 @@ declare -A authelia_sha256=(
 
 step() { printf '\n==> %s\n' "$1"; }
 fail() { echo "Error: $1" >&2; exit 1; }
+deploy_key_done=false
 
 check_host() {
   [ "$(id -u)" -ne 0 ] || fail "Run this as a normal user with sudo, not as root."
@@ -186,6 +187,23 @@ pi remote is installed.
 Check the services:  bash deploy/check-services.sh pi.$DOMAIN
 Update SearXNG:      ~/searxng/update.sh
 EOF
+if [ "$deploy_key_done" != true ]; then
+  cat <<EOF
+For continuous deployment, install the CI deploy key on the host:
+DEPLOY_KEY_PUB=deploy_key.pub bash deploy/easy-install.sh
+or: bash deploy/deploy-key.sh deploy_key.pub
+EOF
+fi
+}
+
+install_deploy_key() {
+  # Optional: set DEPLOY_KEY_PUB to the CI deploy public key file. It makes easy-install
+  # point the deploy key at this checkout, so CI deploys land in the served checkout.
+  if [ -n "${DEPLOY_KEY_PUB:-}" ]; then
+    step "Installing the CI deploy key"
+    bash "$directory/deploy/deploy-key.sh" "$DEPLOY_KEY_PUB"
+    deploy_key_done=true
+  fi
 }
 
 main() {
@@ -203,6 +221,7 @@ main() {
   open_firewall
   step "Starting Authelia, pi remote, and Caddy"
   bash "$directory/deploy/install-service.sh"
+  install_deploy_key
   step "Setting up SearXNG web search"
   bash "$directory/deploy/searxng/install.sh"
   print_next_steps

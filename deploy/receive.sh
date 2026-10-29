@@ -3,6 +3,11 @@
 # restarts the service, and checks health. Install it once, then do not ship it with a deploy.
 set -euo pipefail
 
+# sshd gives a restricted command a minimal PATH. easy-install links npm and node in
+# ~/.local/bin, so add it here instead of relying on the login profile.
+PATH="$HOME/.local/bin:$PATH"
+export PATH
+
 directory="$(cd "$(dirname "$0")/.." && pwd)"
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT

@@ -157,6 +157,23 @@ restrict,command="/home/ubuntu/pi-remote/deploy/receive.sh" ssh-ed25519 AAAA... 
 
 The key can run only `receive.sh`. It gets no shell and no port forwarding.
 `receive.sh` is not part of the tar. Copy it to the host by hand when it changes.
+The forced command gets a minimal PATH from sshd, which does not include
+`~/.local/bin`. `receive.sh` adds `~/.local/bin` itself, so it finds the npm
+that easy-install installs there.
+
+The forced command must point at the checkout the service serves, because
+`receive.sh` installs the build in its own checkout. A usual mistake is to
+repoint the command at an older or developer checkout. `deploy/install-service.sh`
+warns when the deploy key drifted. To install or repair the key on the host, run
+from the served checkout:
+
+```sh
+bash deploy/deploy-key.sh deploy_key.pub
+```
+
+The script replaces any older `receive.sh` force-command line for any checkout.
+With `DEPLOY_KEY_PUB=deploy_key.pub` in the environment, `easy-install.sh` runs it
+as the last step, so a fresh host gets continuous deployment in one run.
 
 ### One-time setup
 
@@ -184,7 +201,7 @@ Add these secrets to it:
 
 | Secret               | Value                                         |
 | -------------------- | --------------------------------------------- |
-| `DEPLOY_HOST`        | `pi.example.com`                                 |
+| `DEPLOY_HOST`        | `pi.example.com`                              |
 | `DEPLOY_USER`        | `ubuntu`                                      |
 | `DEPLOY_SSH_KEY`     | The contents of `./deploy_key`                |
 | `DEPLOY_KNOWN_HOSTS` | The `ssh-keyscan` line, without comment lines |

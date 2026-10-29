@@ -26,6 +26,22 @@ fi
 "$authelia_path" config validate --config "$authelia_config"
 "$caddy_path" validate --config "$caddy_config" --adapter caddyfile
 
+# The CI deploy key must run receive.sh in this checkout, so deploys land
+# where the service is served.
+warn_when_deploy_key_drifted() {
+  local line key_target
+  line="$(grep 'command=.*deploy/receive.sh' "$HOME/.ssh/authorized_keys" 2>/dev/null | head -n 1 || true)"
+  [ -n "$line" ] || return
+  key_target="$(sed 's/.*command="\([^"]*\).*/\1/' <<<"$line")"
+  if [ "$key_target" != "$directory/deploy/receive.sh" ]; then
+    echo
+    echo "Warning: the CI deploy key runs $key_target,"
+    echo "but the service runs $directory."
+    echo "Deploys will not reach the served checkout."
+    echo "Repair it with: bash deploy/deploy-key.sh <deploy_key.pub>"
+  fi
+}
+
 mkdir -p "$unit_directory"
 sed -e "s|__DIRECTORY__|$directory|g" -e "s|__NODE__|$node_path|g" \
   "$directory/deploy/pi-remote.service" > "$unit_directory/pi-remote.service"
@@ -38,3 +54,4 @@ systemctl --user daemon-reload
 systemctl --user enable authelia pi-remote caddy
 systemctl --user start authelia pi-remote caddy
 systemctl --user --no-pager status authelia pi-remote caddy
+warn_when_deploy_key_drifted
