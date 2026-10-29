@@ -56,5 +56,5 @@ jobs:
         env:
           TARGET: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
         run: |
-          tar -c server/src web/dist package.json package-lock.json server/package.json web/package.json \
+          tar -c deploy server/src web/dist package.json package-lock.json server/package.json web/package.json \
             | ssh -T "$TARGET"

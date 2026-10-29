@@ -27,6 +27,21 @@ class ServiceSetupTests(unittest.TestCase):
         self.assertIn("Environment=PATH=", app_unit)
         self.assertIn("%h/.local/bin", app_unit)
 
+    def test_deploy_ships_deploy_files_and_renders_the_unit(self):
+        receive = (ROOT / "receive.sh").read_text()
+        installer = (ROOT / "install-service.sh").read_text()
+        workflow = (ROOT.parent / ".github" / "workflows" / "ci.yml").read_text()
+
+        # The tar carries deploy/, so unit templates and receive.sh ride with every build
+        # instead of waiting for a host-side git pull.
+        self.assertRegex(workflow, r"tar -c[^\n]*\bdeploy\b")
+
+        # receive.sh renders the app unit from the received template and reloads systemd
+        # when it differs, and replaces itself by rename only after the health check.
+        self.assertIn("pi-remote.service", receive)
+        self.assertIn("systemctl --user daemon-reload", receive)
+        self.assertIn("--exclude=receive.sh", receive)
+        self.assertIn("receive.sh.new", receive)
         self.assertIn("systemctl --user enable", installer)
         self.assertIn("systemctl --user start", installer)
 

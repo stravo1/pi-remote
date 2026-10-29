@@ -165,8 +165,10 @@ Phase 4 adds service units, automatic restarts, and backups.
 A push to `main` runs `.github/workflows/ci.yml`.
 The `test` job runs the type check, the tests, and the build.
 The `deploy` job runs only on `main`, after `test` passes.
-It sends one tar of `server/src`, `web/dist`, and the package files to the host over SSH.
-On the host, `deploy/receive.sh` unpacks the tar, runs `npm ci --omit=dev --workspace server`, and restarts the service.
+It sends one tar of `deploy`, `server/src`, `web/dist`, and the package files to the host over SSH.
+On the host, `deploy/receive.sh` unpacks the tar, replaces the deploy files, runs `npm ci --omit=dev --workspace server`, and restarts the service.
+It renders the app unit from `deploy/pi-remote.service` first: when the rendered unit differs from the installed one, it writes `~/.config/systemd/user/pi-remote.service` and runs `systemctl --user daemon-reload`, so unit changes deploy with the build.
+It replaces its own copy by rename after the health check, so a changed `receive.sh` runs on the next push without a host-side `git pull`.
 It then checks `/api/ping` and fails the run if it gets no answer.
 The job never touches `config.local.json` or `~/.pi`.
 
@@ -179,7 +181,7 @@ restrict,command="/home/ubuntu/pi-remote/deploy/receive.sh" ssh-ed25519 AAAA... 
 ```
 
 The key can run only `receive.sh`. It gets no shell and no port forwarding.
-`receive.sh` is not part of the tar. Copy it to the host by hand when it changes.
+A changed `receive.sh` rides in the tar; the running copy replaces itself by rename after the health check passes, so the change takes effect on the next push.
 The forced command gets a minimal PATH from sshd, which does not include
 `~/.local/bin`. `receive.sh` adds `~/.local/bin` itself, so it finds the npm
 that easy-install installs there.
@@ -208,6 +210,7 @@ bash deploy/install-service.sh
 
 The script installs systemd user services for Authelia, the app, and Caddy.
 It turns on lingering, enables each service at boot, and starts each service.
+After the first `git pull`-level setup, later deploys keep the units in step by themselves.
 Run `bash deploy/check-services.sh pi.<domain>` after installation and each recovery test.
 Read logs with `journalctl --user -u authelia -u pi-remote -u caddy -f`.
 
