@@ -76,6 +76,11 @@ async function openApp(context: TestContext, width: number): Promise<Page> {
               bashCall("five", "pwd"),
               bashResult("five"),
               { role: "assistant", content: [{ type: "text", text: "All checks passed." }] },
+              // A run long enough that its expanded list scrolls past the viewport.
+              ...Array.from({ length: 30 }, (_, index) => [
+                bashCall(`long-${index}`, `echo ${index}`),
+                bashResult(`long-${index}`),
+              ]).flat(),
             ],
           }),
         );
@@ -116,5 +121,33 @@ for (const width of [375, 1280]) {
 
     await run.click();
     await page.getByText("npm test", { exact: true }).waitFor({ state: "detached" });
+  });
+
+  test(`an expanded run keeps its header pinned at ${width}px`, { timeout: 30_000 }, async (context) => {
+    const page = await openApp(context, width);
+    const longRun = page.getByRole("button", { name: /Ran 30 commands/ });
+    await longRun.click();
+    await page.getByText("echo 29", { exact: true }).waitFor();
+
+    const transcript = page.getByLabel("Conversation");
+    const scroller = await transcript.elementHandle();
+    const offset = await longRun.evaluate((button, element) => {
+      const box = element as HTMLElement;
+      return button.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+    }, scroller);
+    await transcript.evaluate((element, top) => element.scrollTo({ top }), offset + 200);
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+
+    const pinned = (await longRun.boundingBox())!;
+    const viewport = (await transcript.boundingBox())!;
+    assert.ok(
+      Math.abs(pinned.y - viewport.y) <= 1,
+      `The run header sticks to the top of the view, not ${pinned.y - viewport.y}px away`,
+    );
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      true,
+      "The pinned header does not widen the page",
+    );
   });
 }

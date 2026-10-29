@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-10-29 (images attach from anywhere and queue with messages)
+Last updated: 2026-10-29 (an expanded run keeps its header pinned)
 
 ## Goal
 
@@ -120,6 +120,8 @@ The composer showed two filled buttons during a run. Stop used the `solid` varia
 
 Images now travel with queued messages. The attach button stays visible during a run, and a follow-up or steering message carries its images to pi. Dropping or pasting images anywhere in the session view attaches them to the composer, and a drop moves focus there; the listeners live on the window and are removed when the composer unmounts. `Snapshot.queue` and the `queue_update` event carry `{ id, text, images }` items instead of text, because pi remembers only the text of a queued message. `PiSession` keeps its own copy of the queue, matches it to pi's text lists by text, and echoes that copy in the snapshot and in the wrapped `queue_update` event. `steer_follow_up` now sends an `id`, so Send now moves the exact message and keeps its images. The client shows a thumbnail for each queued image. The server tests cover an image arriving with a steer and a follow-up, and an image that survives Send now. The browser check attaches an image during a run and asserts the follow-up command carries it and the queue row shows it. It also drops a file on the page body and pastes one there, and asserts both reach the composer.
 
+The header of an expanded run now stays pinned to the top of the transcript, so a run of 50 commands can be collapsed without scrolling back up. `web/src/components/ToolRun.vue` makes the header `sticky top-0` and swaps `overflow-hidden` for `overflow-clip` on the run box, because `hidden` creates a scroll container that would trap the header. The browser check in `web/test/browser/tool-runs.test.ts` expands a 30-command run, scrolls 200 px into it, and asserts the header sits at the top of the transcript at 375 and 1280 px. It is unverified here for the same missing browser libraries.
+
 ## Handoff
 
 The user pulled the MCP extra forward and approved commit. Commit `0fcd7dd` (`feat(server): bind codemode, tool_search, and MCP extensions`) holds `server/src/pi-adapter.ts` and its tests: the extension factories, `bindExtensions`, `session_shutdown` on close, `/mcp` filtered from client commands, the spec D1 note, and the roadmap updates. Commit `32563da` (`fix(deploy): put easy-install links on the app service PATH`) holds the unit PATH line and its assertion. Note: `npx` is missing from this Mac login shell's PATH, so husky's pre-commit needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`; the hook then runs prettier, both workspaces' checks, and their full unit suites (104 server, 60 web), all green. The docs commit lands after this paragraph. The host steps stay as below: reinstall the service unit, then configure servers with `pi mcp add` and check with `pi mcp list`. UI follow-ups for MCP live in the roadmap and the deck in this doc's Progress: argument previews, nested-call rows, the extension UI bridge, then the `/mcp` manager and OAuth sign-in.
@@ -131,6 +133,8 @@ The next commit covers the composer alignment: `web/src/components/Composer.vue`
 The stop button is now `subtle`, so only Send is primary, and `web/test/browser/agent-ui.test.ts` asserts their enabled fills differ. Commit `a2a56b8` (`fix(web): make stop a secondary button`) holds those two files.
 
 Commit `8eab5d2` (`feat(web): attach images from anywhere and queue them`) holds the rest. Queued messages carry images: `web/src/workspace.ts` stops hiding the attach button during a run and sends images on the follow-up frame, `web/src/components/Composer.vue` shows queued thumbnails and sends a queued item's `id`, and the server keeps the images in `PiSession` because pi's queue holds text only. The protocol, `server/src/transport.ts`, `SessionHub`, and the client `Transcript` carry the new queue item shape. The same composer now listens for `drop` and `paste` on the window, so a file dropped or pasted on the transcript or header attaches to the input and a drop focuses it; the listeners are removed on unmount. `docs/spec.md` documents the new queue item and the `steer_follow_up` command. `npm run check` passes for both workspaces, the server suite passes with 104 tests, and the web suite passes with 60. The browser check still waits for a machine with browser libraries.
+
+This commit pins the header of an expanded run. `web/src/components/ToolRun.vue`, one added test in `web/test/browser/tool-runs.test.ts`, and the spec note hold it.
 
 When this deploys, the host checkout needs two things beyond the push: a full `npm ci` followed by reinstalling the service unit (`bash deploy/install-service.sh`), and, for MCP, servers configured with `pi mcp add` on the host and verified with `pi mcp list`.
 

@@ -52,13 +52,15 @@ const status = computed<Status>(() => {
   <div
     :class="[
       isGroupStart ? 'mt-8 first:mt-0 sm:mt-5' : 'mt-3 sm:mt-1.5',
-      'min-w-0 overflow-hidden rounded-4 border border-outline-gray-2 text-p-sm',
+      // `clip` keeps the rounded corners without creating a scroll container, so the header can stick
+      // to the transcript while its expanded list scrolls past.
+      'min-w-0 overflow-clip rounded-4 border border-outline-gray-2 text-p-sm',
     ]"
   >
     <button
       type="button"
       :aria-expanded="isOutputOpen"
-      class="flex w-full items-center gap-2 bg-surface-gray-1 px-3 py-2 text-left hover:bg-surface-gray-2 sm:py-1.5"
+      class="sticky top-0 z-10 flex w-full items-center gap-2 bg-surface-gray-1 px-3 py-2 text-left hover:bg-surface-gray-2 sm:py-1.5"
       @click="isOutputOpen = !isOutputOpen"
     >
       <span class="lucide-terminal size-4 shrink-0 text-ink-gray-6" aria-hidden="true" />
