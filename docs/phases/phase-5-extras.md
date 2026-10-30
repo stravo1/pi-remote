@@ -61,8 +61,8 @@ P5.3 is half done. `web/src/tools.ts` gains the `NestedToolCall` shape, tool-awa
 
 ## Handoff
 
-Next step: the host one-command (`cd ~/pi-remote && git pull && bash deploy/install-service.sh`) to activate the PATH line and the self-rendering deploy, then the phone prompt check; run the browser suite on the Mac (`npm run test:browser -w web`) to close P5.3; then start P5.4 with the extension UI bridge.
+Next step: run the browser suite on the Mac (`npm run test:browser -w web`) to close P5.3; then start P5.4 with the extension UI bridge. The phone confirmation is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call. That closes P5.1 and P5.2 with the real device evidence the tasks asked for.
 
 Blockers: the browser suite needs the Mac. P5.4's manager and OAuth flows need the user's decisions about which MCP servers they actually run on the host.
 
-How to check the current state: `npm run check`, `npm test` (server 104, web 65), `npm run format:check` (one pre-existing warning in `docs/phases/phase-1-basic-app.md`). Husky needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit` on this Mac. On the host: `pi mcp list` for server health, and the phone prompt check for the service PATH.
+How to check the current state: `npm run check`, `npm test` (server 104, web 65), `npm run format:check` (one pre-existing warning in `docs/phases/phase-1-basic-app.md`). Husky needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`. Deploy-side: pushes render the app unit themselves; `deploy/test_install_service.py` covers the installer. On the host: `tail ~/.pi/agent/mcp.log` after a suspicious session, and a fresh phone session for an end-to-end check (a cold `npx` cache can leave the first minutes tool-less, so prewarm a new server's command by hand once).
