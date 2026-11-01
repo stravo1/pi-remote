@@ -476,6 +476,15 @@ for (const width of [375, 1280]) {
     await screenshot(page, `agent-${width}`);
     await page.getByRole("button", { name: "Stop run" }).click();
     await page.getByRole("button", { name: "Send prompt" }).waitFor();
+    // Typing anywhere in the session lands in the composer, first key included.
+    await page.locator("h1").click();
+    await page.keyboard.type("Typed away");
+    assert.equal(
+      await page.getByRole("textbox", { name: "Message", exact: true }).inputValue(),
+      "Typed away",
+      "Typing from anywhere reaches the composer",
+    );
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("");
     // Files dropped or pasted anywhere in the session attach to the composer.
     const dispatchImages = async (type: "drop" | "paste", fileName: string) =>
       page.evaluate(

@@ -118,8 +118,15 @@ function onDrop(event: DragEvent): void {
   const files = Array.from(event.dataTransfer?.files ?? []).filter((file) => file.type.startsWith("image/"));
   if (!files.length) return;
   void addFiles(files);
+  focusComposer();
+}
+
+// Keeps one focus entry point for the drop, the command picker, and typing elsewhere.
+function focusComposer(): void {
   root.value?.querySelector("textarea")?.focus();
 }
+
+defineExpose({ focus: focusComposer });
 
 onMounted(() => {
   window.addEventListener("dragenter", onDragEnter);
@@ -166,7 +173,7 @@ function onEnter(event: KeyboardEvent): void {
 
 function chooseCommand(command: CommandChoice): void {
   text.value = `/${command.name} `;
-  root.value?.querySelector("textarea")?.focus();
+  focusComposer();
 }
 
 // Arrow keys move through the matches, Tab picks one, and Escape hides them.

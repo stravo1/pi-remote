@@ -1,7 +1,7 @@
 # Phase 5: Extras
 
 Status: In progress
-Last updated: 2026-10-31
+Last updated: 2026-11-01
 
 ## Goal
 
@@ -22,11 +22,12 @@ Out of scope: the Phase 4 reliability tasks. They live in [phase-4-reliability](
 
 - [x] P5.1 Load pi's `codemode`, `tool_search`, and MCP extensions in `PiAdapter`. Done when: sessions bind the extensions, a configured MCP server's tools are callable from a codemode script, and the server closes on session shutdown.
 - [x] P5.2 Give the app service PATH for stdio MCP servers. Done when: the installed unit carries `~/.local/bin` on PATH and its check passes.
-- [ ] P5.3 MCP transcript UI. Done when: the browser suite passes on the Mac for the folded-run and card paths alongside the new unit tests. Unit tests pass on Linux; the browser run is owed.
+- [x] P5.3 MCP transcript UI. Done when: the browser suite passes for the folded-run and card paths alongside the new unit tests. The full 20-check browser run passed on this host with Chromium's system libraries in place, so the earlier Mac-only condition no longer binds.
 - [ ] P5.4 MCP settings and management UI. Done when: a Settings section lists servers with state, the extension UI bridge shows MCP errors as visible messages, and OAuth sign-in accepts a pasted redirect URL.
 - [ ] P5.5 Tool approval (D6). Done when: a gate extension blocks risky calls and the client shows the confirm dialog.
-- [ ] P5.6 A file browser for the project.
-- [ ] P5.7 A terminal tab (xterm.js).
+- [x] P5.6 Type-to-focus composer. Done when: a printable key typed while focus is elsewhere in a session view focuses the message box and the first character appears in it.
+- [ ] P5.7 A file browser for the project.
+- [ ] P5.8 A terminal tab (xterm.js).
 
 Push notifications (an original Phase 5 item) and image attachments were pulled forward and finished during Phase 4; image input is recorded in phase 4's Progress. Push follow-ups from phase 4's Handoff stay there until the user asks.
 
@@ -51,6 +52,8 @@ Push notifications (an original Phase 5 item) and image attachments were pulled 
 
 ## Progress
 
+P5.6 is complete in the working tree, not yet committed. `Composer.vue` exposes `focus()` through `defineExpose` (it now also serves the drop and command-picker calls), and `App.vue` adds a window `keydown` listener while a session view is open. A printable key with no meta, ctrl, or alt modifier, and no composition in progress, moves focus to the composer; because the focus happens during the keydown dispatch, the browser routes that same keystroke into the textarea, so the first character is neither lost nor typed twice. Space, Enter, and Backspace are excluded so they keep their role on whatever the reader last tapped, such as activating a run header or a button. If focus is already in an input, textarea, or contenteditable node, or a dialog is open, or no composer is mounted (session list and settings screens), the key stays where it is. The check is `agent-ui.test.ts`: click the heading, `keyboard.type("Typed away")`, and assert the textarea holds exactly that.
+
 P5.1 is complete. Commit `0fcd7dd` (`feat(server): bind codemode, tool_search, and MCP extensions`) builds a `DefaultResourceLoader` per session with the three extension factories and a per-project `SettingsManager`, passes both to `createAgentSession`, and calls `session.bindExtensions({})`, which fires `session_start` and connects MCP servers in the background. `PiSession.close()` emits `session_shutdown` before `dispose()`, which the MCP extension needs to close stdio servers. `/mcp` is filtered from client commands. Tests in `server/test/pi-adapter.test.ts` use a `FauxMcpServer` over `@earendil-works/pi-mcp/testing`'s in-memory transport pair; one runs a codemode script that calls `mcp__faux__ping` end to end and verifies shutdown closes the server. `npm test -w server` passes with 104 tests.
 
 P5.2 is complete. Commit `32563da` (`fix(deploy): put easy-install links on the app service PATH`) adds `Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin` to `deploy/pi-remote.service`, and the deploy change ships `deploy/` so `receive.sh` renders the unit itself. On the host the first wired session reached the model's codemode tool but no MCP tools existed in it. Two host findings closed it: (1) `install-service.sh` had rendered the unit while CI's deploy restart had just spawned the service, and `systemctl start` on an active service is a no-op, so the running process kept the old PATH until a plain restart — it now shows `PATH=/home/<user>/.local/bin:...` in `/proc/<pid>/environ`; (2) the `npx` cache was cold on the first-ever session, so the package download outlasted the model's probe window. An SDK probe with the same wiring then showed 14 `mcp__files__*` tools and `codemode` active at +2 seconds. The host `mcp.json` has the filesystem server, hand written because the `pi` CLI is not installed there.
@@ -69,10 +72,10 @@ Two things were wrong once the suite could run. The folded-run fixture ran five 
 
 ## Handoff
 
-Next step: commit the working tree. The browser suite now runs and passes on this host (`npm run test:browser -w web`, 20 of 20), so P5.3's folded-run and card paths have their browser evidence and the task can close once the run is repeated after `sudo env "PATH=$PATH" npx playwright install-deps chromium` puts the libraries in `/usr/lib` instead of a local extraction. Then start P5.4 with the extension UI bridge. The phone confirmation is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call. That closes P5.1 and P5.2 with the real device evidence the tasks asked for.
+Next step: commit the working tree, which holds only the P5.6 type-to-focus change (`web/src/App.vue`, `web/src/components/Composer.vue`, and the check in `web/test/browser/agent-ui.test.ts`, plus this phase doc). After the commit, start P5.4 with the extension UI bridge. The phone confirmation for P5.1 and P5.2 is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call.
 
-Uncommitted: the compact context counts (`99K of 1M`) in `web/src/session-info.ts`, the drawer call site, their unit test, and the browser assertion. The drawer context line, bot icon, and scroll button `z-20` fix are pushed in `d8f9c52`, `7df537e`, and `0ac5baa`. `npm run check`, both test tiers, and the browser suite pass (server 57 + 48, web 65 + 2, browser 20).
+Evidence for the committed state: `npm run check` passes, web unit tests pass (65), and the full browser suite passes on this host (20 of 20), so the P5.3 browser condition is met and Chromium's system libraries are in place. `npm run format:check` has the one pre-existing warning in `docs/phases/phase-1-basic-app.md`.
 
-Blockers: the browser suite needs Chromium's system libraries (`sudo env "PATH=$PATH" npx playwright install-deps chromium`) and this host has no swap. P5.4's manager and OAuth flows need the user's decisions about which MCP servers they actually run on the host.
+Blockers: this host has no swap. P5.4's manager and OAuth flows need the user's decisions about which MCP servers they actually run on the host.
 
 How to check the current state: `npm run check`, `npm run test:unit` (server 57, web 65), `npm run test:integration` (server 48, web 2), `npm run format:check` (one pre-existing warning in `docs/phases/phase-1-basic-app.md`). Husky needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`. Deploy-side: pushes render the app unit themselves; `deploy/test_install_service.py` covers the installer. On the host: `tail ~/.pi/agent/mcp.log` after a suspicious session, and a fresh phone session for an end-to-end check (a cold `npx` cache can leave the first minutes tool-less, so prewarm a new server's command by hand once).

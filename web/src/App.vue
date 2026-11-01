@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { Button, Dialogs, Spinner, ToastProvider, toast, useColorScheme } from "frappe-ui";
 import Composer from "./components/Composer.vue";
 import MessageItem from "./components/MessageItem.vue";
@@ -17,6 +17,7 @@ import { applyBrowserTheme } from "./browser-theme.ts";
 
 const workspace = reactive(new Workspace());
 const transcriptElement = ref<HTMLElement>();
+const composer = ref<InstanceType<typeof Composer>>();
 // Restores the saved light, dark, or system scheme and follows the OS setting.
 const { resolvedColorScheme } = useColorScheme();
 // Keep the installed app's status bar color and text in step with the scheme.
@@ -50,12 +51,37 @@ const renderedItems = computed(() =>
 onMounted(() => {
   workspace.start();
   window.addEventListener("hashchange", handleHashChange);
+  window.addEventListener("keydown", onStartTyping);
   if (isProviderSettingsOpen.value) openSettings();
   // A tap on a notification asks an open window to show its session.
   navigator.serviceWorker?.addEventListener("message", (event) => {
     if (event.data?.type === "open_session") location.hash = event.data.sessionId;
   });
 });
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onStartTyping);
+});
+
+// A printable key typed anywhere in the session view moves focus to the
+// composer. Focusing during the keydown lets the browser place that first
+// character in the input, so it is neither lost nor typed twice.
+function onStartTyping(event: KeyboardEvent): void {
+  if (event.metaKey || event.ctrlKey || event.altKey || event.isComposing) return;
+  // Space and the named keys (Enter, Backspace, arrows) keep their role on
+  // whatever the reader last tapped, such as activating a run header.
+  if (event.key.length !== 1 || event.key === " ") return;
+  if (isEditable(event.target) || !composer.value) return;
+  composer.value.focus();
+}
+
+function isEditable(target: EventTarget | null): boolean {
+  const element = target instanceof HTMLElement ? target : null;
+  if (!element) return false;
+  if (element.closest("input, textarea, [contenteditable]")) return true;
+  // A dialog is an overlay the composer sits behind; typing should not reach it.
+  return !!document.querySelector("[role='dialog'], [role='alertdialog']");
+}
 
 function handleHashChange(): void {
   isProviderSettingsOpen.value = location.hash === "#settings";
@@ -298,6 +324,7 @@ function closeProject(): void {
         </Transition>
       </div>
       <Composer
+        ref="composer"
         :key="workspace.sessionId"
         class="max-sm:order-3"
         :disabled="workspace.is_disabled"
