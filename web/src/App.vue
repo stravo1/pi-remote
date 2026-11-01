@@ -284,9 +284,10 @@ function closeProject(): void {
           leave-active-class="transition duration-100 ease-in"
           leave-to-class="opacity-0 translate-y-1"
         >
+          <!-- `z-20` keeps the button over the run headers, which stick at `z-10`. -->
           <Button
             v-if="isScrolledUp"
-            class="absolute bottom-2 left-1/2 -translate-x-1/2 !rounded-full border border-outline-gray-1 !bg-surface-gray-2 hover:!bg-surface-gray-3 text-ink-gray-7 shadow-sm"
+            class="absolute bottom-2 left-1/2 z-20 -translate-x-1/2 !rounded-full border border-outline-gray-1 !bg-surface-gray-2 hover:!bg-surface-gray-3 text-ink-gray-7 shadow-sm"
             variant="ghost"
             :size="buttonSize"
             icon="lucide-arrow-down"

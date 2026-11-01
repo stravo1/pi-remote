@@ -76,11 +76,39 @@ async function openApp(context: TestContext, width: number): Promise<Page> {
               bashCall("five", "pwd"),
               bashResult("five"),
               { role: "assistant", content: [{ type: "text", text: "All checks passed." }] },
+              // Enough content above the folded run that scrolling can put its header at the bottom.
+              {
+                role: "assistant",
+                content: [
+                  {
+                    type: "text",
+                    text: Array.from(
+                      { length: 16 },
+                      (_, index) =>
+                        `Paragraph ${index} gives the transcript room to move, so the folded run can sit at the bottom.`,
+                    ).join("\n\n"),
+                  },
+                ],
+              },
               // A run long enough that its expanded list scrolls past the viewport.
               ...Array.from({ length: 30 }, (_, index) => [
                 bashCall(`long-${index}`, `echo ${index}`),
                 bashResult(`long-${index}`),
               ]).flat(),
+              // Enough content after the folded run that it can sit at the bottom of the view.
+              {
+                role: "assistant",
+                content: [
+                  {
+                    type: "text",
+                    text: Array.from(
+                      { length: 10 },
+                      (_, index) =>
+                        `Paragraph ${index} gives the transcript room to move, so the folded run can sit at the bottom of the view.`,
+                    ).join("\n\n"),
+                  },
+                ],
+              },
             ],
           }),
         );
@@ -151,6 +179,61 @@ for (const width of [375, 1280]) {
         await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
         true,
         "The pinned header does not widen the page",
+      );
+    },
+  );
+
+  test(
+    `the scroll button stays above a run header at ${width}px`,
+    { skip: browserSkipReason, timeout: 30_000 },
+    async (context) => {
+      const page = await openApp(context, width);
+      const run = page.getByRole("button", { name: /Ran 30 commands/ });
+      await run.waitFor();
+
+      // Scroll the folded run so its header sits under the floating scroll button.
+      const transcript = page.getByLabel("Conversation");
+      const scroller = await transcript.elementHandle();
+      const headerTop = await run.evaluate((button, element) => {
+        const box = element as HTMLElement;
+        return button.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+      }, scroller);
+      await transcript.evaluate(
+        (element, top) => element.scrollTo({ top: top - (element.clientHeight - 32) }),
+        headerTop,
+      );
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+
+      const scrollButton = page.getByRole("button", { name: "Scroll to bottom" });
+      await scrollButton.waitFor();
+      await page.waitForTimeout(200);
+      const headerOverlapsButton = await run.evaluate((header) => {
+        const button = document.querySelector('[aria-label="Scroll to bottom"]');
+        if (!button) return false;
+        const headerBox = header.getBoundingClientRect();
+        const buttonBox = button.getBoundingClientRect();
+        return headerBox.top < buttonBox.bottom && headerBox.bottom > buttonBox.top;
+      });
+      assert.equal(headerOverlapsButton, true, "The fixture puts the run header under the scroll button");
+
+      // Every point inside the circle must reach the button, not the header behind it.
+      const hitTargets = await scrollButton.evaluate((button) => {
+        const box = button.getBoundingClientRect();
+        return [0.3, 0.5, 0.7].flatMap((x) =>
+          [0.3, 0.5, 0.7].map((y) => {
+            const hit = document.elementFromPoint(box.x + box.width * x, box.y + box.height * y);
+            return hit && button.contains(hit) ? "button" : (hit?.tagName ?? "nothing");
+          }),
+        );
+      });
+      assert.deepEqual(hitTargets, Array<string>(9).fill("button"), "A run header hides part of the scroll button");
+
+      await scrollButton.click();
+      await page.evaluate(() => new Promise(requestAnimationFrame));
+      assert.equal(
+        await transcript.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight < 32),
+        true,
+        "The button scrolls back to the bottom",
       );
     },
   );
