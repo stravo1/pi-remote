@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { Button, TextInput } from "frappe-ui";
-import type { ModelChoice, SessionSettings } from "../../../server/src/protocol.ts";
+import type { ContextUsage, ModelChoice, SessionSettings } from "../../../server/src/protocol.ts";
 import { getModelKey, loadRecentKeys, rememberModel } from "../recent-models.ts";
+import { formatContextUsage } from "../session-info.ts";
 
 export type SettingsView = "main" | "models" | "effort";
 
-const props = defineProps<{ settings: SessionSettings; disabled: boolean; isRunning: boolean; isSheet?: boolean }>();
+const props = defineProps<{
+  settings: SessionSettings;
+  contextUsage?: ContextUsage;
+  disabled: boolean;
+  isRunning: boolean;
+  isSheet?: boolean;
+}>();
 const emit = defineEmits<{ model: [value: string]; thinking: [level: string] }>();
 const titles: Record<SettingsView, string> = { main: "Select model", models: "More models", effort: "Effort" };
 const view = defineModel<SettingsView>("view", { required: true });
@@ -157,6 +164,7 @@ function chooseEffort(level: string): void {
           <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
         </button>
       </div>
+      <p v-if="contextUsage" class="px-1 text-p-sm text-ink-gray-5">Context: {{ formatContextUsage(contextUsage) }}</p>
       <p class="px-1 text-p-sm text-ink-gray-5">Settings apply to this session on every device.</p>
     </template>
     <template v-else-if="view === 'models'">

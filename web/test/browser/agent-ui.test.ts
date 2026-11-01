@@ -86,6 +86,7 @@ for (const width of [375, 1280]) {
           seq: sequence,
           isStreaming: isRunning,
           settings: state,
+          contextUsage: { tokens: 42_000, contextWindow: 200_000, percent: 21 },
           queue: { steering: [], followUp: [] },
           runEvents: [],
           messages: [
@@ -309,6 +310,7 @@ for (const width of [375, 1280]) {
     await page.getByRole("button", { name: "Session settings", exact: true }).click();
     const dialog = page.locator("[data-session-settings]");
     await dialog.waitFor();
+    await dialog.getByText("Context: 42,000 of 200,000 (21%)").waitFor();
     const drawerHeight = await dialog.evaluate((element) => element.getBoundingClientRect().height);
     if (width === 375) {
       const bottomSpace = await dialog.evaluate((element) => {

@@ -223,6 +223,7 @@ function closeProject(): void {
           <SessionSettingsMenu
             v-if="workspace.settings"
             :settings="workspace.settings"
+            :context-usage="workspace.contextUsage"
             :is-running="workspace.transcript.is_running"
             :disabled="workspace.is_disabled || workspace.isUpdatingSettings"
             @model="(value) => workspace.setModel(value)"

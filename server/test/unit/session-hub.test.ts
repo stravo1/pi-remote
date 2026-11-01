@@ -154,6 +154,27 @@ test("fans events out in seq order and gives a late subscriber the run buffer", 
   assert.equal(metrics[0].eventCount, 2);
 });
 
+test("reports context usage when a run settles, and in a fresh snapshot", async (context) => {
+  const { hub, source, client } = setup();
+  context.after(() => hub.close());
+  const viewer = client();
+  await hub.subscribe(viewer, "old");
+  const session = source.sessions.get("old")!;
+  session.contextUsage = { tokens: 1500, contextWindow: 100_000, percent: 1.5 };
+  const run = hub.prompt("old", "Go");
+  for (let attempt = 0; attempt < 100 && !session.is_running; attempt++)
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  session.finish();
+  await run;
+  const usage = (messages: any[]) => messages.filter((message) => message.type === "context_usage");
+  assert.deepEqual(usage(viewer.messages), [
+    { type: "context_usage", sessionId: "old", contextUsage: session.contextUsage },
+  ]);
+  const late = client();
+  await hub.subscribe(late, "old");
+  assert.deepEqual(late.messages[0].contextUsage, session.contextUsage);
+});
+
 test("delivers image data in snapshots and events", async (context) => {
   const { hub, source, client } = setup();
   context.after(() => hub.close());

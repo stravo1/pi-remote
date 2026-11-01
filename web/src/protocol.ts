@@ -1,5 +1,6 @@
 import {
   lastUserActivity,
+  type ContextUsage,
   type DefaultModelSettings,
   type ModelChoice,
   type ProjectGroup,
@@ -62,6 +63,7 @@ export type ServerMessage =
   | { type: "session_created"; sessionId: string }
   | { type: "group_created"; project: string }
   | { type: "session_info"; sessionId: string; info: SessionInfo }
+  | { type: "context_usage"; sessionId: string; contextUsage?: ContextUsage }
   | { type: "providers"; providers: ProviderSettings[] }
   | { type: "provider_key"; provider: string; apiKey: string }
   | ({ type: "default_model" } & DefaultModelSettings)

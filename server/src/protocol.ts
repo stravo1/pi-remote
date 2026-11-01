@@ -27,15 +27,19 @@ export type SessionEvent =
   | Exclude<AgentSessionEvent, { type: "queue_update" }>
   | { type: "queue_update"; steering: QueuedMessage[]; followUp: QueuedMessage[] };
 
+export type SessionInfo = Omit<SessionStats, "sessionFile">;
+
+/** pi's estimate of the current context window usage. */
+export type ContextUsage = NonNullable<SessionInfo["contextUsage"]>;
+
 export interface Snapshot {
   messages: AgentSession["messages"];
   isStreaming: boolean;
   isCompacting: boolean;
   queue: { steering: QueuedMessage[]; followUp: QueuedMessage[] };
   settings?: SessionSettings;
+  contextUsage?: ContextUsage;
 }
-
-export type SessionInfo = Omit<SessionStats, "sessionFile">;
 
 export interface ModelChoice {
   provider: string;

@@ -7,6 +7,7 @@ import type { Snapshot } from "../../../server/src/protocol.ts";
 type AgentMessage = Snapshot["messages"][number];
 type AssistantMessage = Extract<AgentMessage, { role: "assistant" }>;
 import type { SessionInfo } from "../../../server/src/protocol.ts";
+import { formatContextUsage } from "../../src/session-info.ts";
 import { Workspace } from "../../src/workspace.ts";
 
 function setup() {
@@ -92,6 +93,37 @@ test("a snapshot rebuilds the transcript, including the partial message of the r
     ],
   );
   assert.equal(workspace.transcript.is_running, true);
+});
+
+test("keeps context usage for the open session and drops another session's", () => {
+  const { workspace } = setup();
+  const usage = { tokens: 1500, contextWindow: 100_000, percent: 1.5 };
+  workspace.handle({ type: "context_usage", sessionId: "other", contextUsage: usage });
+  assert.equal(workspace.contextUsage, undefined);
+  workspace.handle({ type: "context_usage", sessionId: "one", contextUsage: usage });
+  assert.deepEqual(workspace.contextUsage, usage);
+  const afterCompaction = { tokens: null, contextWindow: 100_000, percent: null };
+  workspace.handle({ ...snapshot, contextUsage: afterCompaction });
+  assert.deepEqual(workspace.contextUsage, afterCompaction);
+  (globalThis as any).location = { hash: "" };
+  try {
+    workspace.select("");
+  } finally {
+    delete (globalThis as any).location;
+  }
+  assert.equal(workspace.contextUsage, undefined);
+});
+
+test("formats context usage for the drawer and the session note", () => {
+  assert.equal(
+    formatContextUsage({ tokens: 19_352, contextWindow: 1_000_000, percent: 1.94 }),
+    "19,352 of 1,000,000 (2%)",
+  );
+  assert.equal(
+    formatContextUsage({ tokens: null, contextWindow: 1_000_000, percent: null }),
+    "Unknown until the next reply",
+  );
+  assert.equal(formatContextUsage(undefined), "Unknown until the next reply");
 });
 
 test("reports a final provider error for the shell toast", () => {

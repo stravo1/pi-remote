@@ -1,4 +1,5 @@
 import type {
+  ContextUsage,
   PromptImage,
   QueuedMessage,
   SessionEvent,
@@ -27,6 +28,7 @@ export class FakeSession implements HubSession {
     commands: [{ name: "review", description: "Review the diff" }],
   };
   listener: (event: SessionEvent) => void = () => {};
+  contextUsage: ContextUsage | undefined;
   private nextQueuedId = 0;
   finish: () => void = () => {};
 
@@ -43,6 +45,7 @@ export class FakeSession implements HubSession {
       isCompacting: false,
       queue: structuredClone(this.pending),
       settings: this.settings,
+      contextUsage: this.contextUsage,
     };
   }
 

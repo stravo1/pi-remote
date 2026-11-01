@@ -1,4 +1,5 @@
 import type {
+  ContextUsage,
   DefaultModelSettings,
   ProviderLoginEvent,
   ProviderSettings,
@@ -29,6 +30,7 @@ export class Workspace {
   isSending = false;
   isUpdatingSettings = false;
   settings?: SessionSettings;
+  contextUsage?: ContextUsage;
   private pendingName?: string;
   providers: ProviderSettings[] = [];
   providerLogin?: { id?: string; event?: ProviderLoginEvent; notice?: ProviderLoginEvent };
@@ -99,6 +101,7 @@ export class Workspace {
     if (location.hash.slice(1) !== sessionId) location.hash = sessionId;
     this.transcript = new Transcript();
     this.settings = undefined;
+    this.contextUsage = undefined;
     this.pendingName = undefined;
     this.isSending = false;
     this.isUpdatingSettings = false;
@@ -296,6 +299,9 @@ export class Workspace {
       case "session_info":
         if (message.sessionId === this.sessionId) this.transcript.addNotice(formatSessionInfo(message.info));
         break;
+      case "context_usage":
+        if (message.sessionId === this.sessionId) this.contextUsage = message.contextUsage;
+        break;
       case "snapshot":
         this.applySnapshot(message);
         break;
@@ -354,6 +360,7 @@ export class Workspace {
     if (message.sessionId !== this.sessionId) return;
     this.transcript.load(message);
     this.settings = message.settings;
+    this.contextUsage = message.contextUsage;
     this.isUpdatingSettings = false;
     this.lastSequence = message.seq;
     this.isSyncing = false;

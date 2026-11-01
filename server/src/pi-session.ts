@@ -4,6 +4,7 @@ import type { ImageContent } from "@earendil-works/pi-ai";
 import { SessionSummaryJob } from "./session-summary-job.ts";
 import type {
   CommandChoice,
+  ContextUsage,
   ModelChoice,
   PromptImage,
   QueuedMessage,
@@ -89,7 +90,12 @@ export class PiSession {
       isCompacting: this.session.isCompacting,
       queue: this.syncQueue(),
       settings: this.settings,
+      contextUsage: this.contextUsage,
     };
+  }
+
+  get contextUsage(): ContextUsage | undefined {
+    return this.session.getContextUsage();
   }
 
   private syncQueue(): { steering: QueuedMessage[]; followUp: QueuedMessage[] } {

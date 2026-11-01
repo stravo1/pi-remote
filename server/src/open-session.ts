@@ -19,6 +19,7 @@ export type HubSession = Pick<
   | "name"
   | "rename"
   | "info"
+  | "contextUsage"
   | "compact"
   | "abort"
   | "subscribe"
@@ -88,6 +89,9 @@ export class OpenSession {
       this.bytes += Buffer.byteLength(message);
     }
     this.record(event);
+    // Context usage moves when a reply or a compaction lands, so the model drawer gets it
+    // without waiting for the next full snapshot.
+    if (event.type === "agent_settled" || event.type === "compaction_end") this.sendContextUsage();
     // Run state and names show on the session list, so the list needs a refresh.
     if (["agent_start", "agent_settled", "session_info_changed"].includes(event.type)) this.onChange(event);
   }
@@ -95,6 +99,15 @@ export class OpenSession {
   sendSnapshot(clients: Iterable<HubClient> = this.subscribers): void {
     const message = JSON.stringify(this.snapshot);
     for (const client of clients) client.send(message);
+  }
+
+  private sendContextUsage(): void {
+    const message = JSON.stringify({
+      type: "context_usage",
+      sessionId: this.id,
+      contextUsage: this.session.contextUsage,
+    });
+    for (const client of this.subscribers) client.send(message);
   }
 
   async close(): Promise<void> {
