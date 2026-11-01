@@ -12,6 +12,13 @@ const projects = [
       { id: "many-second", firstMessage: "Second chat", modified: 1200, lastUserMessage: 1200, isRunning: false },
       { id: "many-third", firstMessage: "Third chat", modified: 1100, lastUserMessage: 1100, isRunning: false },
       { id: "many-old", firstMessage: "Oldest chat", modified: 1000, lastUserMessage: 1000, isRunning: false },
+      ...Array.from({ length: 12 }, (_, index) => ({
+        id: `many-f${index}`,
+        firstMessage: `Earlier chat ${12 - index}`,
+        modified: 990 - index,
+        lastUserMessage: 990 - index,
+        isRunning: false,
+      })),
     ],
   },
   {
@@ -103,6 +110,23 @@ test(
 
     await page.getByRole("button", { name: "All sessions" }).click();
     await allSessions.waitFor();
+  },
+);
+
+test(
+  "a phone opens a project page on its latest session",
+  { skip: browserSkipReason, timeout: 30_000 },
+  async (context) => {
+    const page = await openList(context, 375);
+    const project = page.getByRole("region", { name: "many" });
+    await project.getByRole("button", { name: "View all sessions" }).click();
+    await page.getByRole("region", { name: "many" }).getByRole("heading", { name: "many" }).waitFor();
+    await page.waitForFunction(() => {
+      const list = document.querySelector("main[aria-label='Sessions']");
+      return !!list && list.scrollTop + list.clientHeight >= list.scrollHeight - 32;
+    });
+    const lastTitle = await project.locator("li button span.block.truncate").last().textContent();
+    assert.equal(lastTitle, "Newest chat", "The latest session sits at the bottom of the page");
   },
 );
 

@@ -41,6 +41,8 @@ const orderedProjects = computed(() => {
   return orderProjects(projects, !isPhone.value);
 });
 const isProjectPage = computed(() => !!props.projectPath);
+// A phone opens the full project page on its newest session, which sits at the bottom of the list.
+let openAtLatest = props.projectPath !== undefined;
 
 function shownSessions(project: ProjectGroup): ProjectGroup["sessions"] {
   if (isProjectPage.value) return project.sessions;
@@ -57,6 +59,7 @@ function handleViewportChange(event: MediaQueryListEvent): void {
 
 async function scrollToBottom(): Promise<void> {
   if (!isPhone.value || props.isLoading) return;
+  openAtLatest = false;
   await nextTick();
   listElement.value?.scrollTo({ top: listElement.value.scrollHeight });
 }
@@ -103,9 +106,20 @@ function runMenuAction(action: () => void): void {
 }
 
 watch(
+  () => props.projectPath,
+  () => {
+    openAtLatest = isProjectPage.value;
+    if (isProjectPage.value) scrollToBottom();
+  },
+);
+watch(
   () => props.projects,
   () => {
     isRemoving.value = false;
+    if (openAtLatest) {
+      scrollToBottom();
+      return;
+    }
     followBottom();
   },
 );
