@@ -1,7 +1,7 @@
 # Phase 5: Extras
 
 Status: In progress
-Last updated: 2026-10-28
+Last updated: 2026-10-31
 
 ## Goal
 
@@ -59,10 +59,14 @@ Two `install-service.sh` fixes came out of the race: units render to temp files 
 
 P5.3 is half done. `web/src/tools.ts` gains the `NestedToolCall` shape, tool-aware `getToolCommand` rows (codemode script preview, `tool_search` query, MCP argument summaries), `getToolSource` for the full script, and `splitToolName` for `mcp__<server>__<tool>`. `web/src/transcript.ts` records nested calls from live `parentToolCallId` events and merges the durable `nestedCalls` result record, and `settle()` interrupts still-running nested calls. `web/src/components/ToolCard.vue` shows the server prefix, the full name in the row `title`, and up to six nested rows with status icons and durations, gray with red only for failure. Not committed yet: the changes sit in the working tree (`web/src/tools.ts`, `web/src/transcript.ts`, `web/src/components/ToolCard.vue`, their tests, and this doc). `npm run check` and 65 web unit tests pass.
 
+The test suites now come in tiers, and the browser suite runs on this host. `test/unit/` holds the logic tests, `test/integration/` holds the ones that bind a socket, spawn the dev proxy, or run real pi sessions, and shared helpers sit in `test/support/`. `npm run test:unit` takes about 6 seconds and `npm run test:integration` about 16; `npm test` still runs both, so CI and the phase done-checks are unchanged. The browser checks failed on this host only because the cached headless shell was missing its system libraries. `web/test/support/browser.ts` now probes Chromium once per file and skips every browser check with one clear line when it cannot start, and installs nothing.
+
+Two things were wrong once the suite could run. The folded-run fixture ran five bash calls back to back with no message between them, so the app correctly made one run of five and the test waited forever for a run of three; a text message now separates the runs. `web/src/components/ThinkingBlock.vue` takes `isOpen`, and `ToolRun.vue` opens the thinking blocks inside an expanded run, which is what the prompt asked for and what the test asserts.
+
 ## Handoff
 
-Next step: run the browser suite on the Mac (`npm run test:browser -w web`) to close P5.3; then start P5.4 with the extension UI bridge. The phone confirmation is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call. That closes P5.1 and P5.2 with the real device evidence the tasks asked for.
+Next step: commit the working tree. The browser suite now runs and passes on this host (`npm run test:browser -w web`, 20 of 20), so P5.3's folded-run and card paths have their browser evidence and the task can close once the run is repeated after `sudo env "PATH=$PATH" npx playwright install-deps chromium` puts the libraries in `/usr/lib` instead of a local extraction. Then start P5.4 with the extension UI bridge. The phone confirmation is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call. That closes P5.1 and P5.2 with the real device evidence the tasks asked for.
 
-Blockers: the browser suite needs the Mac. P5.4's manager and OAuth flows need the user's decisions about which MCP servers they actually run on the host.
+Blockers: the browser suite needs Chromium's system libraries (`sudo env "PATH=$PATH" npx playwright install-deps chromium`) and this host has no swap. P5.4's manager and OAuth flows need the user's decisions about which MCP servers they actually run on the host.
 
-How to check the current state: `npm run check`, `npm test` (server 104, web 65), `npm run format:check` (one pre-existing warning in `docs/phases/phase-1-basic-app.md`). Husky needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`. Deploy-side: pushes render the app unit themselves; `deploy/test_install_service.py` covers the installer. On the host: `tail ~/.pi/agent/mcp.log` after a suspicious session, and a fresh phone session for an end-to-end check (a cold `npx` cache can leave the first minutes tool-less, so prewarm a new server's command by hand once).
+How to check the current state: `npm run check`, `npm run test:unit` (server 57, web 65), `npm run test:integration` (server 48, web 2), `npm run format:check` (one pre-existing warning in `docs/phases/phase-1-basic-app.md`). Husky needs `export PATH="$HOME/.local/bin:$PATH"` before `git commit`. Deploy-side: pushes render the app unit themselves; `deploy/test_install_service.py` covers the installer. On the host: `tail ~/.pi/agent/mcp.log` after a suspicious session, and a fresh phone session for an end-to-end check (a cold `npx` cache can leave the first minutes tool-less, so prewarm a new server's command by hand once).

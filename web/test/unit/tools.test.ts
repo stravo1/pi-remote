@@ -7,7 +7,7 @@ import {
   getToolSource,
   splitToolName,
   type ToolCall,
-} from "../src/tools.ts";
+} from "../../src/tools.ts";
 
 function fakeTool(name: string, arguments_: Record<string, unknown>, output = ""): ToolCall {
   return { id: "one", name, arguments: arguments_, status: "pending", output };

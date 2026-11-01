@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { ToolCall } from "../src/tools.ts";
-import type { TranscriptMessage } from "../src/transcript.ts";
-import { MINIMUM_GROUP_SIZE, getTranscriptItems } from "../src/tool-runs.ts";
+import type { ToolCall } from "../../src/tools.ts";
+import type { TranscriptMessage } from "../../src/transcript.ts";
+import { MINIMUM_GROUP_SIZE, getTranscriptItems } from "../../src/tool-runs.ts";
 
 function tool(id: string): ToolCall {
   return { id, name: "bash", arguments: { command: `echo ${id}` }, status: "success", output: "" };

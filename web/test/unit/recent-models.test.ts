@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadRecentKeys, rememberModel } from "../src/recent-models.ts";
+import { loadRecentKeys, rememberModel } from "../../src/recent-models.ts";
 
 const model = (id: string) => ({ provider: "faux", id, name: id });
 

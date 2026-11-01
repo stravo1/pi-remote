@@ -9,11 +9,11 @@ import { spawn } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
-import type { Configuration } from "../../server/src/config.ts";
-import { SessionHub } from "../../server/src/session-hub.ts";
-import { Transport } from "../../server/src/transport.ts";
-import { FakeSource } from "../../server/test/fake-source.ts";
-import { ProjectStore } from "../../server/src/project-store.ts";
+import type { Configuration } from "../../../server/src/config.ts";
+import { SessionHub } from "../../../server/src/session-hub.ts";
+import { Transport } from "../../../server/src/transport.ts";
+import { FakeSource } from "../../../server/test/support/fake-source.ts";
+import { ProjectStore } from "../../../server/src/project-store.ts";
 
 async function getFreePort(): Promise<number> {
   const server = createServer();
@@ -63,7 +63,7 @@ async function startDevServer(context: TestContext, flags: string[] = []) {
   const path = join(directory, "configuration.json");
   await writeFile(path, JSON.stringify(configuration));
   const child = spawn(process.execPath, ["dev.ts", path, ...flags], {
-    cwd: fileURLToPath(new URL("..", import.meta.url)),
+    cwd: fileURLToPath(new URL("../..", import.meta.url)),
     stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";

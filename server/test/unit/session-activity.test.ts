@@ -3,7 +3,7 @@ import { appendFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { SessionActivity } from "../src/session-activity.ts";
+import { SessionActivity } from "../../src/session-activity.ts";
 
 const header = JSON.stringify({
   type: "session",

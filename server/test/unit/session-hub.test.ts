@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { FakeSource } from "./fake-source.ts";
+import { FakeSource } from "../support/fake-source.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ProjectStore } from "../src/project-store.ts";
-import type { SessionEvent, Snapshot } from "../src/protocol.ts";
-import type { RunNotice } from "../src/push-notifier.ts";
-import { SessionHub, type RunMetrics } from "../src/session-hub.ts";
+import { ProjectStore } from "../../src/project-store.ts";
+import type { SessionEvent, Snapshot } from "../../src/protocol.ts";
+import type { RunNotice } from "../../src/push-notifier.ts";
+import { SessionHub, type RunMetrics } from "../../src/session-hub.ts";
 
 function setup(idleMinutes = 30) {
   const source = new FakeSource();

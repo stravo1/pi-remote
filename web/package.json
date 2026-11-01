@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "node dev.ts",
     "build": "vite build",
-    "test": "node --test test/*.test.ts",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --test test/unit/*.test.ts",
+    "test:integration": "node --test test/integration/*.test.ts",
     "check": "vue-tsc --noEmit",
     "test:browser": "npm run build && node --test test/browser/*.test.ts"
   },

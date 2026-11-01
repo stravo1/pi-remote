@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getSessionTitle, orderProjects, projectHash, projectPathFromHash } from "../src/protocol.ts";
+import { getSessionTitle, orderProjects, projectHash, projectPathFromHash } from "../../src/protocol.ts";
 
 test("round-trips project paths in their page hash", () => {
   const hash = projectHash("/home/me/Code/my project");

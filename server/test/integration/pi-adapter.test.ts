@@ -25,10 +25,10 @@ import {
   type JsonRpcRequest,
   type McpTransport,
 } from "@earendil-works/pi-mcp";
-import { PiAdapter } from "../src/pi-adapter.ts";
+import { PiAdapter } from "../../src/pi-adapter.ts";
 
 const pixelPng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
-import { SessionSummaryJob } from "../src/session-summary-job.ts";
+import { SessionSummaryJob } from "../../src/session-summary-job.ts";
 
 async function setup(
   context: TestContext,

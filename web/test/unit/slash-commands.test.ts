@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getCommandMatches, ownCommands } from "../src/slash-commands.ts";
+import { getCommandMatches, ownCommands } from "../../src/slash-commands.ts";
 
 const commands = [...ownCommands, { name: "review" }, { name: "skill:notes" }, { name: "rename-files" }];
 const names = (text: string) => getCommandMatches(text, commands).map((command) => command.name);

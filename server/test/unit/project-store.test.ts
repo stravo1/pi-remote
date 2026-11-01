@@ -3,7 +3,7 @@ import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
-import { ProjectStore } from "../src/project-store.ts";
+import { ProjectStore } from "../../src/project-store.ts";
 
 async function setup(context: TestContext) {
   const root = await mkdtemp(join(tmpdir(), "pi-remote-groups-"));

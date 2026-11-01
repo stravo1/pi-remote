@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { preview } from "vite";
-import { chromium } from "playwright";
+import { browserSkipReason, launchBrowser } from "../support/browser.ts";
 
 const session = { id: "one", name: "Long", firstMessage: "Hi", modified: 1, isRunning: false };
 const messages = Array.from({ length: 150 }, (_, index) => ({
@@ -12,17 +12,14 @@ const messages = Array.from({ length: 150 }, (_, index) => ({
 
 test(
   "a long session renders its last messages first and earlier ones on scroll",
-  { timeout: 30_000 },
+  { skip: browserSkipReason, timeout: 30_000 },
   async (context) => {
     const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
     context.after(() => {
       if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
       return new Promise<void>((resolve) => server.httpServer.close(() => resolve()));
     });
-    const browser = await chromium.launch({
-      headless: true,
-      executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-    });
+    const browser = await launchBrowser();
     context.after(() => browser.close());
     const page = await browser.newPage({ viewport: { width: 375, height: 812 }, hasTouch: true });
     page.setDefaultTimeout(5000);

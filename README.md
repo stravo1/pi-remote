@@ -97,17 +97,26 @@ Then open `http://127.0.0.1:8080` in the browser on your machine. The SSH tunnel
 Check your changes with:
 
 ```sh
-npm test
+npm run test:unit        # logic only: no sockets, child processes, or browser
+npm run test:integration # WebSocket server, the dev proxy, and real pi sessions
+npm test                 # both of the above
 npm run check
 npm run build
 ```
+
+The unit tier takes a few seconds, so run it while you iterate. `npm test` is what CI runs.
 
 Run the isolated browser checks with:
 
 ```sh
 npx playwright install chromium
+sudo env "PATH=$PATH" npx playwright install-deps chromium
 npm run test:browser -w web
 ```
+
+The `env` keeps this shell's PATH, because sudo drops it and the Node install lives in `~/.local/bin`.
+
+Without a working Chromium, the browser checks report one skipped line per test and pass.
 
 The browser checks use headless Chromium with a temporary profile at 375 px and 1280 px. They cover tool diffs, the model sheet, thinking levels, follow-up, steer, and Stop. Screenshots go to `pi-remote-phase-3` inside the system temporary directory. If Chromium is already installed elsewhere, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` to that browser executable.
 

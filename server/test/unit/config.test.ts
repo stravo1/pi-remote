@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { getConfiguration, getConfigurationFile } from "../src/config.ts";
+import { getConfiguration, getConfigurationFile } from "../../src/config.ts";
 
 const valid = {
   host: "127.0.0.1",

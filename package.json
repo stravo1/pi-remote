@@ -11,6 +11,8 @@
   },
   "scripts": {
     "test": "npm test --workspaces",
+    "test:unit": "npm run test:unit --workspaces",
+    "test:integration": "npm run test:integration --workspaces",
     "check": "npm run check --workspaces",
     "build": "npm run build -w web",
     "start": "npm start -w server --",

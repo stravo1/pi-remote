@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderMarkdown } from "../src/markdown.ts";
+import { renderMarkdown } from "../../src/markdown.ts";
 
 test("renders common markdown", () => {
   const html = renderMarkdown("# Title\n\n**bold** and `code`\n\n- one\n- two\n\n```ts\nconst a = 1;\n```");

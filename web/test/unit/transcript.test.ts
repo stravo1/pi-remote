@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import type { SessionEvent } from "../../server/src/protocol.ts";
-import { Transcript } from "../src/transcript.ts";
+import type { SessionEvent } from "../../../server/src/protocol.ts";
+import { Transcript } from "../../src/transcript.ts";
 
 test("replays the spike tool-call log and skips system messages", async () => {
-  const contents = await readFile(new URL("./fixtures/tool-call.jsonl", import.meta.url), "utf8");
+  const contents = await readFile(new URL("../fixtures/tool-call.jsonl", import.meta.url), "utf8");
   const transcript = new Transcript();
   for (const line of contents.trim().split("\n")) transcript.apply(JSON.parse(line));
   assert.equal(

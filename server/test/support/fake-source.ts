@@ -5,8 +5,8 @@ import type {
   SessionInfo,
   SessionSettings,
   Snapshot,
-} from "../src/protocol.ts";
-import type { HubSession, SessionSource } from "../src/session-hub.ts";
+} from "../../src/protocol.ts";
+import type { HubSession, SessionSource } from "../../src/session-hub.ts";
 
 export class FakeSession implements HubSession {
   is_running = false;

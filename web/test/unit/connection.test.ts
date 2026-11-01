@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Connection, getBackoffDelay, NOT_CONNECTED_MESSAGE, type ConnectionEnvironment } from "../src/connection.ts";
-import type { ConnectionStatus } from "../src/protocol.ts";
+import {
+  Connection,
+  getBackoffDelay,
+  NOT_CONNECTED_MESSAGE,
+  type ConnectionEnvironment,
+} from "../../src/connection.ts";
+import type { ConnectionStatus } from "../../src/protocol.ts";
 
 class FakeSocket {
   readyState: number = WebSocket.CONNECTING;

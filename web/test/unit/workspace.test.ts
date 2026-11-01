@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { NOT_CONNECTED_MESSAGE } from "../src/connection.ts";
-import type { EventMessage, SnapshotMessage } from "../src/protocol.ts";
-import type { Snapshot } from "../../server/src/protocol.ts";
+import { NOT_CONNECTED_MESSAGE } from "../../src/connection.ts";
+import type { EventMessage, SnapshotMessage } from "../../src/protocol.ts";
+import type { Snapshot } from "../../../server/src/protocol.ts";
 
 type AgentMessage = Snapshot["messages"][number];
 type AssistantMessage = Extract<AgentMessage, { role: "assistant" }>;
-import type { SessionInfo } from "../../server/src/protocol.ts";
-import { Workspace } from "../src/workspace.ts";
+import type { SessionInfo } from "../../../server/src/protocol.ts";
+import { Workspace } from "../../src/workspace.ts";
 
 function setup() {
   const sent: any[] = [];

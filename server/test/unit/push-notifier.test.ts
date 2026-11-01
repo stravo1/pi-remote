@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { WebPushError } from "web-push";
-import { PushNotifier } from "../src/push-notifier.ts";
+import { PushNotifier } from "../../src/push-notifier.ts";
 
 const subscription = (name: string) => ({
   endpoint: `https://push.example.com/${name}`,

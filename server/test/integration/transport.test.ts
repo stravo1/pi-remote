@@ -5,12 +5,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test, type TestContext } from "node:test";
 import { WebSocket } from "ws";
-import type { Configuration } from "../src/config.ts";
-import { SessionHub } from "../src/session-hub.ts";
-import { Transport, type ProviderManager } from "../src/transport.ts";
-import { FakeSource } from "./fake-source.ts";
-import { ProjectStore } from "../src/project-store.ts";
-import type { PushNotifier } from "../src/push-notifier.ts";
+import type { Configuration } from "../../src/config.ts";
+import { SessionHub } from "../../src/session-hub.ts";
+import { Transport, type ProviderManager } from "../../src/transport.ts";
+import { FakeSource } from "../support/fake-source.ts";
+import { ProjectStore } from "../../src/project-store.ts";
+import type { PushNotifier } from "../../src/push-notifier.ts";
 
 async function setup(context: TestContext, pingInterval = 10_000, providers?: ProviderManager, push?: PushNotifier) {
   const directory = await mkdtemp(join(tmpdir(), "pi-remote-transport-"));
