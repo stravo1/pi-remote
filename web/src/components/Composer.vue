@@ -248,7 +248,7 @@ function onMenuKey(event: KeyboardEvent): void {
               </div>
             </div>
           </li>
-          <li v-for="message in queue.followUp" :key="message.id" class="flex min-h-10 items-start gap-2 px-3 py-1.5">
+          <li v-for="message in queue.followUp" :key="message.id" class="flex min-h-10 items-start gap-2 px-3 py-2">
             <span class="lucide-clock mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
             <div class="min-w-0 flex-1 space-y-1">
               <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">{{ message.text }}</p>
@@ -265,7 +265,7 @@ function onMenuKey(event: KeyboardEvent): void {
             <Button
               variant="ghost"
               size="sm"
-              class="shrink-0 self-center"
+              class="-mt-1 shrink-0"
               icon="lucide-arrow-up"
               aria-label="Send now"
               @click="emit('steer', message.id)"
