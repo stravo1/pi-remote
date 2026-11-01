@@ -164,7 +164,9 @@ function chooseEffort(level: string): void {
           <span class="lucide-chevron-right size-5 text-ink-gray-4" aria-hidden="true" />
         </button>
       </div>
-      <p v-if="contextUsage" class="px-1 text-p-sm text-ink-gray-5">Context: {{ formatContextUsage(contextUsage) }}</p>
+      <p v-if="contextUsage" class="px-1 text-p-sm text-ink-gray-5">
+        Context: {{ formatContextUsage(contextUsage, true) }}
+      </p>
       <p class="px-1 text-p-sm text-ink-gray-5">Settings apply to this session on every device.</p>
     </template>
     <template v-else-if="view === 'models'">

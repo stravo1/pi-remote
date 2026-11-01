@@ -114,16 +114,15 @@ test("keeps context usage for the open session and drops another session's", () 
   assert.equal(workspace.contextUsage, undefined);
 });
 
-test("formats context usage for the drawer and the session note", () => {
+test("formats context usage exactly for the session note and compact for the drawer", () => {
+  const usage = { tokens: 99_421, contextWindow: 1_000_000, percent: 9.94 };
+  assert.equal(formatContextUsage(usage), "99,421 of 1,000,000 (10%)");
+  assert.equal(formatContextUsage(usage, true), "99K of 1M (10%)");
   assert.equal(
-    formatContextUsage({ tokens: 19_352, contextWindow: 1_000_000, percent: 1.94 }),
-    "19,352 of 1,000,000 (2%)",
-  );
-  assert.equal(
-    formatContextUsage({ tokens: null, contextWindow: 1_000_000, percent: null }),
+    formatContextUsage({ tokens: null, contextWindow: 1_000_000, percent: null }, true),
     "Unknown until the next reply",
   );
-  assert.equal(formatContextUsage(undefined), "Unknown until the next reply");
+  assert.equal(formatContextUsage(undefined, true), "Unknown until the next reply");
 });
 
 test("reports a final provider error for the shell toast", () => {

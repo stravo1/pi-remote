@@ -1,13 +1,18 @@
 import type { ContextUsage, SessionInfo } from "../../server/src/protocol.ts";
 
 const numberFormat = new Intl.NumberFormat();
+const compactNumberFormat = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 0 });
 const costFormat = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 4 });
 
-/** pi reports null tokens right after a compaction, until the next reply settles. */
-export function formatContextUsage(usage: ContextUsage | undefined): string {
+/**
+ * pi reports null tokens right after a compaction, until the next reply settles.
+ * The drawer is a glance and asks for compact counts; the `/session` note keeps exact ones.
+ */
+export function formatContextUsage(usage: ContextUsage | undefined, isCompact = false): string {
   if (usage?.tokens == null) return "Unknown until the next reply";
+  const formatCount = isCompact ? compactNumberFormat.format : numberFormat.format;
   const percent = Math.round(usage.percent ?? 0);
-  return `${numberFormat.format(usage.tokens)} of ${numberFormat.format(usage.contextWindow)} (${percent}%)`;
+  return `${formatCount(usage.tokens)} of ${formatCount(usage.contextWindow)} (${percent}%)`;
 }
 
 export function formatSessionInfo(info: SessionInfo): string {
