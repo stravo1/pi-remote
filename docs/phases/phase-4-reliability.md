@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-11-03 (codebase tidy audit; reliability tasks unchanged)
+Last updated: 2026-11-03 (codebase tidy audit and browser fixture consolidation; reliability tasks unchanged)
 
 ## Goal
 
@@ -48,7 +48,7 @@ Out of scope: notifications, tool approval, file browsing, terminals, attachment
 
 ## Progress
 
-The codebase tidy pass read all 114 hand-maintained source, test, asset, and configuration files at baseline `557a062`. It removed unused type imports from `server/src/pi-adapter.ts`, `web/src/protocol.ts`, and `web/src/transcript.ts`, plus the unused login helper argument. No runtime behavior changed. The full suite still passes with 172 tests, the browser suite passes with 21 tests and no skips, both workspaces pass type checking, and the production build passes. All six deployment tests pass. The full format check has one existing warning in `docs/phases/phase-1-basic-app.md`. No reliability task was completed by this pass.
+The codebase tidy pass read all 114 hand-maintained source, test, asset, and configuration files at baseline `557a062`. Commit `75446a7` removed unused type imports from `server/src/pi-adapter.ts`, `web/src/protocol.ts`, and `web/src/transcript.ts`, plus the unused login helper argument. The F7 cleanup makes all seven browser suites use `getPreviewServer(context)` from `web/test/support/browser.ts` for identical Vite preview startup and teardown. This removes 24 lines overall from the eight test files. Page options, fake protocol handlers, assertions, and cleanup order stay unchanged. The full suite passes with 172 tests, the browser suite passes with 21 tests and no skips, both workspaces pass type checking, and the production build passes. All six deployment tests pass. The full format check has one existing warning in `docs/phases/phase-1-basic-app.md`. No reliability task was completed by this pass.
 
 P4.1 is complete. The app restarted after a forced `SIGKILL`. Its PID changed from 16390 to 16497, and `NRestarts` increased to 1.
 
@@ -122,9 +122,9 @@ The header of an expanded run now stays pinned to the top of the transcript, so 
 
 ## Handoff
 
-Current tidy snapshot: coverage is 114/114 files, recorded in `/tmp/pi-remote-tidy-coverage-20261103.md`. The uncommitted change removes only unused type imports and the unused `requestLoginInput` argument in three production modules. The user has not approved a commit. Baseline and final checks pass with 172 app tests, 21 browser tests, six deployment tests, type checking, and a production build. The format check still flags only `docs/phases/phase-1-basic-app.md`.
+Current tidy snapshot: coverage is 114/114 files, recorded in `/tmp/pi-remote-tidy-coverage-20261103.md`. The user approved committing the unused-declarations cleanup, now `75446a7`, and implementing F7. The user also approved committing and pushing F7. This change consolidates seven identical preview lifecycle blocks across eight test files into `getPreviewServer(context)` in the existing browser support module. No production code, dependency, or lockfile changed in F7. Final checks pass with 172 app tests, 21 browser tests with no skips, six deployment tests, type checking, and a production build. The format check still flags only `docs/phases/phase-1-basic-app.md`.
 
-The highest-value next cleanup is the identical Vite preview startup and teardown in all seven browser suites. Consolidate it into the existing `web/test/support/browser.ts`, but ask the user before touching eight files. Preserve each suite's page options and fake protocol. The browser baseline works on this host now. Deferred smaller findings are the pass-through `SessionHub.getProjects` method, the loosely typed push sender stub, the inaccurate status-precedence comment in `ToolRun.vue`, and unused integration-test bindings. Keep visible UI convention changes and the dev-proxy readiness timeout fix separate from refactoring. One baseline run hit `TimeoutError` in `waitForProxy`; the resumed baseline and final full run passed. SDK queue internals, optional browser storage, and partial session-file reads remain unchanged. The earlier historical notes below are not the current working-tree snapshot.
+Run focused browser tests from `web/`, not the repository root, so Vite finds the app. An initial root-directory invocation failed; the refactor was reverted, the correct focused baseline passed, and the same refactor was reapplied and verified. Deferred smaller findings are the pass-through `SessionHub.getProjects` method, the loosely typed push sender stub, the inaccurate status-precedence comment in `ToolRun.vue`, and unused integration-test bindings. Keep visible UI convention changes and the dev-proxy readiness timeout fix separate from refactoring. One earlier baseline run hit `TimeoutError` in `waitForProxy`; the resumed baseline and final full runs passed. SDK queue internals, optional browser storage, and partial session-file reads remain unchanged. The earlier historical notes below are not the current working-tree snapshot.
 
 The MCP work moved to `docs/phases/phase-5-extras.md`, which also holds the uncommitted MCP transcript UI changes and their next steps. Recorded here only what phase 4 needs this session: commit `0fcd7dd` added the extension bindings and `session_shutdown` on session close (the clean-shutdown part of P4.6), and `32563da` added a PATH line to the installed-through-template app unit. Both were committed with the husky hook after `export PATH="$HOME/.local/bin:$PATH"`, which runs prettier, both workspaces' checks, and their full unit suites (104 server, 60 web), all green.
 

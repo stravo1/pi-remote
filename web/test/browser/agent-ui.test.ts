@@ -3,9 +3,8 @@ import { mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { preview } from "vite";
 import { type Locator, type Page, type WebSocketRoute } from "playwright";
-import { browserSkipReason, launchBrowser } from "../support/browser.ts";
+import { browserSkipReason, getPreviewServer, launchBrowser } from "../support/browser.ts";
 
 const settings = {
   model: { provider: "faux", id: "first", name: "First model", hasImageInput: true },
@@ -44,11 +43,7 @@ async function screenshot(page: Page, name: string): Promise<void> {
 
 for (const width of [375, 1280]) {
   test(`agent UI at ${width}px`, { skip: browserSkipReason, timeout: 30_000 }, async (context) => {
-    const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
-    context.after(() => {
-      if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
-      return new Promise<void>((resolve) => server.httpServer.close(() => resolve()));
-    });
+    const server = await getPreviewServer(context);
     const browser = await launchBrowser();
     context.after(() => browser.close());
     const page = await browser.newPage({ viewport: { width, height: 812 }, hasTouch: width === 375 });

@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { preview } from "vite";
 import { type Page } from "playwright";
-import { browserSkipReason, launchBrowser } from "../support/browser.ts";
+import { browserSkipReason, getPreviewServer, launchBrowser } from "../support/browser.ts";
 
 const projects = [
   {
@@ -55,11 +54,7 @@ const desktopOrder = [
 ];
 
 async function openList(context: TestContext, width: number): Promise<Page> {
-  const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
-  context.after(() => {
-    if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
-    return new Promise<void>((resolve) => server.httpServer.close(() => resolve()));
-  });
+  const server = await getPreviewServer(context);
   const browser = await launchBrowser();
   context.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width, height: 812 }, hasTouch: width === 375 });

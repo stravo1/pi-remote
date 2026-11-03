@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test, type TestContext } from "node:test";
-import { preview } from "vite";
-import { browserSkipReason, launchBrowser } from "../support/browser.ts";
+import { browserSkipReason, getPreviewServer, launchBrowser } from "../support/browser.ts";
 
 const session = { id: "one", name: "Old name", firstMessage: "Hi", modified: 1, isRunning: false };
 const info = {
@@ -17,11 +16,7 @@ const info = {
 };
 
 async function open(context: TestContext, hash: string, pushKey: string | null, isPushSupported = true) {
-  const server = await preview({ server: { host: "127.0.0.1" }, preview: { host: "127.0.0.1", port: 0 } });
-  context.after(() => {
-    if ("closeAllConnections" in server.httpServer) server.httpServer.closeAllConnections();
-    return new Promise<void>((resolve) => server.httpServer.close(() => resolve()));
-  });
+  const server = await getPreviewServer(context);
   const browser = await launchBrowser();
   context.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 375, height: 812 }, hasTouch: true });
