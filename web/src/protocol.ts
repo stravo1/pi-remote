@@ -2,7 +2,6 @@ import {
   lastUserActivity,
   type ContextUsage,
   type DefaultModelSettings,
-  type ModelChoice,
   type ProjectGroup,
   type ProviderLoginEvent,
   type ProviderSettings,

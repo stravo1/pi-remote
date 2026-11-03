@@ -1,6 +1,6 @@
 import type { SessionEvent, Snapshot } from "../../server/src/protocol.ts";
 
-import { getToolDiff, getToolOutput, type NestedToolCall, type ToolCall } from "./tools.ts";
+import { getToolDiff, getToolOutput, type ToolCall } from "./tools.ts";
 
 export interface TranscriptBlock {
   type: "text" | "thinking" | "toolCall" | "image";

@@ -14,10 +14,10 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { randomUUID } from "node:crypto";
 import { rm } from "node:fs/promises";
-import type { AuthEvent, AuthPrompt, AuthType } from "@earendil-works/pi-ai";
+import type { AuthPrompt, AuthType } from "@earendil-works/pi-ai";
 import { SessionActivity } from "./session-activity.ts";
 import { describeModel, PiSession, shutdownExtensions } from "./pi-session.ts";
-import type { DefaultModelSettings, ModelChoice, ProviderLoginEvent, ProviderSettings } from "./protocol.ts";
+import type { DefaultModelSettings, ProviderLoginEvent, ProviderSettings } from "./protocol.ts";
 
 /**
  * Sessions that opt out of the user's agent directory (tests and sandboxes set `agentDir`)
@@ -204,7 +204,7 @@ export class PiAdapter {
           {
             signal: pending.controller.signal,
             notify,
-            prompt: (prompt) => this.requestLoginInput(loginId, pending, prompt, notify),
+            prompt: (prompt) => this.requestLoginInput(pending, prompt, notify),
           },
           { agentName: "pi remote", getDeviceId: () => this.getSettingsManager().getOrCreateDeviceId() },
         ),
@@ -327,7 +327,6 @@ export class PiAdapter {
   }
 
   private requestLoginInput(
-    loginId: string,
     pending: PendingLogin,
     prompt: AuthPrompt,
     notify: (event: ProviderLoginEvent) => void,

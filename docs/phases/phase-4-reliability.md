@@ -1,7 +1,7 @@
 # Phase 4: Make it reliable
 
 Status: In progress
-Last updated: 2026-10-29 (pull-forwarded extras moved to phase-5-extras.md; this doc keeps reliability only)
+Last updated: 2026-11-03 (codebase tidy audit; reliability tasks unchanged)
 
 ## Goal
 
@@ -47,6 +47,8 @@ Out of scope: notifications, tool approval, file browsing, terminals, attachment
 | Move pull-forwarded extras (MCP first) into `docs/phases/phase-5-extras.md`. | One doc per phase, and Phase 4 is reliability only. Earlier extras stay recorded in this Progress until a tidy. | No            |
 
 ## Progress
+
+The codebase tidy pass read all 114 hand-maintained source, test, asset, and configuration files at baseline `557a062`. It removed unused type imports from `server/src/pi-adapter.ts`, `web/src/protocol.ts`, and `web/src/transcript.ts`, plus the unused login helper argument. No runtime behavior changed. The full suite still passes with 172 tests, the browser suite passes with 21 tests and no skips, both workspaces pass type checking, and the production build passes. All six deployment tests pass. The full format check has one existing warning in `docs/phases/phase-1-basic-app.md`. No reliability task was completed by this pass.
 
 P4.1 is complete. The app restarted after a forced `SIGKILL`. Its PID changed from 16390 to 16497, and `NRestarts` increased to 1.
 
@@ -120,7 +122,9 @@ The header of an expanded run now stays pinned to the top of the transcript, so 
 
 ## Handoff
 
-An out-of-scope full tidy audit read 85/85 hand-maintained source files. The coverage ledger is `/tmp/pi-remote-tidy-coverage.md`, including `web/src/style.css`, which the survey script omitted. Baseline `20d447e7d6f856c2b8f85bdc3bb2661828cad10b` passed `npm test` with 104 server and 60 web tests in 22.087 seconds. The approved refactors split `PiSession` into `server/src/pi-session.ts` (255 lines), leaving `PiAdapter` at 342 lines, moved its type consumer in `open-session.ts`, consolidated tool status labels and icons in `ToolCard.vue`, and merged the duplicate `.markdown pre` rule. `npm test`, `npm run check`, `npm run build`, targeted Prettier, and `python3 -m unittest deploy.test_service_setup -v` pass after the refactors. The full Prettier check still fails for pre-existing formatting in `docs/phases/phase-1-basic-app.md`. The existing `server/test/pi-adapter.test.ts` remains an integration suite because splitting it would duplicate its setup. Browser test consolidation stays deferred because this host has no working browser baseline.
+Current tidy snapshot: coverage is 114/114 files, recorded in `/tmp/pi-remote-tidy-coverage-20261103.md`. The uncommitted change removes only unused type imports and the unused `requestLoginInput` argument in three production modules. The user has not approved a commit. Baseline and final checks pass with 172 app tests, 21 browser tests, six deployment tests, type checking, and a production build. The format check still flags only `docs/phases/phase-1-basic-app.md`.
+
+The highest-value next cleanup is the identical Vite preview startup and teardown in all seven browser suites. Consolidate it into the existing `web/test/support/browser.ts`, but ask the user before touching eight files. Preserve each suite's page options and fake protocol. The browser baseline works on this host now. Deferred smaller findings are the pass-through `SessionHub.getProjects` method, the loosely typed push sender stub, the inaccurate status-precedence comment in `ToolRun.vue`, and unused integration-test bindings. Keep visible UI convention changes and the dev-proxy readiness timeout fix separate from refactoring. One baseline run hit `TimeoutError` in `waitForProxy`; the resumed baseline and final full run passed. SDK queue internals, optional browser storage, and partial session-file reads remain unchanged. The earlier historical notes below are not the current working-tree snapshot.
 
 The MCP work moved to `docs/phases/phase-5-extras.md`, which also holds the uncommitted MCP transcript UI changes and their next steps. Recorded here only what phase 4 needs this session: commit `0fcd7dd` added the extension bindings and `session_shutdown` on session close (the clean-shutdown part of P4.6), and `32563da` added a PATH line to the installed-through-template app unit. Both were committed with the husky hook after `export PATH="$HOME/.local/bin:$PATH"`, which runs prettier, both workspaces' checks, and their full unit suites (104 server, 60 web), all green.
 
