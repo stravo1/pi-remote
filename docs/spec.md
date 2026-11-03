@@ -301,7 +301,7 @@ Every command that targets a session names it with `sessionId`.
 ## Open questions
 
 1. Answered: pi has a scripted provider. See [pi events](pi-events.md#fake-model-spec-open-question-1).
-2. Must the transcript show thinking blocks, or hide them by default?
+2. Answered: the transcript shows each thinking block as a closed "Thinking" row. It opens only when the reader taps it, never automatically, including inside an expanded tool run.
 3. How large can `snapshot` get for a long session? If it is too large, page the messages.
 4. Which model access does the host use: Sign in with ChatGPT (`/login openai`), an OpenRouter key, or another API key? A Claude subscription does not work with pi, because Anthropic limits subscription logins to its own apps.
 5. Must the server cut `message_update` events before it sends them? Each one repeats the full partial message twice. Options: send them unchanged, drop `message` and `partial` and let the client build the message from deltas, or send only the latest update at a set interval. Measure on a phone in Phase 1 or 3.

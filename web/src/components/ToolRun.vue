@@ -68,7 +68,7 @@ const status = computed<Status>(() => {
     <div v-if="isOutputOpen" class="divide-y divide-outline-gray-1">
       <template v-for="(entity, index) in entities" :key="index">
         <div v-if="entity.type === 'thinking'" class="px-3 py-2">
-          <ThinkingBlock :text="entity.text" is-open />
+          <ThinkingBlock :text="entity.text" />
         </div>
         <ToolCard v-else :tool="entity.tool" is-flat />
       </template>

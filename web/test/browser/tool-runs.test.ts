@@ -138,8 +138,12 @@ for (const width of [375, 1280]) {
       await page.getByText(command, { exact: true }).waitFor();
     }
     assert.equal(await page.getByRole("button", { name: /^bash / }).count(), 5);
-    await page.getByText("Thinking", { exact: true }).waitFor();
-    await page.getByText("I will run the checks in order.").waitFor();
+    const thinking = page.getByText("Thinking", { exact: true });
+    const thinkingText = page.getByText("I will run the checks in order.");
+    await thinking.waitFor();
+    assert.equal(await thinkingText.isVisible(), false, "A run does not open its thinking blocks");
+    await thinking.click();
+    await thinkingText.waitFor();
 
     assert.equal(
       await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
