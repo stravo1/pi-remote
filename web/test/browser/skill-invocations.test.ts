@@ -19,11 +19,9 @@ async function open(context: TestContext, messages: object[]) {
   context.after(() => browser.close());
   const page = await browser.newPage({ viewport: { width: 375, height: 812 }, hasTouch: true });
   page.setDefaultTimeout(5000);
-  const commands: any[] = [];
   await page.routeWebSocket("**/ws", (route) => {
     route.onMessage((raw) => {
       const command = JSON.parse(String(raw));
-      commands.push(command);
       if (command.type === "list_sessions")
         route.send(
           JSON.stringify({
@@ -50,14 +48,14 @@ async function open(context: TestContext, messages: object[]) {
   const address = server.httpServer.address();
   assert.ok(address && typeof address === "object");
   await page.goto(`http://127.0.0.1:${address.port}/#one`);
-  return { page, commands };
+  return page;
 }
 
 test(
   "shows a skill invocation as one row and hides the skill text until tapped",
   { skip: browserSkipReason, timeout: 30_000 },
   async (context) => {
-    const { page } = await open(context, [
+    const page = await open(context, [
       {
         role: "user",
         timestamp: 1,
@@ -91,18 +89,16 @@ test(
   },
 );
 
-test("picks a skill in the middle of a sentence", { skip: browserSkipReason, timeout: 30_000 }, async (context) => {
-  const { page, commands } = await open(context, []);
-  const message = page.getByRole("textbox", { name: "Message", exact: true });
-  await message.fill("ask /dem");
-  await page.getByRole("option", { name: /\/skill:demo/ }).click();
-  assert.equal(await message.inputValue(), "ask /skill:demo ");
-  await page.getByRole("button", { name: "Send prompt" }).click();
-  await assert.doesNotReject(async () => {
-    for (let attempt = 0; attempt < 100; attempt++) {
-      if (commands.some((command) => command.type === "prompt" && command.text === "ask /skill:demo ")) return;
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-    assert.fail("The prompt did not reach the server.");
-  });
-});
+test(
+  "keeps the command list to the first word of the message",
+  { skip: browserSkipReason, timeout: 30_000 },
+  async (context) => {
+    const page = await open(context, []);
+    const message = page.getByRole("textbox", { name: "Message", exact: true });
+    await message.fill("/dem");
+    await page.getByRole("option", { name: /\/skill:demo/ }).waitFor();
+    await message.fill("ask /dem");
+    await page.waitForTimeout(300);
+    assert.equal(await page.getByRole("listbox", { name: "Commands" }).count(), 0);
+  },
+);
