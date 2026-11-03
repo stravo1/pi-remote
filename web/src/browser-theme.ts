@@ -9,7 +9,15 @@ const THEME_COLORS: Record<ResolvedColorScheme, string> = {
   dark: "#171717",
 };
 
+// A tab bar follows the scheme on screen too, so the icon switches with it
+// rather than with the device setting.
+const FAVICONS: Record<ResolvedColorScheme, string> = {
+  light: "/favicon-light.svg",
+  dark: "/favicon-dark.svg",
+};
+
 export function applyBrowserTheme(scheme: ResolvedColorScheme): void {
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[scheme]);
   document.querySelector('meta[name="color-scheme"]')?.setAttribute("content", scheme);
+  document.querySelector('link[rel="icon"]')?.setAttribute("href", FAVICONS[scheme]);
 }

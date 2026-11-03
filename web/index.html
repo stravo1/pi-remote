@@ -6,6 +6,7 @@
     <title>pi remote</title>
     <meta name="theme-color" content="#ffffff" />
     <meta name="color-scheme" content="light" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-light.svg" />
     <script>
       // Paint the saved color scheme before the app loads, so a dark page does not flash light.
       // The installed app also paints its status bar from these two meta tags.
@@ -15,9 +16,11 @@
         document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");
         document.querySelector('meta[name="theme-color"]').setAttribute("content", isDark ? "#171717" : "#ffffff");
         document.querySelector('meta[name="color-scheme"]').setAttribute("content", isDark ? "dark" : "light");
+        document
+          .querySelector('link[rel="icon"]')
+          .setAttribute("href", isDark ? "/favicon-dark.svg" : "/favicon-light.svg");
       } catch {}
     </script>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <!-- The login proxy guards every file, so the manifest request must carry the login cookie. -->
     <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

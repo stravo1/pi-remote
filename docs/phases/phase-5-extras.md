@@ -1,7 +1,7 @@
 # Phase 5: Extras
 
 Status: In progress
-Last updated: 2026-11-01
+Last updated: 2026-11-03
 
 ## Goal
 
@@ -70,9 +70,11 @@ The test suites now come in tiers, and the browser suite runs on this host. `tes
 
 Two things were wrong once the suite could run. The folded-run fixture ran five bash calls back to back with no message between them, so the app correctly made one run of five and the test waited forever for a run of three; a text message now separates the runs. `web/src/components/ThinkingBlock.vue` takes `isOpen`, and `ToolRun.vue` opens the thinking blocks inside an expanded run, which is what the prompt asked for and what the test asserts.
 
+The tab favicon now follows the app scheme, not the device scheme. The old single `web/public/favicon.svg` colored its mark with `prefers-color-scheme`, so a dark device showing the light theme painted a white mark onto a light tab bar. Two files replace it, `favicon-light.svg` and `favicon-dark.svg`, and `web/src/browser-theme.ts` picks one alongside `theme-color` and `color-scheme`. The pre-paint script in `web/index.html` sets the same href before the app loads. `provider-settings.test.ts` asserts the href after a theme switch, after a reload, on a dark device, and on a dark device with the light theme saved. `npm run check`, 65 web unit tests, and the provider-settings browser test pass.
+
 ## Handoff
 
-Next step: commit the working tree, which holds only the P5.6 type-to-focus change (`web/src/App.vue`, `web/src/components/Composer.vue`, and the check in `web/test/browser/agent-ui.test.ts`, plus this phase doc). After the commit, start P5.4 with the extension UI bridge. The phone confirmation for P5.1 and P5.2 is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call.
+Next step: the working tree holds only the favicon fix (`web/index.html`, `web/src/browser-theme.ts`, the provider-settings browser test, and the two new SVGs, replacing `web/public/favicon.svg`). Commit it before starting P5.4. After that, start P5.4 with the extension UI bridge. The phone confirmation for P5.1 and P5.2 is in: a fresh session on the host asked to count the project's TypeScript files, pi answered through a codemode script calling the filesystem MCP server, and the transcript card showed the nested call.
 
 Evidence for the committed state: `npm run check` passes, web unit tests pass (65), and the full browser suite passes on this host (20 of 20), so the P5.3 browser condition is met and Chromium's system libraries are in place. `npm run format:check` has the one pre-existing warning in `docs/phases/phase-1-basic-app.md`.
 

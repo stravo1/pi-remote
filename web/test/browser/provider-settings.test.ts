@@ -196,9 +196,11 @@ test(
       page.evaluate(() => document.querySelector('meta[name="theme-color"]')?.getAttribute("content"));
     const getColorScheme = () =>
       page.evaluate(() => document.querySelector('meta[name="color-scheme"]')?.getAttribute("content"));
+    const getIconHref = () => page.evaluate(() => document.querySelector('link[rel="icon"]')?.getAttribute("href"));
     assert.equal(await getTheme(), "light");
     assert.equal(await getThemeColor(), "#ffffff");
     assert.equal(await getColorScheme(), "light");
+    assert.equal(await getIconHref(), "/favicon-light.svg");
     await page.getByRole("combobox", { name: "Theme" }).click();
     await page.getByRole("option", { name: "Dark" }).click();
     assert.equal(await getTheme(), "dark");
@@ -207,18 +209,22 @@ test(
     await page.waitForFunction(
       () =>
         document.querySelector('meta[name="theme-color"]')?.getAttribute("content") === "#171717" &&
-        document.querySelector('meta[name="color-scheme"]')?.getAttribute("content") === "dark",
+        document.querySelector('meta[name="color-scheme"]')?.getAttribute("content") === "dark" &&
+        document.querySelector('link[rel="icon"]')?.getAttribute("href") === "/favicon-dark.svg",
     );
     // The inline script in index.html applies the saved scheme before the app loads.
     await page.addInitScript(() => {
       document.addEventListener("DOMContentLoaded", () => {
         (window as any).themeBeforeApp = document.documentElement.getAttribute("data-theme");
+        (window as any).iconBeforeApp = document.querySelector('link[rel="icon"]')?.getAttribute("href");
       });
     });
     await page.reload();
     assert.equal(await page.evaluate(() => (window as any).themeBeforeApp), "dark");
+    assert.equal(await page.evaluate(() => (window as any).iconBeforeApp), "/favicon-dark.svg");
     assert.equal(await getThemeColor(), "#171717");
     assert.equal(await getColorScheme(), "dark");
+    assert.equal(await getIconHref(), "/favicon-dark.svg");
     const systemDark = await browser.newPage({ colorScheme: "dark" });
     await systemDark.goto(page.url());
     assert.equal(await systemDark.evaluate(() => document.documentElement.getAttribute("data-theme")), "dark");
@@ -230,6 +236,20 @@ test(
       await systemDark.evaluate(() => document.querySelector('meta[name="color-scheme"]')?.getAttribute("content")),
       "dark",
     );
+    assert.equal(
+      await systemDark.evaluate(() => document.querySelector('link[rel="icon"]')?.getAttribute("href")),
+      "/favicon-dark.svg",
+    );
+    // A dark device must not force a dark icon onto a light tab bar.
+    const darkDeviceLightApp = await browser.newPage({ colorScheme: "dark" });
+    await darkDeviceLightApp.addInitScript(() => localStorage.setItem("theme", "light"));
+    await darkDeviceLightApp.goto(page.url());
+    assert.equal(await darkDeviceLightApp.evaluate(() => document.documentElement.getAttribute("data-theme")), "light");
+    assert.equal(
+      await darkDeviceLightApp.evaluate(() => document.querySelector('link[rel="icon"]')?.getAttribute("href")),
+      "/favicon-light.svg",
+    );
+    await darkDeviceLightApp.close();
     await systemDark.close();
   },
 );
