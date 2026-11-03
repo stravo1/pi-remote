@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import type { ImageContent } from "@earendil-works/pi-ai";
 import { SessionSummaryJob } from "./session-summary-job.ts";
+import { expandSkillCommands, type SkillFile } from "./skill-commands.ts";
 import type {
   CommandChoice,
   ContextUsage,
@@ -109,7 +110,7 @@ export class PiSession {
   async prompt(text: string, images: PromptImage[] = []): Promise<void> {
     if (this.isChanging) throw new Error("The session is changing. Try again when it finishes.");
     if (this.is_running) throw new Error("A run is already active.");
-    const prompt = this.expandSkillName(text);
+    const prompt = expandSkillCommands(text, this.skillFiles);
     this._isRunning = true;
     try {
       await this.session.prompt(prompt, images.length ? { images: images.map(toImageContent) } : undefined);
@@ -120,16 +121,17 @@ export class PiSession {
   }
 
   /**
-   * pi expands `/skill:name` only. A bare skill name, which pi's own completion also accepts,
-   * becomes that command, so a skill can be invoked again at any point in a session.
+   * A skill that shares its name with an extension command or a template keeps that meaning
+   * at the start of a prompt, so only the remaining skills expand.
    */
-  private expandSkillName(text: string): string {
-    const match = /^\/(\S+)(?=\s|$)/.exec(text);
-    if (!match) return text;
-    const name = match[1];
-    if (this.commands.some((command) => command.name === name)) return text;
-    if (!this.session.resourceLoader.getSkills().skills.some((skill) => skill.name === name)) return text;
-    return `/skill:${name}${text.slice(match[0].length)}`;
+  private get skillFiles(): SkillFile[] {
+    const otherNames = new Set(
+      this.commands.filter((command) => !command.name.startsWith("skill:")).map((command) => command.name),
+    );
+    return this.session.resourceLoader
+      .getSkills()
+      .skills.filter((skill) => !otherNames.has(skill.name))
+      .map(({ name, filePath, baseDir }) => ({ name, filePath, baseDir }));
   }
 
   get settings(): SessionSettings {
@@ -164,7 +166,7 @@ export class PiSession {
   async queue(text: string, mode: "steer" | "follow_up", images: PromptImage[] = []): Promise<void> {
     if (!this.is_running) return this.prompt(text, images);
     // Record the expanded text, because pi reports the queue with that same text.
-    const expanded = this.expandSkillName(text);
+    const expanded = expandSkillCommands(text, this.skillFiles);
     const entry: QueuedMessage = { id: randomUUID(), text: expanded, images };
     const key = mode === "steer" ? "steering" : "followUp";
     // Record the images before pi emits its queue update, so that update already carries them.

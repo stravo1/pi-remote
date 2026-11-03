@@ -183,7 +183,7 @@ test("lists a stored session and reopens it with the same messages", async (cont
   assert.deepEqual(reopened.snapshot.messages, messages);
 });
 
-test("runs a skill by its bare name and again later in the session", async (context) => {
+test("runs skills by bare name, more than once, and in the middle of a sentence", async (context) => {
   const { directory, adapter } = await setup(context, [
     fauxAssistantMessage(fauxText("First.")),
     fauxAssistantMessage(fauxText("Second.")),
@@ -192,15 +192,16 @@ test("runs a skill by its bare name and again later in the session", async (cont
   const session = await adapter.create(directory);
   context.after(() => session.close());
   await session.prompt("/demo first");
-  await session.prompt("/demo second");
+  await session.prompt("/demo second and /skill:demo again");
   const texts = session.snapshot.messages
     .filter((message) => message.role === "user")
     .map((message) => (message.content[0] as { text: string }).text);
   assert.equal(texts.length, 2);
   assert.match(texts[0], /^<skill name="demo"/);
   assert.match(texts[0], /first$/);
-  assert.match(texts[1], /^<skill name="demo"/);
-  assert.match(texts[1], /second$/);
+  assert.equal(texts[1].match(/<skill name="demo"/g)?.length, 2);
+  assert.match(texts[1], /second and <skill name="demo"/);
+  assert.match(texts[1], /again$/);
 });
 
 test("names a session that starts with a skill after the skill, not its text", async (context) => {
@@ -210,7 +211,7 @@ test("names a session that starts with a skill after the skill, not its text", a
   await session.prompt("/skill:demo Say hi.");
   await session.close();
   const [summary] = await adapter.list(directory);
-  assert.equal(summary.firstMessage, "Skill demo: Say hi.");
+  assert.equal(summary.firstMessage, "[Skill demo] Say hi.");
 });
 
 for (const mode of ["steer", "follow_up"] as const) {

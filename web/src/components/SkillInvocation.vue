@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { renderMarkdown } from "../markdown.ts";
-import type { SkillBlock } from "../skill-block.ts";
+import type { SkillBlock } from "../../../server/src/skill-blocks.ts";
 
 const props = defineProps<{ skill: SkillBlock }>();
 </script>

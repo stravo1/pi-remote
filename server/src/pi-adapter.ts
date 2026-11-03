@@ -6,7 +6,6 @@ import {
   DefaultResourceLoader,
   getAgentDir,
   ModelRuntime,
-  parseSkillBlock,
   SessionManager,
   SettingsManager,
   type CreateAgentSessionOptions,
@@ -18,6 +17,7 @@ import { rm } from "node:fs/promises";
 import type { AuthPrompt, AuthType } from "@earendil-works/pi-ai";
 import { SessionActivity } from "./session-activity.ts";
 import { describeModel, PiSession, shutdownExtensions } from "./pi-session.ts";
+import { describePrompt } from "./skill-blocks.ts";
 import type { DefaultModelSettings, ProviderLoginEvent, ProviderSettings } from "./protocol.ts";
 
 /**
@@ -27,13 +27,6 @@ import type { DefaultModelSettings, ProviderLoginEvent, ProviderSettings } from 
  */
 function emptyMcpConfig(): LoadedMcpConfig {
   return { servers: [], errors: [] };
-}
-
-/** A skill block would fill the session list with its whole text, so name the skill instead. */
-function describeFirstMessage(text: string): string {
-  const skill = parseSkillBlock(text);
-  if (!skill) return text;
-  return skill.userMessage ? `Skill ${skill.name}: ${skill.userMessage}` : `Skill ${skill.name}`;
 }
 
 export interface SessionSummary {
@@ -85,7 +78,7 @@ export class PiAdapter {
         id: info.id,
         path: info.path,
         name: info.name,
-        firstMessage: describeFirstMessage(info.firstMessage),
+        firstMessage: describePrompt(info.firstMessage),
         modified: info.modified.getTime(),
         lastUserMessage: await this.activity.lastUserMessage(info.path),
       })),
