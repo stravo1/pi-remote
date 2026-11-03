@@ -5,6 +5,7 @@ import { Alert, Button, Textarea } from "frappe-ui";
 import { buttonSize } from "../button-size.ts";
 import type { CommandChoice, Snapshot } from "../../../server/src/protocol.ts";
 import { readImageFile, maxImages, type AttachedImage } from "../images.ts";
+import { describePrompt } from "../skill-block.ts";
 import { getCommandMatches } from "../slash-commands.ts";
 
 const props = defineProps<{
@@ -243,7 +244,9 @@ function onMenuKey(event: KeyboardEvent): void {
               aria-label="After the current turn"
             />
             <div class="min-w-0 flex-1 space-y-1">
-              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">{{ message.text }}</p>
+              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">
+                {{ describePrompt(message.text) }}
+              </p>
               <div v-if="message.images.length" class="flex flex-wrap gap-1" role="list" aria-label="Queued images">
                 <img
                   v-for="(image, index) in message.images"
@@ -258,7 +261,9 @@ function onMenuKey(event: KeyboardEvent): void {
           <li v-for="message in queue.followUp" :key="message.id" class="flex min-h-10 items-start gap-2 px-3 py-2">
             <span class="lucide-clock mt-0.5 size-4 shrink-0 text-ink-gray-5" role="img" aria-label="After this run" />
             <div class="min-w-0 flex-1 space-y-1">
-              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">{{ message.text }}</p>
+              <p v-if="message.text" class="whitespace-pre-wrap break-words text-ink-gray-8">
+                {{ describePrompt(message.text) }}
+              </p>
               <div v-if="message.images.length" class="flex flex-wrap gap-1" role="list" aria-label="Queued images">
                 <img
                   v-for="(image, index) in message.images"

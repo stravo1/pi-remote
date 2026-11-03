@@ -57,6 +57,12 @@ function mcpEntry(name: string, source: string, config: McpServerConfig): McpSer
   return { name, config, source, scope: "global" };
 }
 
+async function writeSkill(agentDir: string, name: string, body: string): Promise<void> {
+  const directory = join(agentDir, "skills", name);
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(directory, "SKILL.md"), `---\nname: ${name}\ndescription: A test skill\n---\n\n${body}\n`);
+}
+
 interface FauxMcpTool {
   name: string;
   description: string;
@@ -175,6 +181,36 @@ test("lists a stored session and reopens it with the same messages", async (cont
   const reopened = await adapter.open(directory, summary.path);
   context.after(() => reopened.close());
   assert.deepEqual(reopened.snapshot.messages, messages);
+});
+
+test("runs a skill by its bare name and again later in the session", async (context) => {
+  const { directory, adapter } = await setup(context, [
+    fauxAssistantMessage(fauxText("First.")),
+    fauxAssistantMessage(fauxText("Second.")),
+  ]);
+  await writeSkill(directory, "demo", "The demo body.");
+  const session = await adapter.create(directory);
+  context.after(() => session.close());
+  await session.prompt("/demo first");
+  await session.prompt("/demo second");
+  const texts = session.snapshot.messages
+    .filter((message) => message.role === "user")
+    .map((message) => (message.content[0] as { text: string }).text);
+  assert.equal(texts.length, 2);
+  assert.match(texts[0], /^<skill name="demo"/);
+  assert.match(texts[0], /first$/);
+  assert.match(texts[1], /^<skill name="demo"/);
+  assert.match(texts[1], /second$/);
+});
+
+test("names a session that starts with a skill after the skill, not its text", async (context) => {
+  const { directory, adapter } = await setup(context, [fauxAssistantMessage(fauxText("Hi there."))]);
+  await writeSkill(directory, "demo", "The demo body.");
+  const session = await adapter.create(directory);
+  await session.prompt("/skill:demo Say hi.");
+  await session.close();
+  const [summary] = await adapter.list(directory);
+  assert.equal(summary.firstMessage, "Skill demo: Say hi.");
 });
 
 for (const mode of ["steer", "follow_up"] as const) {

@@ -13,3 +13,9 @@ test("matches commands while the first word is typed, prefix matches first", () 
   assert.deepEqual(names("/name Fix"), []);
   assert.deepEqual(names("hello /na"), []);
 });
+
+test("matches a skill by its bare name, as pi's own completion offers it", () => {
+  assert.deepEqual(names("/no"), ["skill:notes"]);
+  assert.deepEqual(names("/notes"), ["skill:notes"]);
+  assert.deepEqual(names("/skill:n"), ["skill:notes"]);
+});

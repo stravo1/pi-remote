@@ -109,13 +109,27 @@ export class PiSession {
   async prompt(text: string, images: PromptImage[] = []): Promise<void> {
     if (this.isChanging) throw new Error("The session is changing. Try again when it finishes.");
     if (this.is_running) throw new Error("A run is already active.");
+    const prompt = this.expandSkillName(text);
     this._isRunning = true;
     try {
-      await this.session.prompt(text, images.length ? { images: images.map(toImageContent) } : undefined);
+      await this.session.prompt(prompt, images.length ? { images: images.map(toImageContent) } : undefined);
     } finally {
       this._isRunning = false;
       this.summaryJob.schedule();
     }
+  }
+
+  /**
+   * pi expands `/skill:name` only. A bare skill name, which pi's own completion also accepts,
+   * becomes that command, so a skill can be invoked again at any point in a session.
+   */
+  private expandSkillName(text: string): string {
+    const match = /^\/(\S+)(?=\s|$)/.exec(text);
+    if (!match) return text;
+    const name = match[1];
+    if (this.commands.some((command) => command.name === name)) return text;
+    if (!this.session.resourceLoader.getSkills().skills.some((skill) => skill.name === name)) return text;
+    return `/skill:${name}${text.slice(match[0].length)}`;
   }
 
   get settings(): SessionSettings {
@@ -149,7 +163,9 @@ export class PiSession {
 
   async queue(text: string, mode: "steer" | "follow_up", images: PromptImage[] = []): Promise<void> {
     if (!this.is_running) return this.prompt(text, images);
-    const entry: QueuedMessage = { id: randomUUID(), text, images };
+    // Record the expanded text, because pi reports the queue with that same text.
+    const expanded = this.expandSkillName(text);
+    const entry: QueuedMessage = { id: randomUUID(), text: expanded, images };
     const key = mode === "steer" ? "steering" : "followUp";
     // Record the images before pi emits its queue update, so that update already carries them.
     this.queued[key].push(entry);
@@ -159,7 +175,9 @@ export class PiSession {
     try {
       const contents = images.map(toImageContent);
       const disposition =
-        mode === "steer" ? await this.session.steer(text, contents) : await this.session.followUp(text, contents);
+        mode === "steer"
+          ? await this.session.steer(expanded, contents)
+          : await this.session.followUp(expanded, contents);
       // A handled input ran at once instead of queueing, so forget it again.
       if (disposition !== "queued") forget();
     } catch (error) {

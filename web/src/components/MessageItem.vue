@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ThinkingBlock from "./ThinkingBlock.vue";
 import ToolCard from "./ToolCard.vue";
+import UserText from "./UserText.vue";
 import type { ToolCall } from "../tools.ts";
 import { renderMarkdown } from "../markdown.ts";
 import type { TranscriptMessage } from "../transcript.ts";
@@ -78,12 +79,7 @@ const props = defineProps<{ message: TranscriptMessage; isGroupStart: boolean; t
         >
           <span class="lucide-image size-4" aria-hidden="true" />Image
         </p>
-        <p
-          v-else-if="block.text && message.role === 'user'"
-          class="whitespace-pre-wrap break-words rounded-4 bg-surface-gray-2 px-4 py-3 sm:px-3 sm:py-2 leading-relaxed text-ink-gray-8 text-p-base"
-        >
-          {{ block.text }}
-        </p>
+        <UserText v-else-if="block.text && message.role === 'user'" :text="block.text" />
         <div v-else-if="block.text" class="markdown" v-html="renderMarkdown(block.text)" />
       </template>
     </div>

@@ -6,6 +6,7 @@ import {
   DefaultResourceLoader,
   getAgentDir,
   ModelRuntime,
+  parseSkillBlock,
   SessionManager,
   SettingsManager,
   type CreateAgentSessionOptions,
@@ -26,6 +27,13 @@ import type { DefaultModelSettings, ProviderLoginEvent, ProviderSettings } from 
  */
 function emptyMcpConfig(): LoadedMcpConfig {
   return { servers: [], errors: [] };
+}
+
+/** A skill block would fill the session list with its whole text, so name the skill instead. */
+function describeFirstMessage(text: string): string {
+  const skill = parseSkillBlock(text);
+  if (!skill) return text;
+  return skill.userMessage ? `Skill ${skill.name}: ${skill.userMessage}` : `Skill ${skill.name}`;
 }
 
 export interface SessionSummary {
@@ -77,7 +85,7 @@ export class PiAdapter {
         id: info.id,
         path: info.path,
         name: info.name,
-        firstMessage: info.firstMessage,
+        firstMessage: describeFirstMessage(info.firstMessage),
         modified: info.modified.getTime(),
         lastUserMessage: await this.activity.lastUserMessage(info.path),
       })),
