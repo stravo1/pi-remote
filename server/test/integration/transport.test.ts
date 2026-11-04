@@ -473,6 +473,37 @@ test("hands out the push key and stores device subscriptions", { timeout: 5000 }
   ]);
 });
 
+test("saves the retention period and deletes sessions past it", { timeout: 5000 }, async (context) => {
+  const { url, source, directory } = await setup(context);
+  const socket = await connect(url);
+  source.stored[0].lastUserMessage = Date.now();
+  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  source.stored.push({
+    id: "expired",
+    path: "/s/expired",
+    project: directory,
+    firstMessage: "Old task",
+    modified: threeDaysAgo,
+    lastUserMessage: threeDaysAgo,
+  });
+  assert.deepEqual(await request(socket, { type: "get_settings" }), { type: "settings", retentionDays: null });
+  assert.deepEqual(await request(socket, { type: "set_retention", retentionDays: 2 }), {
+    type: "settings",
+    retentionDays: 2,
+  });
+  const list = await nextReply(socket);
+  assert.deepEqual(
+    list.projects[0].sessions.map((session: { id: string }) => session.id),
+    ["stored"],
+  );
+  assert.deepEqual(
+    source.stored.map((item) => item.id),
+    ["stored"],
+  );
+  assert.match((await request(socket, { type: "set_retention", retentionDays: 0 })).message, /whole number of days/);
+  assert.deepEqual(await request(socket, { type: "get_settings" }), { type: "settings", retentionDays: 2 });
+});
+
 test("reports push as off when the server has no push settings", { timeout: 5000 }, async (context) => {
   const { url } = await setup(context);
   const socket = await connect(url);

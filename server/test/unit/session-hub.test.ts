@@ -8,8 +8,9 @@ import { ProjectStore } from "../../src/project-store.ts";
 import type { SessionEvent, Snapshot } from "../../src/protocol.ts";
 import type { RunNotice } from "../../src/push-notifier.ts";
 import { SessionHub, type RunMetrics } from "../../src/session-hub.ts";
+import { SettingsStore } from "../../src/settings-store.ts";
 
-function setup(idleMinutes = 30) {
+function setup(idleMinutes = 30, settings?: SettingsStore) {
   const source = new FakeSource();
   source.stored.push(
     { id: "old", path: "/s/old", project: "/p/one", firstMessage: "Old task", modified: 3000, lastUserMessage: 1000 },
@@ -33,7 +34,14 @@ function setup(idleMinutes = 30) {
   } as unknown as ProjectStore;
   const notices: RunNotice[] = [];
   const notifier = { notify: async (notice: RunNotice) => void notices.push(notice) };
-  const hub = new SessionHub(source, { projectsRoot: "/p", idleMinutes }, (run) => metrics.push(run), store, notifier);
+  const hub = new SessionHub(
+    source,
+    { projectsRoot: "/p", idleMinutes },
+    (run) => metrics.push(run),
+    store,
+    notifier,
+    settings,
+  );
   const client = () => {
     const messages: any[] = [];
     return { messages, send: (message: string) => messages.push(JSON.parse(message)) };
@@ -244,6 +252,59 @@ test("deletes sessions, closes open ones, and refuses a running one", async (con
     (await hub.getSessionList()).projects.map((project) => project.sessions),
     [[], []],
   );
+});
+
+test("deletes sessions past the retention period and keeps a running one", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "pi-remote-hub-retention-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const { hub, source } = setup(30, new SettingsStore(root));
+  context.after(() => hub.close());
+  const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+  source.stored.push(
+    {
+      id: "expired",
+      path: "/s/expired",
+      project: "/p/two",
+      firstMessage: "Old task",
+      modified: threeDaysAgo,
+      lastUserMessage: threeDaysAgo,
+    },
+    {
+      id: "recent",
+      path: "/s/recent",
+      project: "/p/two",
+      firstMessage: "Recent task",
+      modified: Date.now(),
+      lastUserMessage: Date.now(),
+    },
+  );
+  await hub.setRetention(2);
+  // The setup's two sessions are older than two days as well.
+  assert.deepEqual(
+    source.stored.map((item) => item.id),
+    ["recent"],
+  );
+  const run = hub.prompt("recent", "Go");
+  await new Promise((resolve) => setImmediate(resolve));
+  source.stored[0].lastUserMessage = threeDaysAgo;
+  await hub.setRetention(1);
+  assert.deepEqual(
+    source.stored.map((item) => item.id),
+    ["recent"],
+  );
+  source.sessions.get("recent")!.finish();
+  await run;
+  // A question asked before the deadline restarts the period.
+  source.stored[0].lastUserMessage = Date.now();
+  await hub.sweepRetention();
+  assert.deepEqual(
+    source.stored.map((item) => item.id),
+    ["recent"],
+  );
+  source.stored[0].lastUserMessage = threeDaysAgo;
+  await hub.sweepRetention();
+  assert.deepEqual(source.stored, []);
+  assert.equal(source.sessions.get("recent")!.closed, true);
 });
 
 test("disposes an idle session after idleMinutes and keeps a running one", async (context) => {

@@ -69,6 +69,7 @@ One person runs pi on one machine and uses it from any device through a browser.
   The model list matches the field width and scrolls within a fixed height limit.
   Only models with configured access and supported thinking levels appear. Settings changes require an idle session.
   Choices apply to that session and survive reopening it. They do not change the global defaults.
+- Extension prompts: when pi asks a question through an extension dialog, the client shows a bottom sheet on a phone and a dialog on desktop, with the session it belongs to. A single choice lists its options and answers on tap. A multi select question uses checkboxes and a Submit button. A confirmation shows two buttons, and a text or editor prompt shows a text field. A question that allows free text offers a "Type something" row with an inline field. Dismissing a prompt answers nothing. Every subscriber to the session sees the same prompt and the first answer wins. A prompt that carries a deadline shows it. An open prompt arrives with the snapshot, so a reload or a second device shows it again, and a closed prompt leaves no dialog behind. An extension notice shows as a toast. The run stays active while a prompt waits.
 
 ## Functional requirements
 
@@ -85,6 +86,7 @@ One person runs pi on one machine and uses it from any device through a browser.
 | F9  | Two clients on one session see the same events. Input from either one goes to the session.                                                   |
 | F10 | The server only starts sessions in projects created under `projectsRoot`.                                                                    |
 | F11 | The client creates a project: a new folder directly inside `projectsRoot`.                                                                   |
+| F12 | The client answers questions pi asks through an extension dialog, including several choices in one answer. The run waits for it.             |
 
 ## Non-functional requirements
 
@@ -112,7 +114,7 @@ Each table lists the options, the recommendation, and what the recommendation gi
 
 Recommendation: the SDK in process, behind `PiAdapter`. A second session in the same process adds about 5 MB, which suits a small host. It gives up crash isolation. `PiAdapter` keeps a later move to RPC small.
 
-Note: SDK sessions do not load the `codemode`, `tool_search`, and MCP extensions that the CLI loads. `PiAdapter` adds all three as extension factories to a `DefaultResourceLoader` and calls `session.bindExtensions({})`, so `session_start` fires and MCP servers from `~/.pi/agent/mcp.json` and the project's `.pi/mcp.json` connect. Sessions with an explicit `agentDir`, such as tests, start with an empty server list. `PiSession.close()` emits `session_shutdown` before disposing, which closes stdio MCP servers, because `dispose()` alone does not emit it. The `/mcp` manager command is hidden from the client: it needs an interactive UI pi remote does not offer yet. Settings for MCP servers are managed with the `pi mcp` shell commands on the host.
+Note: SDK sessions do not load the `codemode`, `tool_search`, and MCP extensions that the CLI loads. `PiAdapter` adds all three as extension factories to a `DefaultResourceLoader` and binds the session with a UI context and `mode: "rpc"`, so `session_start` fires and MCP servers from `~/.pi/agent/mcp.json` and the project's `.pi/mcp.json` connect. Sessions with an explicit `agentDir`, such as tests, start with an empty server list. `PiSession.close()` emits `session_shutdown` before disposing, which closes stdio MCP servers, because `dispose()` alone does not emit it. The `/mcp` manager command is hidden from the client: it needs an interactive UI pi remote does not offer yet. Settings for MCP servers are managed with the `pi mcp` shell commands on the host.
 
 ### D2. Who owns the session history
 
@@ -170,6 +172,8 @@ pi runs every tool call without asking. A pi extension can block a call from its
 
 Recommendation: no approval through Phase 3. Add the approval extension in Phase 5. This accepts the same risk as pi in a terminal until then.
 
+The extension prompt bridge serves every dialog an extension opens, including the approval gate. It also carries the model's own questions, so the gate needs only its `tool_call` handler and a `confirm` call.
+
 ### D7. Frontend stack
 
 | Option                          | Gains                                                                            | Costs                                                                                                |
@@ -189,43 +193,50 @@ All messages are JSON over one WebSocket at `/ws`. Every message has a `type`.
 
 Client to server:
 
-| type                    | Fields                                 | Effect                                                                                                       |
-| ----------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `list_sessions`         |                                        | Server replies with `sessions`.                                                                              |
-| `new_group`             | `name`                                 | Creates the folder `<projectsRoot>/<name>` and lists it as a project. Server replies with `group_created`.   |
-| `new_session`           | `project`                              | Returns the project's empty session, or creates one when it has none. Server replies with `session_created`. |
-| `subscribe`             | `sessionId`                            | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages.                    |
-| `unsubscribe`           | `sessionId`                            | Stops events for this client.                                                                                |
-| `prompt`                | `sessionId`, `text`, optional `images` | Starts a run. Rejected during a run.                                                                         |
-| `steer`                 | `sessionId`, `text`, optional `images` | Adds a message after the current turn. Starts a prompt if the run has ended.                                 |
-| `follow_up`             | `sessionId`, `text`, optional `images` | Adds a message after the current run. Starts a prompt if the run has ended.                                  |
-| `steer_follow_up`       | `sessionId`, `id`                      | Moves a queued follow-up to the steer queue, with its images.                                                |
-| `abort`                 | `sessionId`                            | Stops the active run.                                                                                        |
-| `set_model`             | `sessionId`, `provider`, `modelId`     | Selects an available model while idle. Sends a fresh snapshot to all subscribers.                            |
-| `set_thinking_level`    | `sessionId`, `level`                   | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers.                    |
-| `list_providers`        |                                        | Lists AI-provider authentication status. It never includes credentials.                                      |
-| `get_default_model`     |                                        | Lists the models of the active providers and the stored default model.                                       |
-| `set_default_model`     | `provider`, `modelId`                  | Stores the default model for new sessions. Empty `provider` and `modelId` reset it to automatic.             |
-| `set_provider_key`      | `provider`, `apiKey`                   | Stores an API key for a provider on the host.                                                                |
-| `start_provider_login`  | `provider`, `authType`                 | Starts a provider API-key or OAuth login.                                                                    |
-| `submit_provider_login` | `loginId`, `value`                     | Answers the current provider login prompt.                                                                   |
-| `cancel_provider_login` | `loginId`                              | Cancels a pending provider login.                                                                            |
-| `logout_provider`       | `provider`                             | Removes the saved credential for a provider.                                                                 |
+| type                    | Fields                                                                      | Effect                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `list_sessions`         |                                                                             | Server replies with `sessions`.                                                                                                  |
+| `new_group`             | `name`                                                                      | Creates the folder `<projectsRoot>/<name>` and lists it as a project. Server replies with `group_created`.                       |
+| `new_session`           | `project`                                                                   | Returns the project's empty session, or creates one when it has none. Server replies with `session_created`.                     |
+| `subscribe`             | `sessionId`                                                                 | Opens the session if needed. Server replies with `snapshot`, then sends `event` messages.                                        |
+| `unsubscribe`           | `sessionId`                                                                 | Stops events for this client.                                                                                                    |
+| `prompt`                | `sessionId`, `text`, optional `images`                                      | Starts a run. Rejected during a run.                                                                                             |
+| `steer`                 | `sessionId`, `text`, optional `images`                                      | Adds a message after the current turn. Starts a prompt if the run has ended.                                                     |
+| `follow_up`             | `sessionId`, `text`, optional `images`                                      | Adds a message after the current run. Starts a prompt if the run has ended.                                                      |
+| `steer_follow_up`       | `sessionId`, `id`                                                           | Moves a queued follow-up to the steer queue, with its images.                                                                    |
+| `abort`                 | `sessionId`                                                                 | Stops the active run and closes its open prompts.                                                                                |
+| `answer_prompt`         | `sessionId`, `id`, `value`, `confirmed`, or `answers`, optional `cancelled` | Answers an open extension prompt. The first answer wins, and a later answer is an error.                                         |
+| `set_model`             | `sessionId`, `provider`, `modelId`                                          | Selects an available model while idle. Sends a fresh snapshot to all subscribers.                                                |
+| `set_thinking_level`    | `sessionId`, `level`                                                        | Selects a supported thinking level while idle. Sends a fresh snapshot to all subscribers.                                        |
+| `list_providers`        |                                                                             | Lists AI-provider authentication status. It never includes credentials.                                                          |
+| `get_default_model`     |                                                                             | Lists the models of the active providers and the stored default model.                                                           |
+| `set_default_model`     | `provider`, `modelId`                                                       | Stores the default model for new sessions. Empty `provider` and `modelId` reset it to automatic.                                 |
+| `set_provider_key`      | `provider`, `apiKey`                                                        | Stores an API key for a provider on the host.                                                                                    |
+| `start_provider_login`  | `provider`, `authType`                                                      | Starts a provider API-key or OAuth login.                                                                                        |
+| `submit_provider_login` | `loginId`, `value`                                                          | Answers the current provider login prompt.                                                                                       |
+| `cancel_provider_login` | `loginId`                                                                   | Cancels a pending provider login.                                                                                                |
+| `logout_provider`       | `provider`                                                                  | Removes the saved credential for a provider.                                                                                     |
+| `get_settings`          |                                                                             | Server replies with `settings`.                                                                                                  |
+| `set_retention`         | `retentionDays`                                                             | Stores the days a session is kept after its last user message, or `null` for ever. Replies with `settings` and the session list. |
 
 Server to client:
 
-| type                     | Fields                                                                                                                      | Meaning                                                                                                                                         |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sessions`               | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, lastUserMessage, isRunning }] }]`, optional `groupsRoot` | Session list. `lastUserMessage` is absent when the user has not sent a message. `groupsRoot` is present only when the client can create groups. |
-| `group_created`          | `project`                                                                                                                   | The new group is ready.                                                                                                                         |
-| `session_created`        | `sessionId`                                                                                                                 | The new or reused empty session is ready.                                                                                                       |
-| `snapshot`               | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings`                     | Full state at subscribe time or after a settings change. Each queued message has an `id`, its `text`, and its `images`.                         |
-| `event`                  | `sessionId`, `seq`, `event`                                                                                                 | One pi event. Only `queue_update` differs: its messages carry an `id` and their images.                                                         |
-| `error`                  | `message`, optional `sessionId`                                                                                             | A command failed.                                                                                                                               |
-| `providers`              | `providers: [{ id, name, authTypes, isConfigured, source? }]`                                                               | AI-provider status without credentials.                                                                                                         |
-| `default_model`          | `models`, optional `model`                                                                                                  | Models of the active providers, plus the stored default model when it is still available.                                                       |
-| `provider_login_started` | `loginId`                                                                                                                   | A provider login is ready for browser interaction.                                                                                              |
-| `provider_login_event`   | `loginId`, `event`                                                                                                          | A provider URL, device code, progress notice, or input prompt.                                                                                  |
+| type                      | Fields                                                                                                                                                  | Meaning                                                                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessions`                | `projects: [{ path, sessions: [{ id, name, firstMessage, modified, lastUserMessage, isRunning }] }]`, optional `groupsRoot`                             | Session list. `lastUserMessage` is absent when the user has not sent a message. `groupsRoot` is present only when the client can create groups.                           |
+| `group_created`           | `project`                                                                                                                                               | The new group is ready.                                                                                                                                                   |
+| `session_created`         | `sessionId`                                                                                                                                             | The new or reused empty session is ready.                                                                                                                                 |
+| `snapshot`                | `sessionId`, `messages`, `isStreaming`, `queue: { steering, followUp }`, `runEvents`, `seq`, `settings`, `prompts`                                      | Full state at subscribe time or after a settings change. Each queued message has an `id`, its `text`, and its `images`. `prompts` lists the extension prompts still open. |
+| `event`                   | `sessionId`, `seq`, `event`                                                                                                                             | One pi event. Only `queue_update` differs: its messages carry an `id` and their images.                                                                                   |
+| `error`                   | `message`, optional `sessionId`                                                                                                                         | A command failed.                                                                                                                                                         |
+| `providers`               | `providers: [{ id, name, authTypes, isConfigured, source? }]`                                                                                           | AI-provider status without credentials.                                                                                                                                   |
+| `default_model`           | `models`, optional `model`                                                                                                                              | Models of the active providers, plus the stored default model when it is still available.                                                                                 |
+| `provider_login_started`  | `loginId`                                                                                                                                               | A provider login is ready for browser interaction.                                                                                                                        |
+| `settings`                | `retentionDays`                                                                                                                                         | The host's app settings. `retentionDays` is the days a session is kept after its last user message, or `null` for ever.                                                   |
+| `provider_login_event`    | `loginId`, `event`                                                                                                                                      | A provider URL, device code, progress notice, or input prompt.                                                                                                            |
+| `extension_prompt`        | `sessionId`, `id`, `kind`, `title`, optional `message`, `question`, `header`, `options`, `multiple`, `allowOther`, `placeholder`, `prefill`, `deadline` | pi waits for an answer. `kind` is `select`, `confirm`, `input`, `editor`, or `question`. `deadline` is an epoch millisecond time when the extension set a timeout.        |
+| `extension_prompt_closed` | `sessionId`, `id`, `reason`                                                                                                                             | The prompt is no longer open. `reason` is `answered`, `cancelled`, `expired`, or `aborted`.                                                                               |
+| `extension_notice`        | `sessionId`, `message`, `level`                                                                                                                         | An extension notice. `level` is `info`, `warning`, or `error`.                                                                                                            |
 
 `settings` contains `model`, `models`, `thinkingLevel`, and `thinkingLevels`.
 Each model contains only `provider`, `id`, and `name`. The server never sends credentials.
@@ -235,7 +246,11 @@ Provider settings are global to the host's pi auth store. The browser can submit
 
 The settings screen also holds a Default model section. It shows one row for the model that new sessions start with. The picker lists an Automatic entry and the models of the active providers. Automatic means pi picks a model from the active providers. A stored default model disappears from the pick when its provider is removed, and signing out of that provider clears the stored choice, so new sessions pick automatically again. Each open session keeps its own model.
 
+The settings screen also holds an Auto delete section. It deletes a session a chosen number of days after the last message the user sent in it. The choices are one day, one week, one month, never, and a custom number of days. A running session is kept. The server stores the choice in `<projectsRoot>/.pi-remote/settings.json`, so every device sees the same period.
+
 `seq` increases by one for each event in a session. A client that sees a gap sends `subscribe` again and gets a new snapshot.
+
+An extension prompt is not a pi event. The tool call that opened it waits, so the run stays active and the server sends the prompt separately. A `question` prompt answers with `answers`, a list of chosen option labels or typed text. A `select` answers with `value`, a `confirm` with `confirmed`, and an `input` or `editor` with `value`. The client sends `cancelled` when the reader dismisses the prompt.
 
 ## Session lifetime on the server
 
@@ -243,6 +258,7 @@ The settings screen also holds a Default model section. It shows one row for the
 2. The session stays open while a run is active or a client is subscribed.
 3. When neither is true for `idleMinutes`, the server calls `session.dispose()`.
 4. On shutdown, the server aborts active runs and disposes all sessions.
+5. A retention sweep deletes stored sessions whose last user message is older than the retention period, unless the session is running. The period restarts with each user message, because the sweep recomputes the deadline from the latest one. It runs at server start, hourly, and after a change to the setting.
 
 ## Configuration
 
@@ -266,6 +282,7 @@ Credentials stay in pi's auth file or the provider environment.
 `projectsRoot` is an absolute path that holds every project. The client creates projects directly inside it.
 A project name is one path segment of letters, numbers, dots, dashes, or underscores. It cannot start with a dot or dash.
 The server keeps the project list in `<projectsRoot>/.pi-remote/projects.json`.
+The server keeps the retention period in `<projectsRoot>/.pi-remote/settings.json`.
 The server opens no session at start. Each session runs in the project the client picked.
 Every command that targets a session names it with `sessionId`.
 

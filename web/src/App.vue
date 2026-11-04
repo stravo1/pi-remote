@@ -8,6 +8,7 @@ import SessionList from "./components/SessionList.vue";
 import ToolRun from "./components/ToolRun.vue";
 import NotificationSettings from "./components/NotificationSettings.vue";
 import ProviderSettings from "./components/ProviderSettings.vue";
+import RetentionSettings from "./components/RetentionSettings.vue";
 import { buttonSize } from "./button-size.ts";
 import { getSessionTitle, projectHash, projectPathFromHash } from "./protocol.ts";
 import { ownCommands } from "./slash-commands.ts";
@@ -93,6 +94,7 @@ function openSettings(): void {
   workspace.listProviders();
   workspace.loadDefaultModel();
   workspace.loadPush();
+  workspace.loadSettings();
 }
 
 watch(
@@ -188,6 +190,11 @@ function closeProject(): void {
       @answer="(value) => workspace.submitProviderLogin(value)"
       @cancel="() => workspace.cancelProviderLogin()"
     >
+      <RetentionSettings
+        :retention-days="workspace.retentionDays"
+        :is-updating="workspace.isUpdatingRetention"
+        @set="(days) => workspace.setRetention(days)"
+      />
       <NotificationSettings
         :public-key="workspace.pushKey"
         :is-supported="workspace.devicePush.is_supported"

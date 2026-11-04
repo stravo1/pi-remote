@@ -30,6 +30,7 @@ try {
   throw error;
 }
 console.log(`pi remote listening on ${configuration.host}:${configuration.port}`);
+await hub.sweepRetention().catch((error: unknown) => console.error("Session retention failed", error));
 
 let isClosing = false;
 async function close(): Promise<void> {

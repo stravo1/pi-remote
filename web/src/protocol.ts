@@ -69,6 +69,7 @@ export type ServerMessage =
   | { type: "provider_login_started"; loginId: string }
   | { type: "provider_login_event"; loginId: string; event: ProviderLoginEvent }
   | { type: "push_key"; publicKey: string | null }
+  | { type: "settings"; retentionDays: number | null }
   | { type: "push_subscribed" | "push_unsubscribed" };
 
 export function getProjectName(path: string): string {

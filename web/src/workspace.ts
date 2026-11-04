@@ -39,6 +39,9 @@ export class Workspace {
   providerKey?: { provider: string; apiKey: string };
   defaultModel?: DefaultModelSettings;
   isUpdatingDefaultModel = false;
+  // null keeps every session. undefined means the server has not answered yet.
+  retentionDays?: number | null;
+  isUpdatingRetention = false;
   isSyncing = false;
   devicePush = new DevicePush();
   // null means the server has no push settings. undefined means it has not answered yet.
@@ -180,6 +183,16 @@ export class Workspace {
     this.run({ type: "get_push_key" });
   }
 
+  loadSettings(): void {
+    this.run({ type: "get_settings" });
+  }
+
+  setRetention(days: number | null): void {
+    this.error = "";
+    this.isUpdatingRetention = true;
+    this.run({ type: "set_retention", retentionDays: days });
+  }
+
   async enablePush(): Promise<void> {
     await this.updatePush(async () => {
       const subscription = await this.devicePush.subscribe(this.pushKey!);
@@ -291,6 +304,10 @@ export class Workspace {
       case "push_key":
         void this.applyPushKey(message.publicKey);
         break;
+      case "settings":
+        this.retentionDays = message.retentionDays;
+        this.isUpdatingRetention = false;
+        break;
       case "push_subscribed":
       case "push_unsubscribed":
         this.isPushOn = message.type === "push_subscribed";
@@ -314,6 +331,7 @@ export class Workspace {
         this.isUpdatingSettings = false;
         this.isUpdatingPush = false;
         this.isUpdatingDefaultModel = false;
+        this.isUpdatingRetention = false;
         this.error = message.message;
         break;
     }

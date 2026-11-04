@@ -4,6 +4,10 @@ import type { PiAdapter } from "./pi-adapter.ts";
 import { lastUserActivity, type ProjectGroup, type PromptImage, type SessionListItem } from "./protocol.ts";
 import { ProjectStore } from "./project-store.ts";
 import type { PushNotifier } from "./push-notifier.ts";
+import { SettingsStore, type RetentionDays } from "./settings-store.ts";
+
+const dayMilliseconds = 24 * 60 * 60 * 1000;
+const retentionSweepInterval = 60 * 60 * 1000;
 
 export type { HubClient, HubSession, RunMetrics } from "./open-session.ts";
 
@@ -20,6 +24,8 @@ export class SessionHub {
   private readonly logRun: (metrics: RunMetrics) => void;
   private readonly store: ProjectStore;
   private readonly notifier?: Pick<PushNotifier, "notify">;
+  private readonly settings: SettingsStore;
+  private readonly retentionTimer: ReturnType<typeof setInterval>;
   private readonly sessions = new Map<string, OpenSession>();
   private readonly opening = new Map<string, Promise<OpenSession>>();
   // One draft session per project. A draft has no messages and is reused by the next New session click.
@@ -35,12 +41,19 @@ export class SessionHub {
     logRun: (metrics: RunMetrics) => void = (metrics) => console.log(JSON.stringify(metrics)),
     store = new ProjectStore(configuration.projectsRoot),
     notifier?: Pick<PushNotifier, "notify">,
+    settings = new SettingsStore(configuration.projectsRoot),
   ) {
     this.store = store;
     this.notifier = notifier;
+    this.settings = settings;
     this.source = source;
     this.configuration = configuration;
     this.logRun = logRun;
+    this.retentionTimer = setInterval(
+      () => void this.sweepRetention().catch((error: unknown) => console.error("Session retention failed", error)),
+      retentionSweepInterval,
+    );
+    this.retentionTimer.unref();
   }
 
   async getSessionList() {
@@ -74,6 +87,25 @@ export class SessionHub {
         await this.source.delete(project, summary.id);
       }
     }
+  }
+
+  getRetention(): Promise<RetentionDays> {
+    return this.settings.get_retention();
+  }
+
+  async setRetention(days: unknown): Promise<void> {
+    await this.settings.set_retention(days);
+    await this.sweepRetention();
+  }
+
+  /** Deletes stored sessions the retention period no longer keeps. Runs hourly and after a change. */
+  async sweepRetention(): Promise<void> {
+    const days = await this.settings.get_retention();
+    if (days === null) return;
+    const expired = await this.getExpiredSessionIds(Date.now() - days * dayMilliseconds);
+    if (!expired.length) return;
+    await this.deleteSessions(expired);
+    this.scheduleListBroadcast();
   }
 
   async createSession(project: string): Promise<string> {
@@ -163,6 +195,7 @@ export class SessionHub {
   }
 
   async close(): Promise<void> {
+    clearInterval(this.retentionTimer);
     clearTimeout(this.listBroadcast);
     this.listBroadcast = undefined;
     this.drafts.clear();
@@ -174,6 +207,17 @@ export class SessionHub {
 
   private async getProjects(): Promise<string[]> {
     return this.store.list();
+  }
+
+  private async getExpiredSessionIds(cutoff: number): Promise<string[]> {
+    const expired: string[] = [];
+    for (const project of await this.getProjects()) {
+      for (const summary of await this.source.list(project)) {
+        if (this.sessions.get(summary.id)?.session.is_running) continue;
+        if (lastUserActivity(summary) < cutoff) expired.push(summary.id);
+      }
+    }
+    return expired;
   }
 
   private async getProjectSessions(project: string): Promise<SessionListItem[]> {

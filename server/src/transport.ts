@@ -28,6 +28,7 @@ interface Command {
   images?: unknown;
   subscription?: unknown;
   endpoint?: unknown;
+  retentionDays?: unknown;
 }
 
 export interface ProviderManager {
@@ -183,7 +184,20 @@ export class Transport {
       push_unsubscribe: () => this.unsubscribePush(client, command),
       push_test: () =>
         this.requirePush().notify({ sessionId: "", title: "pi remote", body: "Notifications work on this device." }),
+      get_settings: () => this.sendSettings(client),
+      set_retention: () => this.setRetention(client, command),
     };
+  }
+
+  private async sendSettings(client: HubClient): Promise<void> {
+    client.send(JSON.stringify({ type: "settings", retentionDays: await this.hub.getRetention() }));
+  }
+
+  private async setRetention(client: HubClient, command: Command): Promise<void> {
+    await this.hub.setRetention(command.retentionDays);
+    await this.sendSettings(client);
+    // The new period can delete sessions, so the client gets the list in the same reply.
+    client.send(JSON.stringify(await this.hub.getSessionList()));
   }
 
   private async sendSessionInfo(client: HubClient, sessionId: string): Promise<void> {
