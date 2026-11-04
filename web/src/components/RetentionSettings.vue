@@ -53,8 +53,8 @@ function saveCustom(): void {
     <div class="divide-y divide-outline-gray-1 overflow-hidden rounded-4 bg-surface-gray-1">
       <div class="flex min-h-14 items-center gap-3 px-4 py-2 sm:min-h-12">
         <span class="min-w-0 flex-1">
-          <span class="block text-base text-ink-gray-9">Sessions</span>
-          <span class="block text-p-xs text-ink-gray-5">Delete a session after its last message.</span>
+          <span class="block text-base text-ink-gray-9">Interval</span>
+          <span class="block text-p-xs text-ink-gray-5">A running session is kept.</span>
         </span>
         <Select
           class="w-32"
@@ -84,6 +84,5 @@ function saveCustom(): void {
         />
       </form>
     </div>
-    <p class="mt-2 px-1 text-p-sm text-ink-gray-5">A running session is kept.</p>
   </section>
 </template>
