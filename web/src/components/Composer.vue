@@ -6,7 +6,7 @@ import { buttonSize } from "../button-size.ts";
 import type { CommandChoice, Snapshot } from "../../../server/src/protocol.ts";
 import { readImageFile, maxImages, type AttachedImage } from "../images.ts";
 import { describePrompt } from "../../../server/src/skill-blocks.ts";
-import { getCommandMatches } from "../slash-commands.ts";
+import { getCommandMatches, getCommandToken, replaceCommandToken } from "../slash-commands.ts";
 
 const props = defineProps<{
   disabled: boolean;
@@ -168,12 +168,17 @@ function onEnter(event: KeyboardEvent): void {
   if (!hasKeyboard || event.shiftKey || event.isComposing) return;
   event.preventDefault();
   const command = matches.value[highlighted.value];
-  if (command && text.value !== `/${command.name}`) chooseCommand(command);
+  if (command && !isCommandTyped(command)) chooseCommand(command);
   else submit();
 }
 
+function isCommandTyped(command: CommandChoice): boolean {
+  const token = getCommandToken(text.value);
+  return !!token && text.value.slice(token.start) === `/${command.name}`;
+}
+
 function chooseCommand(command: CommandChoice): void {
-  text.value = `/${command.name} `;
+  text.value = replaceCommandToken(text.value, command);
   focusComposer();
 }
 
